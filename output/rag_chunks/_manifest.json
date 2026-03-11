@@ -1,0 +1,58 @@
+[
+  {
+    "file": "Care group.pdf",
+    "status": "success",
+    "pages": 34,
+    "chunks": 98,
+    "error": null
+  },
+  {
+    "file": "Pre-Primary.pdf",
+    "status": "success",
+    "pages": 38,
+    "chunks": 105,
+    "error": null
+  },
+  {
+    "file": "Pre Primary.pdf",
+    "status": "success",
+    "pages": 42,
+    "chunks": 149,
+    "error": null
+  },
+  {
+    "file": "Pre vocational.pdf",
+    "status": "success",
+    "pages": 76,
+    "chunks": 236,
+    "error": null
+  },
+  {
+    "file": "Primary.pdf",
+    "status": "success",
+    "pages": 88,
+    "chunks": 233,
+    "error": null
+  },
+  {
+    "file": "Primary_1.pdf",
+    "status": "success",
+    "pages": 90,
+    "chunks": 272,
+    "error": null
+  },
+  {
+    "file": "Secondary.pdf",
+    "status": "success",
+    "pages": 103,
+    "chunks": 321,
+    "error": null
+  },
+  {
+    "file": "Pre Vocational_I.pdf",
+    "status": "success",
+    "pages": 105,
+    "chunks": 332,
+    "error": null
+  }
+]
