@@ -1,4 +1,17 @@
+# --- PDF OCR Pipeline ---
 pdf2image>=1.16.3
 pytesseract>=0.3.10
 Pillow>=10.0.0
 tqdm>=4.66.0
+
+# --- RAG Index ---
+chromadb>=0.5.0
+sentence-transformers>=3.0.0
+
+# --- Voice RAG ---
+google-genai>=1.0.0
+SpeechRecognition>=3.10.0
+sounddevice>=0.4.6
+soundfile>=0.12.0
+numpy>=1.26.0
+gTTS>=2.5.0
