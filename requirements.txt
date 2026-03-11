@@ -9,9 +9,4 @@ chromadb>=0.5.0
 sentence-transformers>=3.0.0
 
 # --- Voice RAG ---
-google-genai>=1.0.0
-SpeechRecognition>=3.10.0
-sounddevice>=0.4.6
-soundfile>=0.12.0
-numpy>=1.26.0
-gTTS>=2.5.0
+groq>=0.9.0
