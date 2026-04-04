@@ -1,0 +1,36 @@
+PS C:\Users\aaron\Videos\neurolearn> python .\rag_langgraph.py
+Initialising components...
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights: 100%|████████████████████████████████████████████████████████████████| 199/199 [00:00<00:00, 4238.71it/s]
+BertModel LOAD REPORT from: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+Key                     | Status     |  | 
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  | 
+
+Notes:
+- UNEXPECTED    :can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+[RAG] Loaded collection with 1746 chunks
+[LLM] Using Groq model: openai/gpt-oss-120b
+
+============================================================
+  Malayalam RAG System (LangGraph Phase 1)
+  Type 'exit' or 'quit' to stop
+============================================================
+
+  Enter question (Malayalam/English): പഠന രീതി എന്താണ
+
+  Searching knowledge base...
+   Found 5 relevant passages
+   [1] Primary.pdf p.71 (distance: 0.197)
+   [2] Pre-Primary.pdf p.36 (distance: 0.236)
+   [3] Primary_1.pdf p.7 (distance: 0.243)
+   [4] Primary.pdf p.68 (distance: 0.264)
+   [5] Secondary.pdf p.74 (distance: 0.267)
+
+  Generating Malayalam answer...
+
+────────────────────────────────────────────────────────────
+  Answer:
+
+പഠന രീതി **പ്രവര്‍ത്തന‑അധിഷ്ഠിത (activity‑based) രീതിയാണ്**. കുട്ടികള്‍ക്ക് കളികളും കലാപ്രവര്‍ത്തനങ്ങളും (ബലൂണ്‍, തോരണം, കേ                     േക്ക്, കത്തി, സമ്മാനപ്പൊതി, പൂവിന്റെ രേഖാചിത്രം, ക്രയോണ്‍ തുടങ്ങിയവ) ഉപയോഗിച്ച് ഉചിത സാഹചര്യങ്ങളില്‍ പ്രതികരിക്കാന്‍, പങ്കുവ                        വയ്ക്കാന്‍, സാമൂഹിക മര്യാദകള്‍ പാലിക്കാന്‍ എന്നിവ പഠിപ്പിക്കുന്നു. കൂടാതെ, ക്ലാസ്മുറിയില്‍ കലാപ്രവര്‍ത്തനങ്ങളും ശാരീരിക ചലനപ                            പ്രവര്‍ത്തനങ്ങളും ഒരുക്കി സര്‍ഗാത്മക‑വികാസവും ശാരീരിക‑വികാസവും പ്രോത്സാഹിപ്പിക്കുന്നു【2†L1-L8】【4†L1-L5】.
+────────────────────────────────────────────────────────────
