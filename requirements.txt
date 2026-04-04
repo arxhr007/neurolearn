@@ -10,6 +10,7 @@ sentence-transformers>=3.0.0
 
 # --- Voice RAG ---
 groq>=0.9.0
+python-dotenv>=1.0.1
 
 # --- LangGraph Migration ---
 langgraph>=0.2.50
