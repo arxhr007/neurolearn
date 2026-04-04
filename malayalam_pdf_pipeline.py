@@ -97,7 +97,6 @@ def ocr_image(image: Image.Image, lang: str = "mal") -> str:
 # ---------------------------------------------------------------------------
 
 _RE_MULTI_SPACE = re.compile(r"[ \t]{2,}")
-_RE_MULTI_NEWLINE = re.compile(r"\n{3,}")
 _RE_PAGE_NUMBER = re.compile(
     r"(?m)^\s*[-–—]?\s*\d{1,4}\s*[-–—]?\s*$"          # standalone page nums
 )
@@ -105,27 +104,24 @@ _RE_HEADER_FOOTER = re.compile(
     r"(?m)^.{0,60}(പേജ്|page|PAGE|അധ്യായം|chapter|CHAPTER)\s*\d*.*$",
     re.IGNORECASE,
 )
-_RE_BROKEN_LINE = re.compile(r"(?<=[^\.\?\!\:\;\,\n])\n(?=[a-z\u0D00-\u0D7F])")
+
+
+def _normalize_ocr_whitespace(raw: str) -> str:
+    """Normalize OCR text into a single cleaned line."""
+    text = raw.replace("\r\n", "\n").replace("\r", "\n")
+    text = text.replace("\\n", "\n").replace("\\r", "\n")
+    text = text.replace("\u00a0", " ")
+    text = _RE_PAGE_NUMBER.sub("", text)
+    text = _RE_HEADER_FOOTER.sub("", text)
+
+    text = re.sub(r"\s+", " ", text)
+    text = _RE_MULTI_SPACE.sub(" ", text)
+    return text.strip()
 
 
 def clean_text(raw: str) -> str:
     """Apply Malayalam-aware cleaning to OCR output."""
-    text = raw
-
-    # Remove likely page numbers
-    text = _RE_PAGE_NUMBER.sub("", text)
-
-    # Remove common header / footer patterns
-    text = _RE_HEADER_FOOTER.sub("", text)
-
-    # Fix broken lines (mid-sentence newlines)
-    text = _RE_BROKEN_LINE.sub(" ", text)
-
-    # Collapse repeated whitespace
-    text = _RE_MULTI_SPACE.sub(" ", text)
-    text = _RE_MULTI_NEWLINE.sub("\n\n", text)
-
-    return text.strip()
+    return _normalize_ocr_whitespace(raw)
 
 # ---------------------------------------------------------------------------
 # Chunking for RAG

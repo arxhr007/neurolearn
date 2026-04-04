@@ -17,7 +17,7 @@
     "file": "Pre Primary.pdf",
     "status": "success",
     "pages": 42,
-    "chunks": 149,
+    "chunks": 147,
     "error": null
   },
   {
@@ -31,28 +31,28 @@
     "file": "Primary.pdf",
     "status": "success",
     "pages": 88,
-    "chunks": 233,
+    "chunks": 231,
     "error": null
   },
   {
     "file": "Primary_1.pdf",
     "status": "success",
     "pages": 90,
-    "chunks": 272,
+    "chunks": 269,
     "error": null
   },
   {
     "file": "Secondary.pdf",
     "status": "success",
     "pages": 103,
-    "chunks": 321,
+    "chunks": 319,
     "error": null
   },
   {
     "file": "Pre Vocational_I.pdf",
     "status": "success",
     "pages": 105,
-    "chunks": 332,
+    "chunks": 328,
     "error": null
   }
 ]
