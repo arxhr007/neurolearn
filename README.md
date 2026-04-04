@@ -17,6 +17,20 @@ High-performance pipeline that converts batches of Malayalam PDFs into chunked, 
 pip install -r requirements.txt
 ```
 
+## Groq API Key (for `rag.py` and `rag_langgraph.py`)
+
+Create a `.env` file in the project root:
+
+```env
+GROQ_API_KEY=your_key_here
+```
+
+Or set it directly in PowerShell:
+
+```powershell
+$env:GROQ_API_KEY="your_key_here"
+```
+
 ## Folder Structure
 
 ```

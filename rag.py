@@ -19,6 +19,7 @@ import argparse
 import os
 import sys
 import time
+from pathlib import Path
 
 import chromadb
 from chromadb.utils import embedding_functions
@@ -85,13 +86,42 @@ class RAGRetriever:
 class MalayalamLLM:
 
     def __init__(self):
-        api_key = os.environ.get("GROQ_API_KEY")
+        api_key = os.environ.get("GROQ_API_KEY") or self._load_api_key_from_dotenv()
         if not api_key:
             print("ERROR: Set the GROQ_API_KEY environment variable.")
+            print("  Option 1 (recommended): create a .env file in this folder with:")
+            print("    GROQ_API_KEY=your_key_here")
+            print("  Option 2 (PowerShell, current session only):")
+            print("    $env:GROQ_API_KEY='your_key_here'")
+            print("  Option 3 (PowerShell, persistent):")
+            print("    setx GROQ_API_KEY 'your_key_here'")
             print("  Get a free key at https://console.groq.com/keys")
             sys.exit(1)
         self.client = Groq(api_key=api_key)
         print(f"[LLM] Using Groq model: {GROQ_MODEL}")
+
+    @staticmethod
+    def _load_api_key_from_dotenv() -> str | None:
+        env_path = Path(".env")
+        if not env_path.exists():
+            return None
+
+        try:
+            for raw_line in env_path.read_text(encoding="utf-8").splitlines():
+                line = raw_line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                if key.strip() != "GROQ_API_KEY":
+                    continue
+                token = value.strip().strip('"').strip("'")
+                if token:
+                    os.environ["GROQ_API_KEY"] = token
+                    return token
+        except OSError:
+            return None
+
+        return None
 
     def generate(self, question: str, context_docs: list[dict]) -> str:
         context_parts = []
