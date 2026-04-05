@@ -132,3 +132,24 @@ def make_personalization_gate(llm, node_name: str = "personalization_gate"):
         }
 
     return personalization_gate
+
+
+def make_evaluator(llm, node_name: str = "evaluator"):
+    def evaluator(state: RAGState) -> RAGState:
+        explanation = (state.get("personalized_explanation") or state.get("answer") or "").strip()
+        question = state.get("question", "")
+        student_profile = state.get("student_profile")
+        check_question = llm.generate_check_question(question, explanation, student_profile)
+
+        print(f"   Evaluator generated check question: {check_question}")
+
+        return {
+            "check_question": check_question,
+            "evaluation_result": {
+                "status": "check_question_generated",
+                "check_question": check_question,
+            },
+            "active_node": node_name,
+        }
+
+    return evaluator

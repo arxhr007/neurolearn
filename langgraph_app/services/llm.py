@@ -105,6 +105,56 @@ class MalayalamLLM:
                     raise
         raise RuntimeError("Groq API rate limit exceeded after all retries.")
 
+    def generate_check_question(
+        self,
+        question: str,
+        explanation: str,
+        student_profile: dict | None = None,
+    ) -> str:
+        """Generate a single check-for-understanding question in Malayalam."""
+        profile = student_profile or {}
+        reading_age = profile.get("reading_age", 12)
+
+        system_prompt = (
+            "You are an educational evaluator for a Malayalam tutor. "
+            "Generate exactly one short check-for-understanding question in Malayalam. "
+            "Do not answer the question. "
+            "Keep it simple, direct, and age-appropriate. "
+            "Do not include numbering, bullets, or extra text."
+        )
+        user_prompt = (
+            f"Original question: {question}\n"
+            f"Personalized explanation: {explanation}\n"
+            f"Reading age: {reading_age}\n\n"
+            "Task: Write one short Malayalam question that checks understanding of the explanation.\n"
+            "Keep it to one sentence if possible.\n"
+            "Output only the question text."
+        )
+
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = self.client.chat.completions.create(
+                    model=GROQ_MODEL,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.2,
+                    max_tokens=256,
+                )
+                content = response.choices[0].message.content or ""
+                return content.strip()
+            except Exception as exc:
+                err_str = str(exc)
+                if "429" in err_str or "rate_limit" in err_str.lower():
+                    wait = 2 ** attempt * 5
+                    print(f"   Rate limited. Retrying in {wait}s... (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(wait)
+                else:
+                    raise
+        raise RuntimeError("Groq API rate limit exceeded after all retries.")
+
     def judge_personalization_complexity(self, explanation: str) -> tuple[str, str]:
         """Judge whether a personalized explanation is too complex to deliver."""
         system_prompt = (

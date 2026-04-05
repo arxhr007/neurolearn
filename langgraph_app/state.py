@@ -12,6 +12,8 @@ class RAGState(TypedDict, total=False):
     intent_source: str
     docs: list[dict]
     personalized_explanation: str
+    check_question: str
+    evaluation_result: dict
     complexity_decision: str
     complexity_reason: str
     complexity_retry_count: int

@@ -1,7 +1,7 @@
 PS C:\Users\aaron\Videos\neurolearn> python .\rag_langgraph.py --student-id s1 --text "പഠന രീതി എന്താണ്?"
 Initialising components...
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Loading weights: 100%|█████████████████████████████████████████████████████████████████████| 199/199 [00:00<00:00, 3920.76it/s]
+Loading weights: 100%|█████████████████████████████████████████████████████████████████████| 199/199 [00:00<00:00, 4292.91it/s]
 BertModel LOAD REPORT from: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 Key                     | Status     |  | 
 ------------------------+------------+--+-
@@ -18,7 +18,11 @@ Notes:
    Intent classified as: new_concept (llm)
    Personalizer running for node: new_concept_personalizer
    Personalizer produced explanation
-   Gate A check: ok: 57 words; safe to deliver (retry_count=0)
+   Gate A judge raw: '<label>DELIVER</label>' (finish_reason=stop)
+   Gate A judge source: LLM
+   Gate A action: deliver -> send to user
+   Gate A check: ok: llm:deliver:model=llama-3.1-8b-instant; safe to deliver (retry_count=0)
+   Evaluator generated check question: പഠന രീതി കളി‑അധിഷ്ഠിതവും പ്രവര്‍ത്തന‑കേന്ദ്രിതവുമാണെന്ന് നിങ്ങൾക്ക് എന്താണ് അർത്ഥമാക്കുന്നത്?
    Found 5 relevant passages
    [1] Primary.pdf p.71 (distance: 0.240)
    [2] Pre-Primary.pdf p.36 (distance: 0.280)
@@ -31,7 +35,11 @@ Notes:
 ────────────────────────────────────────────────────────────
   Answer:
 
-പാഠം കളിയും രസകരവുമാക്കി വികസിപ്പിക്കുന്ന **പ്രവര്‍ത്തന‑അധിഷ്ഠിത (play‑based) പഠന രീതി** ആണ് ഉപയോഗിക്കുന്നത്. കുട്ടികള്‍ ബലൂണ്‍,                       , കേക്ക്, കത്തി പോലുള്ള വസ്തുക്കള്‍ ഉപയോഗിച്ച് വിവിധ കളികളും റോള്‍‑പ്ലേയും മൂലം സാമൂഹിക‑വൈകാരിക മര്യാദകള്‍, പങ്കുവെയ്ക്കല്‍ മനോഭാ                           ാവം മറ്റു നൈപുണ്യങ്ങളും അറിഞ്ഞു വളര്‍ത്തുന്നു (Pre‑Primary പേജ് 36). പ്രവര്‍ത്തനത്തിന്റെ ഫലങ്ങള്‍ വിലയിരുത്തി “വളരെ മികച്ചത്‌, മി                            ികച്ചത്‌, ശരാശരി…” എന്നിവ പഞ്ച‑തരം വിലയിരുത്തല്‍ മാര്‍ഗ്ഗം ഉപയോഗിക്കുന്നു (Pre‑vocational പേജ് 9). കൂടാതെ, റോള്‍‑പ്ലേ മുന്‍‌ഒരുക്                          കം ഇതില്‍ ഉള്‍പ്പെടുന്നു (Secondary പേജ് 74). അതിനാല്‍ പഠന രീതി **പ്രവര്‍ത്തന‑അധിഷ്ഠിത (play‑based) പഠനം** എന്നാണ് പറയാം.       
-────────────────────────────────────────────────────────────
+പഠന രീതി **കളി‑അധിഷ്ഠിത, പ്രവര്‍ത്തന‑കേന്ദ്രിത** ആണ്. കുട്ടികള്‍ ബലൂണ്‍, കേക്ക്, കത്തി തുടങ്ങിയ വസ്തുക്കള്‍ ഉപയോഗിച്ച് വിവിധ കളി                          ികളും റോള്‍പ്ലേ (ഭീച്ചര്‍ റോള്‍പ്ലേ) എന്നിവയിലൂടെ സാമൂഹിക‑വൈകാരിക നൈപുണ്യങ്ങള്‍ നേടുന്നു [2][4]. പ്രവര്‍ത്തനത്തിന്റെ ഫലത്തെ അഞ്ച്                              തലത്തിലുള്ള വിലയിരുത്തലിലൂടെ (വളരെ മികച്ചത്‌ മുതല്‍ മെച്ചപ്പെടുത്തേണ്ടത്‌ വരെ) പരിശോധിക്കുന്നു [3].
 
-PS C:\Users\aaron\Videos\neurolearn> 
+*(ഉദാഹരണം: ഒരു കഥയില്‍ പോലെ, കുട്ടികള്‍ കളിക്കുമ്പോള്‍ തന്നെ പഠിക്കുന്നു.)*
+
+  Check Question:
+
+പഠന രീതി കളി‑അധിഷ്ഠിതവും പ്രവര്‍ത്തന‑കേന്ദ്രിതവുമാണെന്ന് നിങ്ങൾക്ക് എന്താണ് അർത്ഥമാക്കുന്നത്?
+────────────────────────────────────────────────────────────
