@@ -2,12 +2,14 @@
 
 import argparse
 import os
+import sys
 
-from langgraph_app.config import DEFAULT_DB_DIR, DEFAULT_MODEL, TOP_K
+from langgraph_app.config import DEFAULT_DB_DIR, DEFAULT_MODEL, STUDENT_DB_PATH, TOP_K
 from langgraph_app.graph.builder import build_graph_app
 from langgraph_app.intents.llm_classifier import IntentClassifier
 from langgraph_app.services.llm import MalayalamLLM
 from langgraph_app.services.retriever import RAGRetriever
+from langgraph_app.services.student_db import StudentDB
 
 
 def _load_env_file() -> None:
@@ -21,9 +23,16 @@ def _load_env_file() -> None:
     load_dotenv(dotenv_path=os.path.join(os.getcwd(), ".env"), override=False)
 
 
-def _answer_question(question: str, app, top_k: int) -> None:
+def _answer_question(question: str, app, top_k: int, student_id: str, student_profile: dict) -> None:
     print("\n  Searching knowledge base...")
-    state = app.invoke({"question": question, "top_k": top_k})
+    state = app.invoke(
+        {
+            "student_id": student_id,
+            "question": question,
+            "top_k": top_k,
+            "student_profile": student_profile,
+        }
+    )
 
     docs = state.get("docs", [])
     if docs:
@@ -41,7 +50,7 @@ def _answer_question(question: str, app, top_k: int) -> None:
     print(f"{'─' * 60}\n")
 
 
-def run_interactive(app, top_k: int) -> None:
+def run_interactive(app, top_k: int, student_id: str, student_profile: dict) -> None:
     print("\n" + "=" * 60)
     print("  Malayalam RAG System (LangGraph Phase 1)")
     print("  Type 'exit' or 'quit' to stop")
@@ -59,12 +68,12 @@ def run_interactive(app, top_k: int) -> None:
             print("\nExiting. Goodbye!")
             break
 
-        _answer_question(question, app, top_k)
+        _answer_question(question, app, top_k, student_id, student_profile)
 
 
-def run_single_query(query: str, app, top_k: int) -> None:
+def run_single_query(query: str, app, top_k: int, student_id: str, student_profile: dict) -> None:
     print(f"\n  Query: {query}")
-    _answer_question(query, app, top_k)
+    _answer_question(query, app, top_k, student_id, student_profile)
 
 
 def main() -> None:
@@ -93,15 +102,32 @@ def main() -> None:
         default=TOP_K,
         help=f"Number of chunks to retrieve (default: {TOP_K})",
     )
+    parser.add_argument(
+        "--student-id",
+        required=True,
+        help="Student ID to load profile from SQLite",
+    )
+    parser.add_argument(
+        "--student-db",
+        default=STUDENT_DB_PATH,
+        help=f"SQLite student DB path (default: {STUDENT_DB_PATH})",
+    )
     args = parser.parse_args()
 
     print("Initialising components...")
+    student_db = StudentDB(args.student_db)
+    student_profile = student_db.get_student_profile(args.student_id)
+    if not student_profile:
+        print(f"ERROR: Student ID not found in DB: {args.student_id}")
+        print("Use manage_student_db.py to add a profile first.")
+        sys.exit(1)
+
     retriever = RAGRetriever(args.db_dir, args.model)
     llm = MalayalamLLM()
     intent_classifier = IntentClassifier(llm.client)
     app = build_graph_app(retriever, llm, intent_classifier)
 
     if args.text:
-        run_single_query(args.text, app, args.top_k)
+        run_single_query(args.text, app, args.top_k, args.student_id, student_profile)
     else:
-        run_interactive(app, args.top_k)
+        run_interactive(app, args.top_k, args.student_id, student_profile)
