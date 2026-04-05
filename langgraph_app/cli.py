@@ -47,6 +47,9 @@ def _answer_question(question: str, app, top_k: int, student_id: str, student_pr
     answer = state.get("answer")
     print(f"\n{'─' * 60}")
     print(f"  Answer:\n\n{answer}")
+    check_question = state.get("check_question")
+    if check_question:
+        print(f"\n  Check Question:\n\n{check_question}")
     print(f"{'─' * 60}\n")
 
 

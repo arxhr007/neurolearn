@@ -4,6 +4,7 @@ from langgraph.graph import END, StateGraph
 
 from langgraph_app.graph.nodes import (
     make_answer_generator,
+    make_evaluator,
     make_llm_intent_classifier,
     make_knowledge_retriever,
     make_parent_orchestrator,
@@ -44,6 +45,10 @@ def build_graph_app(retriever, llm, intent_classifier):
         "answer_response_generator",
         make_answer_generator(llm, node_name="answer_response_generator"),
     )
+    graph.add_node(
+        "evaluator",
+        make_evaluator(llm, node_name="evaluator"),
+    )
 
     def route_by_complexity(state: RAGState) -> str:
         decision = state.get("complexity_decision", "deliver")
@@ -66,7 +71,7 @@ def build_graph_app(retriever, llm, intent_classifier):
         route_by_complexity,
         {
             "new_concept_personalizer": "new_concept_personalizer",
-            "deliver_answer": "deliver_answer",
+            "deliver_answer": "evaluator",
         },
     )
     graph.add_edge("answer_retriever", "answer_response_generator")
@@ -74,7 +79,8 @@ def build_graph_app(retriever, llm, intent_classifier):
         "deliver_answer",
         make_answer_generator(llm, node_name="deliver_answer"),
     )
-    graph.add_edge("deliver_answer", END)
+    graph.add_edge("deliver_answer", "evaluator")
+    graph.add_edge("evaluator", END)
     graph.add_edge("answer_response_generator", END)
 
     return graph.compile()
