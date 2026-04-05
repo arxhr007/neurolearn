@@ -5,6 +5,7 @@ STUDENT_DB_PATH = "./data/student_profiles.db"
 DEFAULT_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 GROQ_MODEL = "openai/gpt-oss-120b"
 INTENT_MODEL = "llama-3.1-8b-instant"
+COMPLEXITY_JUDGE_MODEL = "llama-3.1-8b-instant"
 TOP_K = 5
 
 SYSTEM_PROMPT = """You are a helpful assistant that answers questions in Malayalam.
