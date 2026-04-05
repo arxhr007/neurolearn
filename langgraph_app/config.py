@@ -1,6 +1,7 @@
 """Central configuration for the LangGraph runtime."""
 
 DEFAULT_DB_DIR = "./vectorstore"
+STUDENT_DB_PATH = "./data/student_profiles.db"
 DEFAULT_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 GROQ_MODEL = "openai/gpt-oss-120b"
 INTENT_MODEL = "llama-3.1-8b-instant"

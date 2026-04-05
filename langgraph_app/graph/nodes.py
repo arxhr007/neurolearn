@@ -39,24 +39,40 @@ def make_llm_intent_classifier(classifier):
     return intent_classifier
 
 
-def make_knowledge_retriever(retriever):
+def make_knowledge_retriever(retriever, node_name: str = "knowledge_retriever"):
     def knowledge_retriever(state: RAGState) -> RAGState:
         question = state["question"]
         docs = retriever.query(question, top_k=state.get("top_k", TOP_K))
         return {
             "docs": docs,
-            "active_node": "knowledge_retriever",
+            "active_node": node_name,
         }
 
     return knowledge_retriever
 
 
-def make_answer_generator(llm):
+def make_answer_generator(llm, node_name: str = "answer_generator"):
     def answer_generator(state: RAGState) -> RAGState:
         answer = llm.generate(state["question"], state.get("docs", []))
         return {
             "answer": answer,
-            "active_node": "answer_generator",
+            "active_node": node_name,
         }
 
     return answer_generator
+
+
+def make_personalizer(llm, node_name: str = "personalizer"):
+    def personalizer(state: RAGState) -> RAGState:
+        explanation = llm.personalize(
+            state["question"],
+            state.get("docs", []),
+            state.get("student_profile"),
+        )
+        return {
+            "personalized_explanation": explanation,
+            "answer": explanation,
+            "active_node": node_name,
+        }
+
+    return personalizer

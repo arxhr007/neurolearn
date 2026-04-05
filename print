@@ -1,7 +1,7 @@
-PS C:\Users\aaron\Videos\neurolearn> python .\rag_langgraph.py
+PS C:\Users\aaron\Videos\neurolearn> python .\rag_langgraph.py --text "ഞാൻ കരുതുന്നത് സഹകരണം ടീമിൽ ലക്ഷ്യം നേടാൻ സഹായിക്കും."
 Initialising components...
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Loading weights: 100%|█████████████████████████████████████████████████████████| 199/199 [00:00<00:00, 3024.93it/s]
+Loading weights: 100%|█████████████████████| 199/199 [00:00<00:00, 4374.95it/s]
 BertModel LOAD REPORT from: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 Key                     | Status     |  | 
 ------------------------+------------+--+-
@@ -12,34 +12,53 @@ Notes:
 [RAG] Loaded collection with 1733 chunks
 [LLM] Using Groq model: openai/gpt-oss-120b
 
-============================================================
-  Malayalam RAG System (LangGraph Phase 1)
-  Type 'exit' or 'quit' to stop
-============================================================
-
-  Enter question (Malayalam/English): ഗ്രൂപ്പ് പ്രവർത്തനങ്ങളിൽ കുട്ടികൾക്ക് ലഭിക്കുന്ന പഠനഫലങ്ങൾ എന്തൊക്കെയാണ്?
+  Query: ഞാൻ കരുതുന്നത് സഹകരണം ടീമിൽ ലക്ഷ്യം നേടാൻ സഹായിക്കും.
 
   Searching knowledge base...
-   Intent classified as: new_concept (rule_fallback_parse)
+   Intent classified as: answer (llm)
    Found 5 relevant passages
-   [1] Pre Vocational_I.pdf p.75 (distance: 0.049)
-   [2] Pre vocational.pdf p.15 (distance: 0.055)
-   [3] Pre Vocational_I.pdf p.16 (distance: 0.056)
-   [4] Primary.pdf p.28 (distance: 0.062)
-   [5] Secondary.pdf p.28 (distance: 0.066)
+   [1] Primary_1.pdf p.8 (distance: 0.038)
+   [2] Primary_1.pdf p.64 (distance: 0.050)
+   [3] Primary.pdf p.28 (distance: 0.056)
+   [4] Primary_1.pdf p.45 (distance: 0.056)
+   [5] Pre vocational.pdf p.74 (distance: 0.056)
 
   Generating Malayalam answer...
 
 ────────────────────────────────────────────────────────────
   Answer:
 
-ഗ്രൂപ്പ് പ്രവര്‍ത്തനങ്ങളിലൂടെ കുട്ടികള്‍ക്ക് ലഭിക്കുന്ന പ്രധാന പഠനഫലങ്ങള്‍ ചുവടെപ്പറയുന്നവയാണ് :
+അതെ, ടീം വഴി സഹകരണം ലക്ഷ്യങ്ങള്‍ പൂർത്തിയാക്കാന്‍ വളരെ പ്രയോജനകരമാണ്. ഉദാഹരണത്തി            ിന് പ്രൈമറി പാഠപുസ്തകത്തില്‍ (Primary_1.pdf പേജ് 64) രക്ഷിതാക്കളുടെ സഹായത്തോടെ കല           ലാപ്രവര്‍ത്തനങ്ങള്‍ വീട്ടില്‍ നിര്‍മ്മിക്കാന്‍ കുട്ടികളെ പ്രോത്സാഹിപ്പിക്കുന്നു;         അതുപോലെ (Primary.pdf പേജ് 28) കുട്ടികള്‍ അച്ഛന്‍, അമ്മന്‍, ചേട്ടന്‍‑ചേച്ചിയുമായി                ി വീട് നിര്‍മ്മിച്ച് ഒരുമിച്ച് പഠിക്കുന്നു. കൂടാതെ (Pre vocational.pdf പേജ് 74) ഫ              ഫോട്ടോ എഡിറ്റ് ചെയ്ത് അധ്യാപകനും കൂട്ടുകാരും അയയ്ക്കുന്നതിലൂടെ വിനിയോഗം പങ്കിടുന്               ്നു. ഇവയെല്ലാം സഹകരണ പ്രവർത്തനങ്ങളിലൂടെ പഠന‑ലക്ഷ്യങ്ങള്‍ വേഗത്തില്‍ നേടാന്‍ സഹായി               ിക്കുന്നു.
+────────────────────────────────────────────────────────────
 
-* **സംഘടന‑സംവാദ കഴിവുകള്‍** – കൂട്ടുകാരുമായി ചേര്‍ത്ത് വീട്ടു മോഡല്‍ (പേജ് 28, Primary.pdf) നിര്‍മ്മിക്കുമ്പോള്‍ കുട                        ട്ടികള്‍ പരസ്പരം ആശയവിനിമയം നടത്തുകയും, പ്രവര്‍ത്തനങ്ങള്‍ പങ്കിടുകയും ചെയ്യുന്നു.
-* **ടീംവര്‍ക്ക്, സഹകരണം** – പൂന്തോട്ടം‑പാട്ട് പ്രവര്‍ത്തനത്തില്‍ (പേജ് 28, Secondary.pdf) കുട്ടികള്‍ ബാഡ്ജുകള്‍ കൈയി                        ില്‍ പിടിച്ച്‌ ചലനത്തോടുകൂടി മുഴുവന്‍ പാട്ടും ഒരുമിച്ച്‌ പാടുന്നു, ഇതിലൂടെ കൂട്ടായ്മയും സഹകരണം വളര്‍ന്നു.
-* **സാംസ്കാരിക‑ഭാഷാ ബോധം** – “ഓണക്കൊതി” പോലുള്ള പരമ്പരാഗത പാട്ടുകള്‍ ടീച്ചര്‍ ചാര്‍ട്ടില്‍ എഴുതിയും, കുട്ടികള്‍ ആവര്                       ത്തിച്ച്‌ പാടിയും, ഭാഷാ താളത്തില്‍ പാടുന്നതിനാല്‍ ഭാഷാ കഴിവും സാംസ്കാരിക അവബോധവും വര്‍ദ്ധിക്കുന്നു (പേജ് 16, Pre Vo                       ocational_I.pdf).
-* **വൈദ്യശാസ്ത്ര‑ആരോഗ്യ ബോധം** – ഫാസ്റ്റ്‌ഫുഡിന്റെ ദോഷഫലങ്ങള്‍ തിരിച്ചറിയുന്ന വര്‍ക്ക്‌ഷീറ്റ് (പേജ് 75, Pre Vocation                       nal_I.pdf) പൂര്‍ത്തിയാക്കുന്നതിലൂടെ ആരോഗ്യ‑പോഷകതത്വം, വിമര്‍ശനാത്മക ചിന്ത എന്നിവ വളരുന്നു.
-* **സൃഷ്ടിപരതയും കൈ‑കൈവഴി കഴിവുകളും** – വീടുകള്‍ നിര്‍മ്മിക്കല്‍, പാട്ടുകള്‍ രചിക്കല്‍ തുടങ്ങിയ പ്രവര്‍ത്തനങ്ങള്‍ കു                              ട്ടികളില്‍ സൃഷ്ടിപരതയും കൈ‑കൈവഴി പ്രവര്‍ത്തനങ്ങളിലൂടെയുള്ള പഠനവും ഉണര്‍ത്തുന്നു.
+PS C:\Users\aaron\Videos\neurolearn> python .\rag_langgraph.py --text "പഠന രീതി എന്താണ്?"
+Initialising components...
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights: 100%|█████████████████████| 199/199 [00:00<00:00, 3920.78it/s]
+BertModel LOAD REPORT from: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+Key                     | Status     |  |
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  |
 
-ഇവയൊക്കെ കൂട്ടായ പ്രവര്‍ത്തനങ്ങളിലൂടെ കുട്ടികള്‍ക്ക് **സംവാദം, സഹകരണം, സാംസ്കാരിക‑ഭാഷാ ബോധം, ആരോഗ്യ‑വിമര്‍ശന കഴിവുകള                   ള്‍, സൃഷ്ടിപരത** എന്നിവയുടെ സമഗ്രമായ പഠനഫലങ്ങള്‍ ലഭിക്കുന്നു.
+- UNEXPECTED    :can be ignored when loading from different task/architecture; not ok if you expect identical arch. 
+[RAG] Loaded collection with 1733 chunks
+[LLM] Using Groq model: openai/gpt-oss-120b
+
+  Query: പഠന രീതി എന്താണ്?
+
+  Searching knowledge base...
+   Intent classified as: new_concept (llm)
+   Found 5 relevant passages
+   [1] Primary.pdf p.71 (distance: 0.240)
+   [2] Pre-Primary.pdf p.36 (distance: 0.280)
+   [3] Pre vocational.pdf p.9 (distance: 0.321)
+   [4] Secondary.pdf p.74 (distance: 0.333)
+   [5] Pre-Primary.pdf p.13 (distance: 0.335)
+
+  Generating Malayalam answer...
+
+────────────────────────────────────────────────────────────
+  Answer:
+
+പഠന രീതി — കുട്ടികളെ ‘കളി‑അധിഷ്ഠിത മറ്റും റോള്‍പ്ലേ പദ്ധതികളുമുള്ള’ ഒരു പാഠം ആണ്‌. വിവിധ കളികളും പാര്‍ട്ടി വസ്തുക്കളും (ബലൂണ്‍, കേക്ക്, സമ്മാനപ്പൊതി ഇത്യാദി) ഉപയോഗിച്ച് ‘ഹാവി ബര്‍ത്ത്ഡേ’ പോലെ ഒരു പാര്‍ട്ടി പ്ലേ മൂലം പങ്കുവയ്ക്കല്‍, ശരിയായ സമയത്ത് പ്രതികരിക്കല്‍, സാമൂഹിക മര്യാദകള്‍ പാലിക്കല്‍ എന്നിവ കഴിവുകള്‍ വളര്‍ത്തുന്നു [2][3][4]. ഇത് ‘ഗെയിം പോലെ പഠിക്കുക, കഥപോലെ പറയുക, ദൈനംദിന ജീവിതം പോലെ അനുഭവിക്കുക’ എന്ന analogies‑നു പോലെയാണ്.
 ────────────────────────────────────────────────────────────
