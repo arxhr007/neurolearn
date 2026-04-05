@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+**/__pycache__/
+langgraph_app/**/__pycache__/
+*.pyc
+*.pyc.*
+langgraph_app/**/*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.hypothesis/
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+ENV/
+
+# Virtualenv / local env
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Runtime data
+vectorstore/
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs / outputs
+*.log
+output/
+print
+
+# Hugging Face / model cache
+.huggingface/
+.cache/

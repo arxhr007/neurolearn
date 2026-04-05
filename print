@@ -1,7 +1,7 @@
-PS C:\Users\aaron\Videos\neurolearn> python .\rag_langgraph.py --text "ഞാൻ കരുതുന്നത് സഹകരണം ടീമിൽ ലക്ഷ്യം നേടാൻ സഹായിക്കും."
+PS C:\Users\aaron\Videos\neurolearn> python .\rag_langgraph.py --student-id s1 --text "പഠന രീതി എന്താണ്?"
 Initialising components...
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Loading weights: 100%|█████████████████████| 199/199 [00:00<00:00, 4374.95it/s]
+Loading weights: 100%|█████████████████████████████████████████████████████████████████████| 199/199 [00:00<00:00, 3920.76it/s]
 BertModel LOAD REPORT from: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 Key                     | Status     |  | 
 ------------------------+------------+--+-
@@ -12,42 +12,13 @@ Notes:
 [RAG] Loaded collection with 1733 chunks
 [LLM] Using Groq model: openai/gpt-oss-120b
 
-  Query: ഞാൻ കരുതുന്നത് സഹകരണം ടീമിൽ ലക്ഷ്യം നേടാൻ സഹായിക്കും.
-
-  Searching knowledge base...
-   Intent classified as: answer (llm)
-   Found 5 relevant passages
-   [1] Primary_1.pdf p.8 (distance: 0.038)
-   [2] Primary_1.pdf p.64 (distance: 0.050)
-   [3] Primary.pdf p.28 (distance: 0.056)
-   [4] Primary_1.pdf p.45 (distance: 0.056)
-   [5] Pre vocational.pdf p.74 (distance: 0.056)
-
-  Generating Malayalam answer...
-
-────────────────────────────────────────────────────────────
-  Answer:
-
-അതെ, ടീം വഴി സഹകരണം ലക്ഷ്യങ്ങള്‍ പൂർത്തിയാക്കാന്‍ വളരെ പ്രയോജനകരമാണ്. ഉദാഹരണത്തി            ിന് പ്രൈമറി പാഠപുസ്തകത്തില്‍ (Primary_1.pdf പേജ് 64) രക്ഷിതാക്കളുടെ സഹായത്തോടെ കല           ലാപ്രവര്‍ത്തനങ്ങള്‍ വീട്ടില്‍ നിര്‍മ്മിക്കാന്‍ കുട്ടികളെ പ്രോത്സാഹിപ്പിക്കുന്നു;         അതുപോലെ (Primary.pdf പേജ് 28) കുട്ടികള്‍ അച്ഛന്‍, അമ്മന്‍, ചേട്ടന്‍‑ചേച്ചിയുമായി                ി വീട് നിര്‍മ്മിച്ച് ഒരുമിച്ച് പഠിക്കുന്നു. കൂടാതെ (Pre vocational.pdf പേജ് 74) ഫ              ഫോട്ടോ എഡിറ്റ് ചെയ്ത് അധ്യാപകനും കൂട്ടുകാരും അയയ്ക്കുന്നതിലൂടെ വിനിയോഗം പങ്കിടുന്               ്നു. ഇവയെല്ലാം സഹകരണ പ്രവർത്തനങ്ങളിലൂടെ പഠന‑ലക്ഷ്യങ്ങള്‍ വേഗത്തില്‍ നേടാന്‍ സഹായി               ിക്കുന്നു.
-────────────────────────────────────────────────────────────
-
-PS C:\Users\aaron\Videos\neurolearn> python .\rag_langgraph.py --text "പഠന രീതി എന്താണ്?"
-Initialising components...
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Loading weights: 100%|█████████████████████| 199/199 [00:00<00:00, 3920.78it/s]
-BertModel LOAD REPORT from: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
-Key                     | Status     |  |
-------------------------+------------+--+-
-embeddings.position_ids | UNEXPECTED |  |
-
-- UNEXPECTED    :can be ignored when loading from different task/architecture; not ok if you expect identical arch. 
-[RAG] Loaded collection with 1733 chunks
-[LLM] Using Groq model: openai/gpt-oss-120b
-
   Query: പഠന രീതി എന്താണ്?
 
   Searching knowledge base...
    Intent classified as: new_concept (llm)
+   Personalizer running for node: new_concept_personalizer
+   Personalizer produced explanation
+   Gate A check: ok: 57 words; safe to deliver (retry_count=0)
    Found 5 relevant passages
    [1] Primary.pdf p.71 (distance: 0.240)
    [2] Pre-Primary.pdf p.36 (distance: 0.280)
@@ -60,5 +31,7 @@ embeddings.position_ids | UNEXPECTED |  |
 ────────────────────────────────────────────────────────────
   Answer:
 
-പഠന രീതി — കുട്ടികളെ ‘കളി‑അധിഷ്ഠിത മറ്റും റോള്‍പ്ലേ പദ്ധതികളുമുള്ള’ ഒരു പാഠം ആണ്‌. വിവിധ കളികളും പാര്‍ട്ടി വസ്തുക്കളും (ബലൂണ്‍, കേക്ക്, സമ്മാനപ്പൊതി ഇത്യാദി) ഉപയോഗിച്ച് ‘ഹാവി ബര്‍ത്ത്ഡേ’ പോലെ ഒരു പാര്‍ട്ടി പ്ലേ മൂലം പങ്കുവയ്ക്കല്‍, ശരിയായ സമയത്ത് പ്രതികരിക്കല്‍, സാമൂഹിക മര്യാദകള്‍ പാലിക്കല്‍ എന്നിവ കഴിവുകള്‍ വളര്‍ത്തുന്നു [2][3][4]. ഇത് ‘ഗെയിം പോലെ പഠിക്കുക, കഥപോലെ പറയുക, ദൈനംദിന ജീവിതം പോലെ അനുഭവിക്കുക’ എന്ന analogies‑നു പോലെയാണ്.
+പാഠം കളിയും രസകരവുമാക്കി വികസിപ്പിക്കുന്ന **പ്രവര്‍ത്തന‑അധിഷ്ഠിത (play‑based) പഠന രീതി** ആണ് ഉപയോഗിക്കുന്നത്. കുട്ടികള്‍ ബലൂണ്‍,                       , കേക്ക്, കത്തി പോലുള്ള വസ്തുക്കള്‍ ഉപയോഗിച്ച് വിവിധ കളികളും റോള്‍‑പ്ലേയും മൂലം സാമൂഹിക‑വൈകാരിക മര്യാദകള്‍, പങ്കുവെയ്ക്കല്‍ മനോഭാ                           ാവം മറ്റു നൈപുണ്യങ്ങളും അറിഞ്ഞു വളര്‍ത്തുന്നു (Pre‑Primary പേജ് 36). പ്രവര്‍ത്തനത്തിന്റെ ഫലങ്ങള്‍ വിലയിരുത്തി “വളരെ മികച്ചത്‌, മി                            ികച്ചത്‌, ശരാശരി…” എന്നിവ പഞ്ച‑തരം വിലയിരുത്തല്‍ മാര്‍ഗ്ഗം ഉപയോഗിക്കുന്നു (Pre‑vocational പേജ് 9). കൂടാതെ, റോള്‍‑പ്ലേ മുന്‍‌ഒരുക്                          കം ഇതില്‍ ഉള്‍പ്പെടുന്നു (Secondary പേജ് 74). അതിനാല്‍ പഠന രീതി **പ്രവര്‍ത്തന‑അധിഷ്ഠിത (play‑based) പഠനം** എന്നാണ് പറയാം.       
 ────────────────────────────────────────────────────────────
+
+PS C:\Users\aaron\Videos\neurolearn> 

@@ -1,12 +1,13 @@
 """Groq-backed LLM service."""
 
 import os
+import re
 import sys
 import time
 
 from groq import Groq
 
-from langgraph_app.config import GROQ_MODEL, SYSTEM_PROMPT
+from langgraph_app.config import COMPLEXITY_JUDGE_MODEL, GROQ_MODEL, INTENT_MODEL, SYSTEM_PROMPT
 
 
 class MalayalamLLM:
@@ -103,4 +104,115 @@ class MalayalamLLM:
                 else:
                     raise
         raise RuntimeError("Groq API rate limit exceeded after all retries.")
+
+    def judge_personalization_complexity(self, explanation: str) -> tuple[str, str]:
+        """Judge whether a personalized explanation is too complex to deliver."""
+        system_prompt = (
+            "You are a strict complexity judge for a Malayalam educational tutor. "
+            "Decide whether the explanation is too complex for a student. "
+            "Be conservative with REVISE: choose REVISE only if the text is clearly over-complex "
+            "(too long, dense, jargon-heavy, or hard to read for students). "
+            "Otherwise choose DELIVER. "
+            "Return only one XML tag: <label>REVISE</label> or <label>DELIVER</label>."
+        )
+        user_prompt = (
+            "Evaluate this explanation for complexity, length, and readability for a student.\n\n"
+            f"Explanation:\n{explanation}\n\n"
+            "If text is too complex, return <label>REVISE</label>. "
+            "Otherwise return <label>DELIVER</label>."
+        )
+
+        def _normalize_label(raw: str) -> str | None:
+            text = (raw or "").strip().lower()
+            if not text:
+                return None
+
+            xml_match = re.search(r"<label>\s*(revise|deliver)\s*</label>", text)
+            if xml_match:
+                return xml_match.group(1)
+
+            # Prefer exact labels, but tolerate surrounding text.
+            match = re.search(r"\b(revise|deliver)\b", text)
+            if match:
+                return match.group(1)
+
+            # Common model paraphrases or explanations.
+            if any(token in text for token in ("too complex", "simplify", "needs simplification", "hard to read")):
+                return "revise"
+            if any(token in text for token in ("safe to deliver", "okay to deliver", "deliver", "good to send", "clear enough")):
+                return "deliver"
+
+            return None
+
+        def _extract_text(response) -> str:
+            try:
+                content = response.choices[0].message.content
+            except Exception:
+                return ""
+
+            if isinstance(content, str):
+                return content
+            if isinstance(content, list):
+                parts: list[str] = []
+                for item in content:
+                    if isinstance(item, dict) and item.get("type") == "text":
+                        parts.append(str(item.get("text", "")))
+                    elif hasattr(item, "text"):
+                        parts.append(str(getattr(item, "text")))
+                return "".join(parts)
+            return ""
+
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                response = self.client.chat.completions.create(
+                    model=COMPLEXITY_JUDGE_MODEL,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.0,
+                    max_tokens=32,
+                )
+                raw_label = _extract_text(response)
+                finish_reason = getattr(response.choices[0], "finish_reason", "unknown")
+                print(f"   Gate A judge raw: {raw_label!r} (finish_reason={finish_reason})")
+                label = _normalize_label(raw_label)
+                if label:
+                    reason = f"llm:{label}:model={COMPLEXITY_JUDGE_MODEL}"
+                    return label, reason
+
+                # Retry immediately with a stricter token-only prompt.
+                strict_response = self.client.chat.completions.create(
+                    model=COMPLEXITY_JUDGE_MODEL,
+                    messages=[
+                        {"role": "system", "content": "Return exactly one token: REVISE or DELIVER."},
+                        {
+                            "role": "user",
+                            "content": (
+                                "Classify the explanation complexity for a student. "
+                                "Output only REVISE or DELIVER.\n\n"
+                                f"Explanation:\n{explanation}"
+                            ),
+                        },
+                    ],
+                    temperature=0.0,
+                    max_tokens=8,
+                )
+                strict_raw = _extract_text(strict_response)
+                strict_finish = getattr(strict_response.choices[0], "finish_reason", "unknown")
+                print(f"   Gate A strict judge raw: {strict_raw!r} (finish_reason={strict_finish})")
+                strict_label = _normalize_label(strict_raw)
+                if strict_label:
+                    return strict_label, f"llm:{strict_label}:model={COMPLEXITY_JUDGE_MODEL}:strict"
+            except Exception as exc:
+                if attempt == max_retries - 1:
+                    break
+                if "429" in str(exc) or "rate_limit" in str(exc).lower():
+                    time.sleep(2 ** attempt * 5)
+
+        # Final fallback should be conservative: only revise if clearly long.
+        word_count = len(explanation.split())
+        label = "revise" if word_count > 120 else "deliver"
+        return label, f"fallback:{label}:words={word_count}"
 
