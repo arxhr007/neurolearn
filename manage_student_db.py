@@ -17,6 +17,41 @@ from langgraph_app.config import STUDENT_DB_PATH
 from langgraph_app.services.student_db import StudentDB
 
 
+def _prompt_non_empty(label: str) -> str:
+    while True:
+        value = input(f"{label}: ").strip()
+        if value:
+            return value
+        print(f"{label} cannot be empty.")
+
+
+def _prompt_int(label: str, min_value: int | None = None) -> int:
+    while True:
+        raw = input(f"{label}: ").strip()
+        try:
+            value = int(raw)
+        except ValueError:
+            print(f"{label} must be a number.")
+            continue
+        if min_value is not None and value < min_value:
+            print(f"{label} must be >= {min_value}.")
+            continue
+        return value
+
+
+def _prompt_csv(label: str, default: list[str] | None = None) -> list[str]:
+    default = default or []
+    hint = f" [{', '.join(default)}]" if default else ""
+    while True:
+        raw = input(f"{label} (comma-separated){hint}: ").strip()
+        if not raw and default:
+            return default
+        items = [item.strip() for item in raw.split(",") if item.strip()]
+        if items:
+            return items
+        print(f"Please enter at least one {label.lower()}.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Manage student profiles (SQLite)")
     parser.add_argument(
@@ -25,16 +60,17 @@ def main() -> None:
         help=f"SQLite DB path (default: {STUDENT_DB_PATH})",
     )
 
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest="command", required=False)
 
     add_parser = subparsers.add_parser("add", help="Add or update a student profile")
-    add_parser.add_argument("--student-id", required=True, help="Unique student identifier")
-    add_parser.add_argument("--learning-style", required=True, help="Learning style value")
-    add_parser.add_argument("--reading-age", required=True, type=int, help="Reading age")
+    add_parser.add_argument("--student-id", required=False, help="Unique student identifier")
+    add_parser.add_argument("--name", required=False, help="Student name")
+    add_parser.add_argument("--learning-style", required=False, help="Learning style value")
+    add_parser.add_argument("--reading-age", required=False, type=int, help="Reading age")
     add_parser.add_argument(
         "--interests",
         nargs="+",
-        required=True,
+        required=False,
         help="Interest keywords (space-separated)",
     )
     add_parser.add_argument(
@@ -65,17 +101,37 @@ def main() -> None:
     goals_parser.add_argument("--limit", type=int, default=20, help="Max goals to return")
 
     args = parser.parse_args()
+    if not args.command:
+        # Default behavior: launch interactive student profile creation.
+        args.command = "add"
     db = StudentDB(args.db_path)
 
     if args.command == "add":
+        # Interactive prompts for any missing fields.
+        student_id = (getattr(args, "student_id", None) or "").strip() or _prompt_non_empty("Student ID")
+        name = (getattr(args, "name", None) or "").strip() or _prompt_non_empty("Student name")
+        learning_style = (getattr(args, "learning_style", None) or "").strip() or _prompt_non_empty("Learning style")
+        reading_age_arg = getattr(args, "reading_age", None)
+        reading_age = reading_age_arg if reading_age_arg is not None else _prompt_int("Reading age", min_value=1)
+
+        interests = getattr(args, "interests", None)
+        if not interests:
+            interests = _prompt_csv("Interests")
+
+        neuro_profile_arg = getattr(args, "neuro_profile", None)
+        neuro_profile = neuro_profile_arg or ["general"]
+        if neuro_profile_arg is None:
+            neuro_profile = _prompt_csv("Neuro profile tags", default=["general"])
+
         db.upsert_student(
-            student_id=args.student_id,
-            learning_style=args.learning_style,
-            reading_age=args.reading_age,
-            interest_graph=args.interests,
-            neuro_profile=args.neuro_profile,
+            student_id=student_id,
+            name=name,
+            learning_style=learning_style,
+            reading_age=reading_age,
+            interest_graph=interests,
+            neuro_profile=neuro_profile,
         )
-        print(f"Saved student profile: {args.student_id}")
+        print(f"Saved student profile: {student_id} ({name})")
         return
 
     if args.command == "get":
