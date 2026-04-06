@@ -25,6 +25,7 @@ class StudentDB:
                 """
                 CREATE TABLE IF NOT EXISTS students (
                     student_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL DEFAULT '',
                     learning_style TEXT NOT NULL,
                     reading_age INTEGER NOT NULL,
                     interest_graph TEXT NOT NULL,
@@ -39,6 +40,16 @@ class StudentDB:
                     """
                     ALTER TABLE students
                     ADD COLUMN neuro_profile TEXT NOT NULL DEFAULT '["general"]'
+                    """
+                )
+            except sqlite3.OperationalError:
+                # Column already exists.
+                pass
+            try:
+                conn.execute(
+                    """
+                    ALTER TABLE students
+                    ADD COLUMN name TEXT NOT NULL DEFAULT ''
                     """
                 )
             except sqlite3.OperationalError:
@@ -159,6 +170,7 @@ class StudentDB:
     def upsert_student(
         self,
         student_id: str,
+        name: str,
         learning_style: str,
         reading_age: int,
         interest_graph: list[str],
@@ -168,9 +180,10 @@ class StudentDB:
         with self._connect() as conn:
             conn.execute(
                 """
-                INSERT INTO students (student_id, learning_style, reading_age, interest_graph, neuro_profile)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO students (student_id, name, learning_style, reading_age, interest_graph, neuro_profile)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(student_id) DO UPDATE SET
+                    name=excluded.name,
                     learning_style=excluded.learning_style,
                     reading_age=excluded.reading_age,
                     interest_graph=excluded.interest_graph,
@@ -178,6 +191,7 @@ class StudentDB:
                 """,
                 (
                     student_id,
+                    (name or "").strip(),
                     learning_style,
                     int(reading_age),
                     json.dumps(interest_graph, ensure_ascii=False),
@@ -189,7 +203,7 @@ class StudentDB:
         with self._connect() as conn:
             row = conn.execute(
                 """
-                SELECT student_id, learning_style, reading_age, interest_graph, neuro_profile
+                SELECT student_id, name, learning_style, reading_age, interest_graph, neuro_profile
                 FROM students
                 WHERE student_id = ?
                 """,
@@ -201,6 +215,7 @@ class StudentDB:
 
         return {
             "student_id": row["student_id"],
+            "name": row["name"] or "",
             "learning_style": row["learning_style"],
             "reading_age": int(row["reading_age"]),
             "interest_graph": json.loads(row["interest_graph"]),
@@ -211,7 +226,7 @@ class StudentDB:
         with self._connect() as conn:
             rows = conn.execute(
                 """
-                SELECT student_id, learning_style, reading_age, interest_graph, neuro_profile, updated_at
+                SELECT student_id, name, learning_style, reading_age, interest_graph, neuro_profile, updated_at
                 FROM students
                 ORDER BY student_id
                 """
@@ -222,6 +237,7 @@ class StudentDB:
             students.append(
                 {
                     "student_id": row["student_id"],
+                    "name": row["name"] or "",
                     "learning_style": row["learning_style"],
                     "reading_age": int(row["reading_age"]),
                     "interest_graph": json.loads(row["interest_graph"]),
@@ -389,6 +405,7 @@ class StudentDB:
         if new_reading_age != profile["reading_age"] or updated_interests != profile["interest_graph"]:
             self.upsert_student(
                 student_id=student_id,
+                name=profile.get("name") or "",
                 learning_style=profile["learning_style"],
                 reading_age=new_reading_age,
                 interest_graph=updated_interests,
@@ -400,6 +417,7 @@ class StudentDB:
 
         return {
             "student_id": student_id,
+            "name": profile.get("name") or "",
             "learning_style": profile["learning_style"],
             "reading_age": new_reading_age,
             "interest_graph": updated_interests,
