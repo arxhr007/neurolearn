@@ -6,7 +6,7 @@ import sys
 
 from langgraph_app.config import DEFAULT_DB_DIR, DEFAULT_MODEL, STUDENT_DB_PATH, TOP_K
 from langgraph_app.graph.builder import build_graph_app
-from langgraph_app.intents.llm_classifier import IntentClassifier
+from langgraph_app.services.intent_classifier import IntentClassifier
 from langgraph_app.services.llm import MalayalamLLM
 from langgraph_app.services.retriever import RAGRetriever
 from langgraph_app.services.student_db import StudentDB

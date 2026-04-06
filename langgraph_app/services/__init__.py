@@ -1,1 +1,1 @@
-"""Service layer for data retrieval and LLM generation."""
+"""Service layer for retrieval, LLM operations, persistence, and intent classification."""

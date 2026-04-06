@@ -121,6 +121,9 @@ What changed:
   - `is_correct`
   - `misconception`
   - `confidence`
+  - `source_doc`
+  - `source_page`
+  - `source_chunk_id`
   - timestamp (`created_at`)
 - Added query support to inspect mastery history.
 
@@ -224,6 +227,7 @@ flowchart TD
 
 ### Students table
 - `student_id` (PK)
+- `name`
 - `learning_style`
 - `reading_age`
 - `interest_graph` (JSON)
@@ -238,6 +242,9 @@ flowchart TD
 - `is_correct`
 - `misconception`
 - `confidence`
+- `source_doc`
+- `source_page`
+- `source_chunk_id`
 - `created_at`
 
 ### Profile update meta table
@@ -257,7 +264,8 @@ flowchart TD
 ### Add/update student
 
 ```powershell
-python .\manage_student_db.py add --student-id s1 --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia
+python .\manage_student_db.py
+# or: python .\manage_student_db.py add --student-id s1 --name "Test User" --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia
 ```
 
 ### Get student
@@ -325,16 +333,16 @@ python .\rag_langgraph.py --student-id s1
 
 ## 7) Known Caveats
 
-- `concept_key` currently uses top retrieved document/page heuristics, not semantic concept IDs.
+- Semantic `concept_key` generation is rule-assisted and may still be noisy in edge cases.
 - Model outputs can vary; robust parsing and fallback are present but not perfect.
 - Learning-goal drift checker depends on LLM semantic judgment and may occasionally over/under-detect drift.
 
 ## 8) Suggested Next Steps (Later)
 
-- Add semantic concept IDs for cleaner mastery aggregation.
 - Add drift-event logging for analytics (how often learners go off-goal).
 - Add mastery summary views (per concept, per week).
 - Add evaluation regression tests with fixed Malayalam samples.
+- Add automated unit/integration tests for node-level routing and DB side effects.
 
 ---
 
