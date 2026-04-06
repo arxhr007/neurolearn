@@ -25,11 +25,14 @@ class RAGRetriever:
         )
         docs = []
         for i in range(len(results["ids"][0])):
+            metadata = results["metadatas"][0][i] or {}
             docs.append(
                 {
                     "text": results["documents"][0][i],
-                    "source": results["metadatas"][0][i]["source"],
-                    "page": results["metadatas"][0][i]["page"],
+                    "source": metadata.get("source"),
+                    "page": metadata.get("page"),
+                    "chunk_id": metadata.get("chunk_id"),
+                    "vector_id": results["ids"][0][i],
                     "distance": results["distances"][0][i] if results.get("distances") else None,
                 }
             )

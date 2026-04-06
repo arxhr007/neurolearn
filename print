@@ -1,18 +1,18 @@
-PS C:\Users\aaron\Videos\neurolearn> python .\rag_langgraph.py --student-id s1 --text "പഠന രീതി എന്താണ്?"
+
+PS C:\Users\aaron\Videos\neurolearn> python .\rag_langgraph.py --student-id s100 --text "ഫുട്ബോൾ കളിയുടെ നിയമങ്ങൾ പറഞ്ഞുതരൂ"
 Initialising components...
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Loading weights: 100%|█████████████████████████████████████████████████████████████████████| 199/199 [00:00<00:00, 4292.91it/s]
+Loading weights: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████| 199/199 [00:00<00:00, 3731.67it/s]
 BertModel LOAD REPORT from: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
-Key                     | Status     |  | 
+Key                     | Status     |  |
 ------------------------+------------+--+-
-embeddings.position_ids | UNEXPECTED |  | 
+embeddings.position_ids | UNEXPECTED |  |
 
 Notes:
 - UNEXPECTED    :can be ignored when loading from different task/architecture; not ok if you expect identical arch.
 [RAG] Loaded collection with 1733 chunks
 [LLM] Using Groq model: openai/gpt-oss-120b
 
-  Query: പഠന രീതി എന്താണ്?
+  Query: ഫുട്ബോൾ കളിയുടെ നിയമങ്ങൾ പറഞ്ഞുതരൂ
 
   Searching knowledge base...
    Intent classified as: new_concept (llm)
@@ -22,24 +22,39 @@ Notes:
    Gate A judge source: LLM
    Gate A action: deliver -> send to user
    Gate A check: ok: llm:deliver:model=llama-3.1-8b-instant; safe to deliver (retry_count=0)
-   Evaluator generated check question: പഠന രീതി കളി‑അധിഷ്ഠിതവും പ്രവര്‍ത്തന‑കേന്ദ്രിതവുമാണെന്ന് നിങ്ങൾക്ക് എന്താണ് അർത്ഥമാക്കുന്നത്?
+   Evaluator generated check question: ഫുട്ബോൾ നിയമങ്ങളേക്കുറിച്ച് വിശദീകരണം ലഭ്യമല്ലെന്ന് നിങ്ങൾക്ക് മനസ്സിലായോ?
    Found 5 relevant passages
-   [1] Primary.pdf p.71 (distance: 0.240)
-   [2] Pre-Primary.pdf p.36 (distance: 0.280)
-   [3] Pre vocational.pdf p.9 (distance: 0.321)
-   [4] Secondary.pdf p.74 (distance: 0.333)
-   [5] Pre-Primary.pdf p.13 (distance: 0.335)
+   [1] Pre vocational.pdf p.15 (distance: 0.117)
+   [2] Primary_1.pdf p.6 (distance: 0.148)
+   [3] Primary.pdf p.43 (distance: 0.153)
+   [4] Secondary.pdf p.89 (distance: 0.157)
+   [5] Pre vocational.pdf p.10 (distance: 0.158)
 
   Generating Malayalam answer...
 
 ────────────────────────────────────────────────────────────
   Answer:
 
-പഠന രീതി **കളി‑അധിഷ്ഠിത, പ്രവര്‍ത്തന‑കേന്ദ്രിത** ആണ്. കുട്ടികള്‍ ബലൂണ്‍, കേക്ക്, കത്തി തുടങ്ങിയ വസ്തുക്കള്‍ ഉപയോഗിച്ച് വിവിധ കളി                          ികളും റോള്‍പ്ലേ (ഭീച്ചര്‍ റോള്‍പ്ലേ) എന്നിവയിലൂടെ സാമൂഹിക‑വൈകാരിക നൈപുണ്യങ്ങള്‍ നേടുന്നു [2][4]. പ്രവര്‍ത്തനത്തിന്റെ ഫലത്തെ അഞ്ച്                              തലത്തിലുള്ള വിലയിരുത്തലിലൂടെ (വളരെ മികച്ചത്‌ മുതല്‍ മെച്ചപ്പെടുത്തേണ്ടത്‌ വരെ) പരിശോധിക്കുന്നു [3].
+ക്ഷമിക്കണം, നൽകിയിരിക്കുന്ന രേഖകളിൽ ഫുട്ബോൾ കളിയുടെ നിയമങ്ങളേക്കുറിച്ചുള്ള വിവരങ്ങൾ ഇല്ലാത്തതിനാൽ, അതിനെക്കുറിച്ച് വിശദമായി വിശദീകരിക്കാൻ കഴിയില്ല.
 
-*(ഉദാഹരണം: ഒരു കഥയില്‍ പോലെ, കുട്ടികള്‍ കളിക്കുമ്പോള്‍ തന്നെ പഠിക്കുന്നു.)*
+  Answer Sources:
+
+  [1] textbook=Pre vocational.pdf, page=15, chunk_id=36, json=output/rag_chunks/Pre vocational.json
+  [2] textbook=Primary_1.pdf, page=6, chunk_id=7, json=output/rag_chunks/Primary_1.json
+  [3] textbook=Primary.pdf, page=43, chunk_id=99, json=output/rag_chunks/Primary.json
+  [4] textbook=Secondary.pdf, page=89, chunk_id=267, json=output/rag_chunks/Secondary.json
+  [5] textbook=Pre vocational.pdf, page=10, chunk_id=25, json=output/rag_chunks/Pre vocational.json
 
   Check Question:
 
-പഠന രീതി കളി‑അധിഷ്ഠിതവും പ്രവര്‍ത്തന‑കേന്ദ്രിതവുമാണെന്ന് നിങ്ങൾക്ക് എന്താണ് അർത്ഥമാക്കുന്നത്?
+ഫുട്ബോൾ നിയമങ്ങളേക്കുറിച്ച് വിശദീകരണം ലഭ്യമല്ലെന്ന് നിങ്ങൾക്ക് മനസ്സിലായോ?
+
+  Evaluation Result:
+
+  is_correct: None
+  feedback: None
+  misconception: None
+  confidence: None
 ────────────────────────────────────────────────────────────
+
+PS C:\Users\aaron\Videos\neurolearn> 

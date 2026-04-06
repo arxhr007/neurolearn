@@ -56,6 +56,17 @@ def _answer_question(
     answer = state.get("answer")
     print(f"\n{'─' * 60}")
     print(f"  Answer:\n\n{answer}")
+    if docs:
+        print("\n  Answer Sources:\n")
+        for i, doc in enumerate(docs, 1):
+            source = doc.get("source") or "unknown"
+            page = doc.get("page") if doc.get("page") is not None else "na"
+            chunk_id = doc.get("chunk_id")
+            vector_id = doc.get("vector_id") or "na"
+            source_base = str(source).replace(".pdf", "")
+            json_hint = f"output/rag_chunks/{source_base}.json"
+            chunk_part = f"chunk_id={chunk_id}" if chunk_id is not None else f"vector_id={vector_id}"
+            print(f"  [{i}] textbook={source}, page={page}, {chunk_part}, json={json_hint}")
     check_question = state.get("check_question")
     if check_question:
         print(f"\n  Check Question:\n\n{check_question}")
