@@ -10,6 +10,7 @@ from langgraph_app.graph.nodes import (
     make_parent_orchestrator,
     make_personalization_gate,
     make_personalizer,
+    make_remediation_node,
 )
 from langgraph_app.state import RAGState
 
@@ -18,6 +19,10 @@ def build_graph_app(retriever, llm, intent_classifier):
     def route_by_intent(state: RAGState) -> str:
         intent = state.get("intent", "new_concept")
         return "answer_retriever" if intent == "answer" else "new_concept_retriever"
+
+    def route_by_correctness(state: RAGState) -> str:
+        is_correct = state.get("evaluation_result", {}).get("is_correct", True)
+        return "END" if is_correct else "remediation"
 
     def initialize_gate_state(state: RAGState) -> RAGState:
         return {"complexity_retry_count": int(state.get("complexity_retry_count", 0))}
@@ -49,6 +54,10 @@ def build_graph_app(retriever, llm, intent_classifier):
         "evaluator",
         make_evaluator(llm, node_name="evaluator"),
     )
+    graph.add_node(
+        "remediation",
+        make_remediation_node(llm, node_name="remediation"),
+    )
 
     def route_by_complexity(state: RAGState) -> str:
         decision = state.get("complexity_decision", "deliver")
@@ -75,7 +84,15 @@ def build_graph_app(retriever, llm, intent_classifier):
         },
     )
     graph.add_edge("answer_retriever", "answer_evaluator")
+    graph.add_conditional_edges(
+        "answer_evaluator",
+        route_by_correctness,
+        {
+            "remediation": "remediation",
+            "END": END,
+        },
+    )
     graph.add_edge("evaluator", END)
-    graph.add_edge("answer_evaluator", END)
+    graph.add_edge("remediation", END)
 
     return graph.compile()

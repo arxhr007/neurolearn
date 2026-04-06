@@ -209,3 +209,37 @@ def make_answer_evaluator(llm, node_name: str = "answer_evaluator"):
         }
 
     return answer_evaluator
+
+
+def make_remediation_node(llm, node_name: str = "remediation"):
+    def remediation(state: RAGState) -> RAGState:
+        is_correct = state.get("evaluation_result", {}).get("is_correct", True)
+        if is_correct:
+            return {"active_node": node_name}
+
+        print(f"   Remediation node running for node: {node_name}")
+        question = state.get("question", "")
+        student_response = state.get("student_response", "")
+        evaluation = state.get("evaluation_result", {})
+        feedback = evaluation.get("feedback", "ഉത്തരം ശരിയായിരുന്നില്ല.")
+        docs = state.get("docs", [])
+        student_profile = state.get("student_profile")
+
+        remediation_explanation = llm.generate_remediation(
+            question=question,
+            student_response=student_response,
+            evaluator_feedback=feedback,
+            context_docs=docs,
+            student_profile=student_profile,
+        )
+
+        attempt_count = int(state.get("attempt_count", 0)) + 1
+        print(f"   Remediation explanation generated (attempt {attempt_count})")
+
+        return {
+            "remediation_explanation": remediation_explanation,
+            "attempt_count": attempt_count,
+            "active_node": node_name,
+        }
+
+    return remediation

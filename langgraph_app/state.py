@@ -21,4 +21,6 @@ class RAGState(TypedDict, total=False):
     complexity_reason: str
     complexity_retry_count: int
     answer: str
+    remediation_explanation: str
+    attempt_count: int
     active_node: str

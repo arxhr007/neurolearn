@@ -75,6 +75,10 @@ def _answer_question(
         print(f"  is_correct: {mastery_event.get('is_correct')}")
         print(f"  misconception: {mastery_event.get('misconception')}")
         print(f"  confidence: {mastery_event.get('confidence')}")
+    remediation_explanation = state.get("remediation_explanation")
+    if remediation_explanation:
+        print("\n  Remediation (Try Again):\n")
+        print(f"{remediation_explanation}")
     print(f"{'─' * 60}\n")
 
 
@@ -97,6 +101,20 @@ def run_interactive(app, top_k: int, student_id: str, student_profile: dict, stu
             break
 
         _answer_question(question, app, top_k, student_id, student_profile, student_db)
+
+        # Offer retry after remediation
+        try:
+            retry = input("\n  Do you want to try again? (yes/no/exit): ").strip().lower()
+            if retry in ("yes", "y", "again", "retry"):
+                answer = input("  Enter your answer: ").strip()
+                if answer:
+                    _answer_question(answer, app, top_k, student_id, student_profile, student_db)
+            elif retry in ("exit", "quit", "stop", "bye", "no", "n"):
+                if retry in ("exit", "quit", "stop", "bye"):
+                    print("\nExiting. Goodbye!")
+                break
+        except (EOFError, KeyboardInterrupt):
+            break
 
 
 def run_single_query(
