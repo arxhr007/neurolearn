@@ -14,17 +14,8 @@ def make_parent_orchestrator():
 
 def make_llm_intent_classifier(classifier):
     def intent_classifier(state: RAGState) -> RAGState:
-        forced_intent = state.get("force_intent")
-        if forced_intent in ("new_concept", "answer"):
-            print(f"   Intent classified as: {forced_intent} (forced)")
-            return {
-                "intent": forced_intent,
-                "intent_source": "forced",
-                "active_node": "intent_classifier",
-            }
-
-        question = state["question"]
-        intent, source = classifier.classify_with_source(question)
+        intent_input = state.get("student_response") or state.get("question", "")
+        intent, source = classifier.classify_with_source(intent_input)
         print(f"   Intent classified as: {intent} ({source})")
         return {
             "intent": intent,
@@ -37,6 +28,13 @@ def make_llm_intent_classifier(classifier):
 
 def make_goal_drift_checker(llm, node_name: str = "goal_drift_checker"):
     def goal_drift_checker(state: RAGState) -> RAGState:
+        if state.get("check_answer_hint"):
+            return {
+                "drift_detected": False,
+                "drift_reason": "answer_turn",
+                "active_node": node_name,
+            }
+
         student_db = state.get("student_db")
         student_id = state.get("student_id")
         question = state.get("question", "")

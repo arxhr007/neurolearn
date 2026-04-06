@@ -10,7 +10,6 @@ class RAGState(TypedDict, total=False):
     drift_detected: bool
     drift_reason: str
     drift_message: str
-    force_intent: str
     question: str
     student_response: str
     top_k: int

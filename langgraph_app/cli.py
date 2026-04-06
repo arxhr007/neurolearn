@@ -43,8 +43,6 @@ def _answer_question(
         "top_k": top_k,
         "student_profile": student_profile,
     }
-    if student_response is not None:
-        payload["force_intent"] = "answer"
     if check_answer_hint:
         payload["check_answer_hint"] = check_answer_hint
 

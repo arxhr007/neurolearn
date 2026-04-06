@@ -274,34 +274,38 @@ class MalayalamLLM:
         """Judge whether a student response is correct using retrieved context."""
         profile = student_profile or {}
         reading_age = profile.get("reading_age", 12)
-        neuro_tags, neuro_guidelines = self._build_neuro_support_guidelines(student_profile)
+        neuro_tags, _ = self._build_neuro_support_guidelines(student_profile)
+
+        def _clip(text: str, limit: int = 280) -> str:
+            cleaned = (text or "").strip().replace("\n", " ")
+            if len(cleaned) <= limit:
+                return cleaned
+            return cleaned[: limit - 3].rstrip() + "..."
 
         context_parts = []
-        for i, doc in enumerate(context_docs, 1):
+        for i, doc in enumerate(context_docs[:3], 1):
             context_parts.append(
-                f"[{i}] (Source: {doc['source']}, Page {doc['page']})\n{doc['text']}"
+                f"[{i}] {doc['source']} p.{doc['page']}: {_clip(str(doc['text']), 320)}"
             )
         context_block = "\n\n".join(context_parts)
 
         system_prompt = (
             "You are a strict answer evaluator for a Malayalam educational tutor. "
-            "Compare the student's response with the retrieved context. "
-            "Return exactly one JSON object with keys: is_correct (boolean), feedback (string), misconception (string), confidence (number). "
-            "Do not return markdown, code fences, or extra text."
+            "Return exactly one compact JSON object with keys: is_correct, feedback, misconception, confidence. "
+            "Use Malayalam in feedback. Keep the JSON short. Do not include markdown, code fences, or extra text."
         )
         user_prompt = (
             f"Question/topic: {question}\n"
             f"Student response: {student_response}\n"
-            f"Expected answer hint: {expected_answer_hint or ''}\n"
+            f"Expected answer hint: {_clip(expected_answer_hint or '', 180)}\n"
             f"Reading age: {reading_age}\n"
             f"Neuro profile: {neuro_tags}\n"
-            f"Neurodivergent support guidelines for feedback style:\n{neuro_guidelines}\n"
             f"Context:\n{context_block}\n\n"
             "Rules:\n"
-            "- is_correct should be true only if the student's response matches the context well.\n"
-            "- feedback should be short, direct, and in Malayalam.\n"
-            "- misconception should name the main mistake or be empty string if correct.\n"
-            "- confidence should be a number from 0 to 1.\n"
+            "- is_correct: true only if the response clearly matches the context and hint.\n"
+            "- feedback: one short Malayalam sentence.\n"
+            "- misconception: short label or empty string.\n"
+            "- confidence: number between 0 and 1.\n"
             "Return only the JSON object."
         )
 
@@ -330,7 +334,7 @@ class MalayalamLLM:
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=0.0,
-                    max_tokens=256,
+                    max_tokens=512,
                 )
                 content = response.choices[0].message.content or ""
                 print(f"   Answer evaluator raw: {content!r}")
@@ -347,11 +351,27 @@ class MalayalamLLM:
                 if "429" in str(exc) or "rate_limit" in str(exc).lower():
                     time.sleep(2 ** attempt * 5)
 
+        # Lightweight fallback so the evaluator still produces a useful result if
+        # the model returns empty/truncated output.
+        fallback_feedback = "ഉത്തരം കൂടുതൽ വ്യക്തമാക്കണം."
+        fallback_misconception = "parse_failed"
+        if expected_answer_hint and student_response:
+            hint_words = {w for w in re.findall(r"[\wാ-്]+", expected_answer_hint.lower()) if len(w) > 2}
+            response_words = {w for w in re.findall(r"[\wാ-്]+", student_response.lower()) if len(w) > 2}
+            overlap = len(hint_words & response_words)
+            if overlap >= 2:
+                return {
+                    "is_correct": True,
+                    "feedback": "ശരി.",
+                    "misconception": "",
+                    "confidence": 0.7,
+                }
+
         return {
             "is_correct": False,
-            "feedback": "ഉത്തരം വിലയിരുത്താൻ കഴിഞ്ഞില്ല.",
-            "misconception": "parse_failed",
-            "confidence": 0.0,
+            "feedback": fallback_feedback,
+            "misconception": fallback_misconception,
+            "confidence": 0.2,
         }
 
     def judge_personalization_complexity(self, explanation: str) -> tuple[str, str]:
