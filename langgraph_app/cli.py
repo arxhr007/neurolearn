@@ -23,11 +23,19 @@ def _load_env_file() -> None:
     load_dotenv(dotenv_path=os.path.join(os.getcwd(), ".env"), override=False)
 
 
-def _answer_question(question: str, app, top_k: int, student_id: str, student_profile: dict) -> None:
+def _answer_question(
+    question: str,
+    app,
+    top_k: int,
+    student_id: str,
+    student_profile: dict,
+    student_db: StudentDB,
+) -> None:
     print("\n  Searching knowledge base...")
     state = app.invoke(
         {
             "student_id": student_id,
+            "student_db": student_db,
             "question": question,
             "student_response": question,
             "top_k": top_k,
@@ -57,10 +65,20 @@ def _answer_question(question: str, app, top_k: int, student_id: str, student_pr
         print(f"  is_correct: {evaluation_result.get('is_correct')}")
         print(f"  feedback: {evaluation_result.get('feedback')}")
         print(f"  misconception: {evaluation_result.get('misconception')}")
+        print(f"  confidence: {evaluation_result.get('confidence')}")
+    mastery_event = state.get("mastery_event")
+    if mastery_event:
+        print("\n  Mastery Event Saved:\n")
+        print(f"  id: {mastery_event.get('id')}")
+        print(f"  student_id: {mastery_event.get('student_id')}")
+        print(f"  concept_key: {mastery_event.get('concept_key')}")
+        print(f"  is_correct: {mastery_event.get('is_correct')}")
+        print(f"  misconception: {mastery_event.get('misconception')}")
+        print(f"  confidence: {mastery_event.get('confidence')}")
     print(f"{'─' * 60}\n")
 
 
-def run_interactive(app, top_k: int, student_id: str, student_profile: dict) -> None:
+def run_interactive(app, top_k: int, student_id: str, student_profile: dict, student_db: StudentDB) -> None:
     print("\n" + "=" * 60)
     print("  Malayalam RAG System (LangGraph Phase 1)")
     print("  Type 'exit' or 'quit' to stop")
@@ -78,12 +96,19 @@ def run_interactive(app, top_k: int, student_id: str, student_profile: dict) -> 
             print("\nExiting. Goodbye!")
             break
 
-        _answer_question(question, app, top_k, student_id, student_profile)
+        _answer_question(question, app, top_k, student_id, student_profile, student_db)
 
 
-def run_single_query(query: str, app, top_k: int, student_id: str, student_profile: dict) -> None:
+def run_single_query(
+    query: str,
+    app,
+    top_k: int,
+    student_id: str,
+    student_profile: dict,
+    student_db: StudentDB,
+) -> None:
     print(f"\n  Query: {query}")
-    _answer_question(query, app, top_k, student_id, student_profile)
+    _answer_question(query, app, top_k, student_id, student_profile, student_db)
 
 
 def main() -> None:
@@ -138,6 +163,6 @@ def main() -> None:
     app = build_graph_app(retriever, llm, intent_classifier)
 
     if args.text:
-        run_single_query(args.text, app, args.top_k, args.student_id, student_profile)
+        run_single_query(args.text, app, args.top_k, args.student_id, student_profile, student_db)
     else:
-        run_interactive(app, args.top_k, args.student_id, student_profile)
+        run_interactive(app, args.top_k, args.student_id, student_profile, student_db)

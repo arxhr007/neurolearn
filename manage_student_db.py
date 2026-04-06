@@ -4,6 +4,7 @@ Examples:
   python manage_student_db.py add --student-id s1 --learning-style analogy-heavy --reading-age 12 --interests games stories
   python manage_student_db.py get --student-id s1
   python manage_student_db.py list
+    python manage_student_db.py mastery --student-id s1 --limit 20
 """
 
 import argparse
@@ -39,6 +40,10 @@ def main() -> None:
 
     subparsers.add_parser("list", help="List all student profiles")
 
+    mastery_parser = subparsers.add_parser("mastery", help="List mastery events for one student")
+    mastery_parser.add_argument("--student-id", required=True, help="Student identifier")
+    mastery_parser.add_argument("--limit", type=int, default=20, help="Max events to return")
+
     args = parser.parse_args()
     db = StudentDB(args.db_path)
 
@@ -63,6 +68,12 @@ def main() -> None:
     if args.command == "list":
         profiles = db.list_students()
         print(json.dumps(profiles, ensure_ascii=False, indent=2))
+        return
+
+    if args.command == "mastery":
+        events = db.list_mastery_events(args.student_id, limit=args.limit)
+        print(json.dumps(events, ensure_ascii=False, indent=2))
+        return
 
 
 if __name__ == "__main__":
