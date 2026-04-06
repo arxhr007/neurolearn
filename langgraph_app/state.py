@@ -6,6 +6,7 @@ from typing import TypedDict
 class RAGState(TypedDict, total=False):
     student_id: str
     question: str
+    student_response: str
     top_k: int
     student_profile: dict
     intent: str

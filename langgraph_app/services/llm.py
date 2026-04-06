@@ -1,6 +1,7 @@
 """Groq-backed LLM service."""
 
 import os
+import json
 import re
 import sys
 import time
@@ -154,6 +155,92 @@ class MalayalamLLM:
                 else:
                     raise
         raise RuntimeError("Groq API rate limit exceeded after all retries.")
+
+    def evaluate_student_answer(
+        self,
+        question: str,
+        student_response: str,
+        context_docs: list[dict],
+        student_profile: dict | None = None,
+    ) -> dict:
+        """Judge whether a student response is correct using retrieved context."""
+        profile = student_profile or {}
+        reading_age = profile.get("reading_age", 12)
+
+        context_parts = []
+        for i, doc in enumerate(context_docs, 1):
+            context_parts.append(
+                f"[{i}] (Source: {doc['source']}, Page {doc['page']})\n{doc['text']}"
+            )
+        context_block = "\n\n".join(context_parts)
+
+        system_prompt = (
+            "You are a strict answer evaluator for a Malayalam educational tutor. "
+            "Compare the student's response with the retrieved context. "
+            "Return exactly one JSON object with keys: is_correct (boolean), feedback (string), misconception (string), confidence (number). "
+            "Do not return markdown, code fences, or extra text."
+        )
+        user_prompt = (
+            f"Question/topic: {question}\n"
+            f"Student response: {student_response}\n"
+            f"Reading age: {reading_age}\n"
+            f"Context:\n{context_block}\n\n"
+            "Rules:\n"
+            "- is_correct should be true only if the student's response matches the context well.\n"
+            "- feedback should be short, direct, and in Malayalam.\n"
+            "- misconception should name the main mistake or be empty string if correct.\n"
+            "- confidence should be a number from 0 to 1.\n"
+            "Return only the JSON object."
+        )
+
+        def _extract_json(text: str) -> dict | None:
+            raw = (text or "").strip()
+            if not raw:
+                return None
+            match = re.search(r"\{.*\}", raw, re.DOTALL)
+            candidate = match.group(0) if match else raw
+            candidate = candidate.replace("```json", "").replace("```", "").strip()
+            try:
+                parsed = json.loads(candidate)
+            except Exception:
+                return None
+            if isinstance(parsed, dict):
+                return parsed
+            return None
+
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = self.client.chat.completions.create(
+                    model=GROQ_MODEL,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.0,
+                    max_tokens=256,
+                )
+                content = response.choices[0].message.content or ""
+                print(f"   Answer evaluator raw: {content!r}")
+                parsed = _extract_json(content)
+                if parsed:
+                    parsed.setdefault("is_correct", False)
+                    parsed.setdefault("feedback", "")
+                    parsed.setdefault("misconception", "")
+                    parsed.setdefault("confidence", 0.0)
+                    return parsed
+            except Exception as exc:
+                if attempt == max_retries - 1:
+                    break
+                if "429" in str(exc) or "rate_limit" in str(exc).lower():
+                    time.sleep(2 ** attempt * 5)
+
+        return {
+            "is_correct": False,
+            "feedback": "ഉത്തരം വിലയിരുത്താൻ കഴിഞ്ഞില്ല.",
+            "misconception": "parse_failed",
+            "confidence": 0.0,
+        }
 
     def judge_personalization_complexity(self, explanation: str) -> tuple[str, str]:
         """Judge whether a personalized explanation is too complex to deliver."""

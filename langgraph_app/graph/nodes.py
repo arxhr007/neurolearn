@@ -153,3 +153,22 @@ def make_evaluator(llm, node_name: str = "evaluator"):
         }
 
     return evaluator
+
+
+def make_answer_evaluator(llm, node_name: str = "answer_evaluator"):
+    def answer_evaluator(state: RAGState) -> RAGState:
+        student_response = state.get("student_response") or state.get("question", "")
+        print(f"   Answer evaluator running for node: {node_name}")
+        evaluation = llm.evaluate_student_answer(
+            state.get("question", ""),
+            student_response,
+            state.get("docs", []),
+            state.get("student_profile"),
+        )
+        print(f"   Answer evaluator result: is_correct={evaluation.get('is_correct')} feedback={evaluation.get('feedback')}")
+        return {
+            "evaluation_result": evaluation,
+            "active_node": node_name,
+        }
+
+    return answer_evaluator

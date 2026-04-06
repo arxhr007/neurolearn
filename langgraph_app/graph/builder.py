@@ -3,7 +3,7 @@
 from langgraph.graph import END, StateGraph
 
 from langgraph_app.graph.nodes import (
-    make_answer_generator,
+    make_answer_evaluator,
     make_evaluator,
     make_llm_intent_classifier,
     make_knowledge_retriever,
@@ -42,8 +42,8 @@ def build_graph_app(retriever, llm, intent_classifier):
         make_personalization_gate(llm, node_name="personalization_gate"),
     )
     graph.add_node(
-        "answer_response_generator",
-        make_answer_generator(llm, node_name="answer_response_generator"),
+        "answer_evaluator",
+        make_answer_evaluator(llm, node_name="answer_evaluator"),
     )
     graph.add_node(
         "evaluator",
@@ -74,13 +74,8 @@ def build_graph_app(retriever, llm, intent_classifier):
             "deliver_answer": "evaluator",
         },
     )
-    graph.add_edge("answer_retriever", "answer_response_generator")
-    graph.add_node(
-        "deliver_answer",
-        make_answer_generator(llm, node_name="deliver_answer"),
-    )
-    graph.add_edge("deliver_answer", "evaluator")
+    graph.add_edge("answer_retriever", "answer_evaluator")
     graph.add_edge("evaluator", END)
-    graph.add_edge("answer_response_generator", END)
+    graph.add_edge("answer_evaluator", END)
 
     return graph.compile()
