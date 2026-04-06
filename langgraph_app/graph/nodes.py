@@ -39,6 +39,75 @@ def make_llm_intent_classifier(classifier):
     return intent_classifier
 
 
+def make_goal_drift_checker(llm, node_name: str = "goal_drift_checker"):
+    def goal_drift_checker(state: RAGState) -> RAGState:
+        student_db = state.get("student_db")
+        student_id = state.get("student_id")
+        question = state.get("question", "")
+        student_profile = state.get("student_profile")
+
+        if not student_db or not student_id:
+            return {
+                "drift_detected": False,
+                "drift_reason": "no_student_context",
+                "active_node": node_name,
+            }
+
+        goal = student_db.get_active_learning_goal(student_id)
+        if not goal:
+            return {
+                "drift_detected": False,
+                "drift_reason": "no_active_goal",
+                "active_node": node_name,
+            }
+
+        goal_text = str(goal.get("goal_text") or "").strip()
+        if not goal_text:
+            return {
+                "drift_detected": False,
+                "drift_reason": "empty_goal",
+                "active_node": node_name,
+            }
+
+        result = llm.check_learning_goal_drift(
+            question=question,
+            learning_goal=goal_text,
+            student_profile=student_profile,
+        )
+        is_on_goal = bool(result.get("is_on_goal", True))
+        drift_detected = not is_on_goal
+        drift_reason = str(result.get("reason") or "aligned")
+        drift_message = str(result.get("redirect_message") or "")
+
+        print(f"   Goal drift check: drift_detected={drift_detected} reason={drift_reason}")
+
+        return {
+            "active_learning_goal": goal_text,
+            "drift_detected": drift_detected,
+            "drift_reason": drift_reason,
+            "drift_message": drift_message,
+            "active_node": node_name,
+        }
+
+    return goal_drift_checker
+
+
+def make_drift_redirect(node_name: str = "drift_redirect"):
+    def drift_redirect(state: RAGState) -> RAGState:
+        goal_text = state.get("active_learning_goal") or "നിലവിലെ പഠനലക്ഷ്യം"
+        redirect_message = state.get("drift_message") or (
+            "നമുക്ക് ഇപ്പോഴത്തെ പഠനലക്ഷ്യത്തിലേക്ക് തിരികെ പോവാം. "
+            f"ലക്ഷ്യം: {goal_text}. "
+            "ഇതുമായി ബന്ധപ്പെട്ട ഒരു ചോദ്യം ചോദിക്കാമോ?"
+        )
+        return {
+            "answer": redirect_message,
+            "active_node": node_name,
+        }
+
+    return drift_redirect
+
+
 def make_knowledge_retriever(retriever, node_name: str = "knowledge_retriever"):
     def knowledge_retriever(state: RAGState) -> RAGState:
         question = state["question"]

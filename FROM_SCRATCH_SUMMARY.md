@@ -144,9 +144,31 @@ What changed:
   - `reading_age` (within bounds)
   - `interest_graph` (adds strong recurring topics)
 - Invoked automatically after mastery recording in answer evaluation flow.
+- Added guardrails to prevent unstable reading-age drift:
+  - Minimum attempts before change (8)
+  - Hysteresis thresholds (`>= 0.80` to increase, `<= 0.35` to decrease)
+  - Cooldown (at most one reading-age change per 10 mastery events)
+- Added `profile_update_meta` tracking table to persist reading-age cooldown state.
 
 Outcome:
 - Student profile can adapt based on performance trends.
+- Reading-age updates are now stable and less noisy.
+
+### Phase K: Learning-Goal Drift Checker
+
+What changed:
+- Added active learning-goal storage in SQLite.
+- Added LLM-based goal alignment checker after intent classification.
+- Added drift redirect path:
+  - If query is off-goal, respond with a short Malayalam refocus message.
+  - If query is on-goal, continue normal tutor flow.
+- Added goal management commands in `manage_student_db.py`:
+  - `set-goal`
+  - `active-goal`
+  - `goals`
+
+Outcome:
+- Off-topic queries are intercepted early and redirected toward current learning objectives.
 
 ## 3) Current End-to-End Runtime Flow
 
@@ -154,15 +176,18 @@ Outcome:
 flowchart TD
   A[User input] --> B[Parent orchestrator]
   B --> C[LLM intent classifier]
+  C --> C2[Learning-goal drift checker]
+  C2 -->|off-goal| Z[Drift redirect message]
+  Z --> H[End]
 
-  C -->|new_concept| D[Retriever]
+  C2 -->|on-goal + new_concept| D[Retriever]
   D --> E[Personalizer]
   E --> F[Gate A complexity check]
   F -->|revise| E
   F -->|deliver| G[Evaluator: check question]
   G --> H[End]
 
-  C -->|answer| I[Retriever]
+  C2 -->|on-goal + answer| I[Retriever]
   I --> J[Answer evaluator]
   J --> K{is_correct?}
   K -->|yes| H
@@ -192,6 +217,18 @@ flowchart TD
 - `confidence`
 - `created_at`
 
+### Profile update meta table
+- `student_id` (PK/FK)
+- `last_reading_age_update_event_id`
+
+### Learning goals table
+- `id` (PK)
+- `student_id` (FK)
+- `goal_text`
+- `is_active`
+- `created_at`
+- `updated_at`
+
 ## 5) Operational Commands
 
 ### Add/update student
@@ -218,6 +255,24 @@ python .\manage_student_db.py list
 python .\manage_student_db.py mastery --student-id s1 --limit 10
 ```
 
+### Set active learning goal
+
+```powershell
+python .\manage_student_db.py set-goal --student-id s1 --goal "Learn handwashing and hygiene basics"
+```
+
+### Show active learning goal
+
+```powershell
+python .\manage_student_db.py active-goal --student-id s1
+```
+
+### List learning goals
+
+```powershell
+python .\manage_student_db.py goals --student-id s1 --limit 10
+```
+
 ### Single query run
 
 ```powershell
@@ -240,18 +295,19 @@ python .\rag_langgraph.py --student-id s1
 - Answer evaluation with structured scoring.
 - Mastery persistence and history queries.
 - Remediation branch for incorrect answers.
-- Auto profile updates based on recent outcomes.
+- Auto profile updates based on recent outcomes with drift-resistant guardrails.
+- Learning-goal drift detection and redirect handling.
 
 ## 7) Known Caveats
 
 - `concept_key` currently uses top retrieved document/page heuristics, not semantic concept IDs.
 - Model outputs can vary; robust parsing and fallback are present but not perfect.
-- Profile updater currently uses recent-window heuristics and may need threshold tuning per learner type.
+- Learning-goal drift checker depends on LLM semantic judgment and may occasionally over/under-detect drift.
 
 ## 8) Suggested Next Steps (Later)
 
 - Add semantic concept IDs for cleaner mastery aggregation.
-- Add explicit learning-goal storage and drift detection.
+- Add drift-event logging for analytics (how often learners go off-goal).
 - Add mastery summary views (per concept, per week).
 - Add evaluation regression tests with fixed Malayalam samples.
 

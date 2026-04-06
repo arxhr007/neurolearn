@@ -6,6 +6,10 @@ from typing import TypedDict
 class RAGState(TypedDict, total=False):
     student_id: str
     student_db: object
+    active_learning_goal: str
+    drift_detected: bool
+    drift_reason: str
+    drift_message: str
     question: str
     student_response: str
     top_k: int

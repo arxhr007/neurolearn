@@ -417,3 +417,78 @@ class MalayalamLLM:
 
         return "പഠനം വീണ്ടും ശ്രമിക്കുക. നിങ്ങൾ കഴിവുള്ള കുട്ടിയാണ്." # Fallback encouragement message
 
+    def check_learning_goal_drift(
+        self,
+        question: str,
+        learning_goal: str,
+        student_profile: dict | None = None,
+    ) -> dict:
+        """Detect if user query drifts from the active learning goal."""
+        profile = student_profile or {}
+        reading_age = profile.get("reading_age", 12)
+
+        system_prompt = (
+            "You are a strict learning-goal alignment checker for a Malayalam tutor. "
+            "Decide whether the student query is on-goal or off-goal with respect to the active learning goal. "
+            "Return exactly one JSON object with keys: is_on_goal (boolean), reason (string), redirect_message (string). "
+            "If is_on_goal is true, redirect_message should be empty string. "
+            "If is_on_goal is false, redirect_message should be a short Malayalam message that gently refocuses the student on the goal."
+        )
+        user_prompt = (
+            f"Active learning goal: {learning_goal}\n"
+            f"Student query: {question}\n"
+            f"Reading age: {reading_age}\n\n"
+            "Rules:\n"
+            "- is_on_goal=true only when the query is clearly aligned to the goal topic.\n"
+            "- reason should be short and in English.\n"
+            "- redirect_message should be simple Malayalam and suggest a relevant question.\n"
+            "Return only the JSON object."
+        )
+
+        def _extract_json(text: str) -> dict | None:
+            raw = (text or "").strip()
+            if not raw:
+                return None
+            match = re.search(r"\{.*\}", raw, re.DOTALL)
+            candidate = match.group(0) if match else raw
+            candidate = candidate.replace("```json", "").replace("```", "").strip()
+            try:
+                parsed = json.loads(candidate)
+            except Exception:
+                return None
+            if isinstance(parsed, dict):
+                return parsed
+            return None
+
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = self.client.chat.completions.create(
+                    model=GROQ_MODEL,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.0,
+                    max_tokens=256,
+                )
+                content = response.choices[0].message.content or ""
+                print(f"   Goal drift checker raw: {content!r}")
+                parsed = _extract_json(content)
+                if parsed:
+                    parsed.setdefault("is_on_goal", True)
+                    parsed.setdefault("reason", "aligned")
+                    parsed.setdefault("redirect_message", "")
+                    return parsed
+            except Exception as exc:
+                if attempt == max_retries - 1:
+                    break
+                if "429" in str(exc) or "rate_limit" in str(exc).lower():
+                    time.sleep(2 ** attempt * 5)
+
+        return {
+            "is_on_goal": True,
+            "reason": "fallback_aligned",
+            "redirect_message": "",
+        }
+

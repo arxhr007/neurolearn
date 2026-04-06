@@ -74,6 +74,37 @@ class StudentDB:
                 )
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS learning_goals (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    student_id TEXT NOT NULL,
+                    goal_text TEXT NOT NULL,
+                    is_active INTEGER NOT NULL DEFAULT 1,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(student_id) REFERENCES students(student_id)
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_learning_goals_student_active
+                ON learning_goals(student_id, is_active, updated_at DESC)
+                """
+            )
+            conn.execute(
+                """
+                CREATE TRIGGER IF NOT EXISTS learning_goals_updated_at
+                AFTER UPDATE ON learning_goals
+                FOR EACH ROW
+                BEGIN
+                    UPDATE learning_goals
+                    SET updated_at = CURRENT_TIMESTAMP
+                    WHERE id = OLD.id;
+                END;
+                """
+            )
 
     def _get_last_reading_age_update_event_id(self, student_id: str) -> int:
         with self._connect() as conn:
@@ -330,3 +361,74 @@ class StudentDB:
             "reading_age": new_reading_age,
             "interest_graph": updated_interests,
         }
+
+    def set_learning_goal(self, student_id: str, goal_text: str) -> int:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE learning_goals
+                SET is_active = 0
+                WHERE student_id = ? AND is_active = 1
+                """,
+                (student_id,),
+            )
+            cursor = conn.execute(
+                """
+                INSERT INTO learning_goals (student_id, goal_text, is_active)
+                VALUES (?, ?, 1)
+                """,
+                (student_id, goal_text.strip()),
+            )
+            return int(cursor.lastrowid)
+
+    def get_active_learning_goal(self, student_id: str) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT id, student_id, goal_text, is_active, created_at, updated_at
+                FROM learning_goals
+                WHERE student_id = ? AND is_active = 1
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (student_id,),
+            ).fetchone()
+
+        if not row:
+            return None
+
+        return {
+            "id": int(row["id"]),
+            "student_id": row["student_id"],
+            "goal_text": row["goal_text"],
+            "is_active": bool(row["is_active"]),
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+        }
+
+    def list_learning_goals(self, student_id: str, limit: int = 20) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, student_id, goal_text, is_active, created_at, updated_at
+                FROM learning_goals
+                WHERE student_id = ?
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (student_id, int(limit)),
+            ).fetchall()
+
+        goals: list[dict[str, Any]] = []
+        for row in rows:
+            goals.append(
+                {
+                    "id": int(row["id"]),
+                    "student_id": row["student_id"],
+                    "goal_text": row["goal_text"],
+                    "is_active": bool(row["is_active"]),
+                    "created_at": row["created_at"],
+                    "updated_at": row["updated_at"],
+                }
+            )
+        return goals
