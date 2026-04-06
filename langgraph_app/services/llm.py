@@ -353,3 +353,67 @@ class MalayalamLLM:
         label = "revise" if word_count > 120 else "deliver"
         return label, f"fallback:{label}:words={word_count}"
 
+    def generate_remediation(
+        self,
+        question: str,
+        student_response: str,
+        evaluator_feedback: str,
+        context_docs: list[dict],
+        student_profile: dict | None = None,
+    ) -> str:
+        """Generate a simpler, corrected explanation after incorrect answer."""
+        profile = student_profile or {}
+        reading_age = profile.get("reading_age", 12)
+
+        context_parts = []
+        for i, doc in enumerate(context_docs, 1):
+            context_parts.append(
+                f"[{i}] (Source: {doc['source']}, Page {doc['page']})\n{doc['text']}"
+            )
+        context_block = "\n\n".join(context_parts)
+
+        system_prompt = (
+            "You are a compassionate Malayalam tutor. "
+            "Help a student learn from their mistake by providing a simpler, clearer explanation. "
+            "Be encouraging and focus on the correct core concept in very simple words."
+        )
+        user_prompt = (
+            f"Question/topic: {question}\n"
+            f"Student's response: {student_response}\n"
+            f"Evaluator feedback: {evaluator_feedback}\n"
+            f"Reading age: {reading_age}\n"
+            f"Context:\n{context_block}\n\n"
+            "Task:\n"
+            "- Explain the core concept in very simple Malayalam (shorter and clearer than before).\n"
+            "- Use everyday examples the student might relate to.\n"
+            "- Show what the correct answer should focus on.\n"
+            "- Keep it brief (2-3 sentences max).\n"
+            "- End with a hint for trying again.\n\n"
+            "Remediation explanation in Malayalam:"
+        )
+
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = self.client.chat.completions.create(
+                    model=GROQ_MODEL,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.4,
+                    max_tokens=512,
+                )
+                return response.choices[0].message.content or ""
+            except Exception as exc:
+                err_str = str(exc)
+                if "429" in err_str or "rate_limit" in err_str.lower():
+                    if attempt < max_retries - 1:
+                        wait = 2 ** attempt * 10
+                        print(f"   Rate limited. Retrying in {wait}s... (attempt {attempt + 1}/{max_retries})")
+                        time.sleep(wait)
+                else:
+                    raise
+
+        return "പഠനം വീണ്ടും ശ്രമിക്കുക. നിങ്ങൾ കഴിവുള്ള കുട്ടിയാണ്." # Fallback encouragement message
+
