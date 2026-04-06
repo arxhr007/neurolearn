@@ -5,6 +5,7 @@ from typing import TypedDict
 
 class RAGState(TypedDict, total=False):
     student_id: str
+    student_db: object
     question: str
     student_response: str
     top_k: int
@@ -15,6 +16,7 @@ class RAGState(TypedDict, total=False):
     personalized_explanation: str
     check_question: str
     evaluation_result: dict
+    mastery_event: dict
     complexity_decision: str
     complexity_reason: str
     complexity_retry_count: int

@@ -45,6 +45,26 @@ class StudentDB:
                 END;
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS mastery_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    student_id TEXT NOT NULL,
+                    concept_key TEXT NOT NULL,
+                    is_correct INTEGER NOT NULL,
+                    misconception TEXT,
+                    confidence REAL NOT NULL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(student_id) REFERENCES students(student_id)
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_mastery_events_student_created
+                ON mastery_events(student_id, created_at DESC)
+                """
+            )
 
     def upsert_student(
         self,
@@ -114,3 +134,61 @@ class StudentDB:
                 }
             )
         return students
+
+    def record_mastery_event(
+        self,
+        student_id: str,
+        concept_key: str,
+        is_correct: bool,
+        misconception: str,
+        confidence: float,
+    ) -> int:
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO mastery_events (
+                    student_id,
+                    concept_key,
+                    is_correct,
+                    misconception,
+                    confidence
+                )
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    student_id,
+                    concept_key,
+                    1 if bool(is_correct) else 0,
+                    (misconception or "").strip(),
+                    float(confidence),
+                ),
+            )
+            return int(cursor.lastrowid)
+
+    def list_mastery_events(self, student_id: str, limit: int = 20) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, student_id, concept_key, is_correct, misconception, confidence, created_at
+                FROM mastery_events
+                WHERE student_id = ?
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (student_id, int(limit)),
+            ).fetchall()
+
+        events: list[dict[str, Any]] = []
+        for row in rows:
+            events.append(
+                {
+                    "id": int(row["id"]),
+                    "student_id": row["student_id"],
+                    "concept_key": row["concept_key"],
+                    "is_correct": bool(row["is_correct"]),
+                    "misconception": row["misconception"] or "",
+                    "confidence": float(row["confidence"]),
+                    "timestamp": row["created_at"],
+                }
+            )
+        return events

@@ -156,6 +156,16 @@ def make_evaluator(llm, node_name: str = "evaluator"):
 
 
 def make_answer_evaluator(llm, node_name: str = "answer_evaluator"):
+    def _build_concept_key(state: RAGState) -> str:
+        docs = state.get("docs", []) or []
+        if docs:
+            top_doc = docs[0]
+            source = str(top_doc.get("source") or "unknown")
+            page = str(top_doc.get("page") or "na")
+            return f"{source}::p{page}"
+        question = (state.get("question") or "").strip()
+        return question[:120] if question else "unknown_concept"
+
     def answer_evaluator(state: RAGState) -> RAGState:
         student_response = state.get("student_response") or state.get("question", "")
         print(f"   Answer evaluator running for node: {node_name}")
@@ -166,8 +176,35 @@ def make_answer_evaluator(llm, node_name: str = "answer_evaluator"):
             state.get("student_profile"),
         )
         print(f"   Answer evaluator result: is_correct={evaluation.get('is_correct')} feedback={evaluation.get('feedback')}")
+        student_db = state.get("student_db")
+        student_id = state.get("student_id")
+        concept_key = _build_concept_key(state)
+        mastery_event = None
+
+        if student_db and student_id:
+            try:
+                event_id = student_db.record_mastery_event(
+                    student_id=student_id,
+                    concept_key=concept_key,
+                    is_correct=bool(evaluation.get("is_correct", False)),
+                    misconception=str(evaluation.get("misconception") or ""),
+                    confidence=float(evaluation.get("confidence", 0.0)),
+                )
+                mastery_event = {
+                    "id": event_id,
+                    "student_id": student_id,
+                    "concept_key": concept_key,
+                    "is_correct": bool(evaluation.get("is_correct", False)),
+                    "misconception": str(evaluation.get("misconception") or ""),
+                    "confidence": float(evaluation.get("confidence", 0.0)),
+                }
+                print(f"   Mastery recorded: id={event_id} concept_key={concept_key}")
+            except Exception as exc:
+                print(f"   Mastery record failed: {exc}")
+
         return {
             "evaluation_result": evaluation,
+            "mastery_event": mastery_event,
             "active_node": node_name,
         }
 
