@@ -29,6 +29,7 @@ def _answer_question(question: str, app, top_k: int, student_id: str, student_pr
         {
             "student_id": student_id,
             "question": question,
+            "student_response": question,
             "top_k": top_k,
             "student_profile": student_profile,
         }
@@ -50,6 +51,12 @@ def _answer_question(question: str, app, top_k: int, student_id: str, student_pr
     check_question = state.get("check_question")
     if check_question:
         print(f"\n  Check Question:\n\n{check_question}")
+    evaluation_result = state.get("evaluation_result")
+    if evaluation_result:
+        print("\n  Evaluation Result:\n")
+        print(f"  is_correct: {evaluation_result.get('is_correct')}")
+        print(f"  feedback: {evaluation_result.get('feedback')}")
+        print(f"  misconception: {evaluation_result.get('misconception')}")
     print(f"{'─' * 60}\n")
 
 
