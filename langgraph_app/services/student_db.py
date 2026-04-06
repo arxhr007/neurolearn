@@ -192,3 +192,74 @@ class StudentDB:
                 }
             )
         return events
+
+    def update_profile_from_mastery(
+        self,
+        student_id: str,
+        recent_limit: int = 10,
+    ) -> dict[str, Any] | None:
+        """Analyze recent mastery and auto-adjust profile (reading_age, interests)."""
+        profile = self.get_student_profile(student_id)
+        if not profile:
+            return None
+
+        events = self.list_mastery_events(student_id, limit=recent_limit)
+        if not events:
+            return profile
+
+        # Calculate recent success rate
+        correct_count = sum(1 for e in events if e["is_correct"])
+        total_count = len(events)
+        success_rate = correct_count / total_count if total_count > 0 else 0.0
+
+        # Extract topics from concept keys (e.g., "Primary_1.pdf::p8" -> "primary")
+        topics_attempted = {}
+        for event in events:
+            concept_key = str(event.get("concept_key", ""))
+            topic = concept_key.split(".")[0].lower() if "." in concept_key else concept_key.lower()
+            if topic not in topics_attempted:
+                topics_attempted[topic] = {"correct": 0, "total": 0}
+            topics_attempted[topic]["total"] += 1
+            if event["is_correct"]:
+                topics_attempted[topic]["correct"] += 1
+
+        # Determine dominant topic (highest success rate in most recent attempts)
+        strong_topics = []
+        for topic, stats in topics_attempted.items():
+            if stats["total"] >= 2:
+                topic_rate = stats["correct"] / stats["total"]
+                if topic_rate >= 0.6:
+                    strong_topics.append(topic)
+
+        # Auto-adjust reading age
+        new_reading_age = profile["reading_age"]
+        if success_rate >= 0.75 and profile["reading_age"] < 16:
+            new_reading_age = min(profile["reading_age"] + 1, 16)
+            print(f"   Profile auto-update: reading_age {profile['reading_age']} -> {new_reading_age} (success_rate={success_rate:.1%})")
+        elif success_rate <= 0.4 and profile["reading_age"] > 8:
+            new_reading_age = max(profile["reading_age"] - 1, 8)
+            print(f"   Profile auto-update: reading_age {profile['reading_age']} -> {new_reading_age} (success_rate={success_rate:.1%})")
+
+        # Update interests: keep existing + add strong topics not yet in interests
+        updated_interests = list(profile["interest_graph"])
+        for topic in strong_topics:
+            if topic not in updated_interests:
+                updated_interests.append(topic)
+                print(f"   Profile auto-update: added interest '{topic}'")
+
+        # Update profile in DB if changes detected
+        if new_reading_age != profile["reading_age"] or updated_interests != profile["interest_graph"]:
+            self.upsert_student(
+                student_id=student_id,
+                learning_style=profile["learning_style"],
+                reading_age=new_reading_age,
+                interest_graph=updated_interests,
+            )
+            print(f"   Profile saved: reading_age={new_reading_age}, interests={updated_interests}")
+
+        return {
+            "student_id": student_id,
+            "learning_style": profile["learning_style"],
+            "reading_age": new_reading_age,
+            "interest_graph": updated_interests,
+        }

@@ -201,6 +201,16 @@ def make_answer_evaluator(llm, node_name: str = "answer_evaluator"):
                 print(f"   Mastery recorded: id={event_id} concept_key={concept_key}")
             except Exception as exc:
                 print(f"   Mastery record failed: {exc}")
+                mastery_event = None
+
+        # Auto-update profile based on recent mastery
+        if student_db and student_id:
+            try:
+                updated_profile = student_db.update_profile_from_mastery(student_id, recent_limit=10)
+                if updated_profile and updated_profile["reading_age"] != state.get("student_profile", {}).get("reading_age"):
+                    print(f"   Profile updated for next interaction")
+            except Exception as exc:
+                print(f"   Profile update failed: {exc}")
 
         return {
             "evaluation_result": evaluation,
