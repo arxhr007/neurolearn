@@ -75,8 +75,16 @@ Expected:
 
 ### 2.1 Add student
 
+Interactive (recommended):
+
 ```powershell
-python .\manage_student_db.py add --student-id s100 --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia
+python .\manage_student_db.py
+```
+
+or non-interactive:
+
+```powershell
+python .\manage_student_db.py add --student-id s100 --name "Test User" --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia
 ```
 
 ### 2.2 Verify student
@@ -87,6 +95,7 @@ python .\manage_student_db.py get --student-id s100
 
 Expected fields:
 - `student_id`
+- `name`
 - `learning_style`
 - `reading_age`
 - `interest_graph`
@@ -95,7 +104,7 @@ Expected fields:
 ### 2.3 Test custom/unknown neuro label support
 
 ```powershell
-python .\manage_student_db.py add --student-id s100 --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia dyspraxia
+python .\manage_student_db.py add --student-id s100 --name "Test User" --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia dyspraxia
 python .\manage_student_db.py get --student-id s100
 ```
 
@@ -241,6 +250,9 @@ Verify each row includes:
 - `is_correct`
 - `misconception`
 - `confidence`
+- `source_doc`
+- `source_page`
+- `source_chunk_id`
 - `timestamp`
 
 Expected:
@@ -328,8 +340,9 @@ Suggested sequence:
 3. Incorrect answer-like response (expect remediation)
 4. Retry with better answer
 
-Verify prompt appears:
-- `Do you want to try again? (yes/no/exit)`
+Current behavior note:
+- no global yes/no retry prompt is shown
+- if a check question is pending, your next input is treated as the answer to that check question
 
 ---
 
@@ -356,7 +369,7 @@ Mark when observed in logs:
 ### Student not found
 
 ```powershell
-python .\manage_student_db.py add --student-id s100 --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia
+python .\manage_student_db.py add --student-id s100 --name "Test User" --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia
 ```
 
 ### No drift redirect happens

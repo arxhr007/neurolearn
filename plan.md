@@ -59,8 +59,12 @@ flowchart TD
 - `personalization_gate`: Ensures complexity is suitable before delivery.
 - `evaluator`: Generates check-for-understanding question.
 - `answer_retriever`: Retrieves context for answer evaluation.
-- `answer_evaluator`: Scores student answer and stores mastery event.
+- `answer_evaluator`: Scores student answer and delegates mastery side effects.
 - `remediation`: Provides simpler correction when answer is incorrect.
+
+Supporting module:
+
+- `langgraph_app/graph/mastery.py`: semantic concept-key generation, source tracing, mastery persistence, and profile-updater side effects.
 
 ## 4) Personalization Inputs
 
@@ -81,6 +85,7 @@ Neurodivergent adaptation behavior:
 
 ### `students`
 - `student_id` (PK)
+- `name`
 - `learning_style`
 - `reading_age`
 - `interest_graph` (JSON)
@@ -95,6 +100,9 @@ Neurodivergent adaptation behavior:
 - `is_correct`
 - `misconception`
 - `confidence`
+- `source_doc`
+- `source_page`
+- `source_chunk_id`
 - `created_at`
 
 ### `profile_update_meta`
@@ -140,7 +148,8 @@ The CLI prints:
 ## 8) Operational Commands
 
 ```powershell
-python .\manage_student_db.py add --student-id s100 --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia
+python .\manage_student_db.py
+# or: python .\manage_student_db.py add --student-id s100 --name "Test User" --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia
 python .\manage_student_db.py set-goal --student-id s100 --goal "Learn handwashing and hygiene basics"
 python .\rag_langgraph.py --student-id s100 --text "Why is handwashing important?"
 python .\manage_student_db.py mastery --student-id s100 --limit 20
@@ -156,7 +165,7 @@ This is an MVP with functional end-to-end loops for:
 - profile/memory updates
 - drift redirection
 
-Next focus should be test automation and semantic concept IDs for stronger analytics.
+Next focus should be test automation and evaluation quality regression checks.
 
 ## Related Docs
 

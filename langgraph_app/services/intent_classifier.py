@@ -5,7 +5,7 @@ import re
 from groq import Groq
 
 from langgraph_app.config import INTENT_MODEL
-from langgraph_app.intents.rules import classify_intent
+from langgraph_app.services.intent_rules import classify_intent
 
 
 class IntentClassifier:

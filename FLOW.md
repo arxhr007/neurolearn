@@ -17,10 +17,11 @@ flowchart TD
     B --> D[langgraph_app/services/student_db.py]
     B --> E[langgraph_app/services/retriever.py]
     B --> F[langgraph_app/services/llm.py]
-    B --> G[langgraph_app/intents/llm_classifier.py]
-    G --> H[langgraph_app/intents/rules.py]
+    B --> G[langgraph_app/services/intent_classifier.py]
+    G --> H[langgraph_app/services/intent_rules.py]
     B --> I[langgraph_app/graph/builder.py]
     I --> J[langgraph_app/graph/nodes.py]
+    J --> J2[langgraph_app/graph/mastery.py]
     J --> K[langgraph_app/state.py]
 
     B --> L[(SQLite student DB)]
@@ -76,10 +77,11 @@ flowchart TD
 - `manage_student_db.py`: script for student, mastery, and learning-goal management.
 - `langgraph_app/services/retriever.py`: Chroma retrieval with source/page/chunk metadata.
 - `langgraph_app/services/llm.py`: Groq generation, personalization, evaluation, remediation, and goal drift checking.
-- `langgraph_app/intents/llm_classifier.py`: LLM-based intent classification.
-- `langgraph_app/intents/rules.py`: deterministic intent fallback.
+- `langgraph_app/services/intent_classifier.py`: LLM-based intent classification.
+- `langgraph_app/services/intent_rules.py`: deterministic intent fallback.
 - `langgraph_app/graph/builder.py`: LangGraph wiring and conditional routing.
 - `langgraph_app/graph/nodes.py`: node factories for orchestration, drift checking, retrieval, personalization, evaluation, and remediation.
+- `langgraph_app/graph/mastery.py`: semantic concept-key generation, mastery persistence, and profile-update side effects for answer evaluation.
 - `langgraph_app/state.py`: shared graph state.
 - `langgraph_app/config.py`: runtime constants.
 
@@ -88,7 +90,7 @@ flowchart TD
 1. `rag_langgraph.py` starts the program.
 2. `langgraph_app/cli.py` loads config and environment.
 3. `langgraph_app/services/student_db.py` fetches student profile (including `neuro_profile`) by `student_id`.
-4. `langgraph_app/intents/llm_classifier.py` classifies input as `new_concept` or `answer`.
+4. `langgraph_app/services/intent_classifier.py` classifies input as `new_concept` or `answer`.
 5. `goal_drift_checker` compares query with active learning goal.
 6. Off-goal queries go to `drift_redirect`; on-goal queries continue.
 7. `langgraph_app/services/retriever.py` loads matching chunks from Chroma.
@@ -100,7 +102,8 @@ flowchart TD
 ## Example Command Flow
 
 ```bash
-python .\manage_student_db.py add --student-id s1 --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia
+python .\manage_student_db.py
+# or: python .\manage_student_db.py add --student-id s1 --name "Test User" --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia
 python .\manage_student_db.py set-goal --student-id s1 --goal "Learn handwashing and hygiene basics"
 python .\rag_langgraph.py --student-id s1 --text "പഠന രീതി എന്താണ്?"
 ```

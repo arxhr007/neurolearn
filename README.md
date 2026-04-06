@@ -124,15 +124,23 @@ The repository also includes a graph-based tutoring runtime (`rag_langgraph.py`)
 - Learning-goal drift checker (off-goal redirect)
 - Personalized explanations with Gate A complexity guardrail
 - Answer evaluator + remediation loop
-- Mastery event persistence in SQLite
+- Mastery event persistence in SQLite (semantic `concept_key` + source trace fields)
 - Guarded profile updater (hysteresis + cooldown)
 - Neurodivergent profile adaptation (supports known and custom condition labels)
 - Answer source tracing (textbook/page/chunk/json hint)
 
 ### Create or update student profile
 
+Interactive (default, prompts for ID, name, style, reading age, interests, neuro profile):
+
 ```powershell
-python .\manage_student_db.py add --student-id s100 --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia
+python .\manage_student_db.py
+```
+
+Non-interactive (flags):
+
+```powershell
+python .\manage_student_db.py add --student-id s100 --name "Test User" --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia
 ```
 
 ### Set active learning goal
