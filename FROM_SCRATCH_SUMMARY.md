@@ -2,6 +2,12 @@
 
 This document explains everything built in this repository from the beginning, in order, and how the current system works end-to-end.
 
+## Document Status
+
+- Scope: chronological implementation history
+- Audience: developers and project stakeholders
+- Status: current MVP change log summary
+
 ## 1) Starting Point
 
 Initial project goal:
@@ -170,6 +176,22 @@ What changed:
 Outcome:
 - Off-topic queries are intercepted early and redirected toward current learning objectives.
 
+### Phase L: Neurodivergent Profile Adaptation + Source Tracing
+
+What changed:
+- Added `neuro_profile` support to student profiles (for example: `adhd`, `autism`, `dyslexia`, or custom labels).
+- Updated all response-generating LLM nodes to adapt communication style to learner support needs.
+- Kept known-condition guidance and added open-ended handling for custom condition labels.
+- Added answer source tracing in CLI output:
+  - textbook name
+  - page
+  - `chunk_id` (or vector id fallback)
+  - JSON file hint under `output/rag_chunks/`
+
+Outcome:
+- Responses are now better tailored for neurodivergent learners.
+- Every answer is easier to audit against retrieved chunk sources.
+
 ## 3) Current End-to-End Runtime Flow
 
 ```mermaid
@@ -205,6 +227,7 @@ flowchart TD
 - `learning_style`
 - `reading_age`
 - `interest_graph` (JSON)
+- `neuro_profile` (JSON)
 - `created_at`
 - `updated_at`
 
@@ -234,7 +257,7 @@ flowchart TD
 ### Add/update student
 
 ```powershell
-python .\manage_student_db.py add --student-id s1 --learning-style analogy-heavy --reading-age 12 --interests games stories
+python .\manage_student_db.py add --student-id s1 --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia
 ```
 
 ### Get student
@@ -297,6 +320,8 @@ python .\rag_langgraph.py --student-id s1
 - Remediation branch for incorrect answers.
 - Auto profile updates based on recent outcomes with drift-resistant guardrails.
 - Learning-goal drift detection and redirect handling.
+- Neurodivergent-profile-aware response adaptation across LLM nodes.
+- CLI answer source tracing with textbook/page/chunk/json references.
 
 ## 7) Known Caveats
 
@@ -314,3 +339,10 @@ python .\rag_langgraph.py --student-id s1
 ---
 
 This repository has now evolved from static RAG behavior into an adaptive tutor loop with evaluation, remediation, progress tracking, and profile adaptation.
+
+## Related Docs
+
+- [README.md](README.md)
+- [FLOW.md](FLOW.md)
+- [plan.md](plan.md)
+- [FULL_TEST_RUNBOOK.md](FULL_TEST_RUNBOOK.md)

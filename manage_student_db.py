@@ -1,7 +1,7 @@
 """Manage student profiles in SQLite for LangGraph RAG runtime.
 
 Examples:
-  python manage_student_db.py add --student-id s1 --learning-style analogy-heavy --reading-age 12 --interests games stories
+    python manage_student_db.py add --student-id s1 --learning-style analogy-heavy --reading-age 12 --interests games stories --neuro-profile adhd
   python manage_student_db.py get --student-id s1
   python manage_student_db.py list
     python manage_student_db.py mastery --student-id s1 --limit 20
@@ -37,6 +37,12 @@ def main() -> None:
         required=True,
         help="Interest keywords (space-separated)",
     )
+    add_parser.add_argument(
+        "--neuro-profile",
+        nargs="+",
+        default=["general"],
+        help="Neurodivergent profile tags (e.g., adhd autism dyslexia). Default: general",
+    )
 
     get_parser = subparsers.add_parser("get", help="Fetch one student profile")
     get_parser.add_argument("--student-id", required=True, help="Student identifier")
@@ -67,6 +73,7 @@ def main() -> None:
             learning_style=args.learning_style,
             reading_age=args.reading_age,
             interest_graph=args.interests,
+            neuro_profile=args.neuro_profile,
         )
         print(f"Saved student profile: {args.student_id}")
         return

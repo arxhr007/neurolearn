@@ -30,18 +30,25 @@ def _answer_question(
     student_id: str,
     student_profile: dict,
     student_db: StudentDB,
-) -> None:
+    student_response: str | None = None,
+    check_answer_hint: str | None = None,
+) -> dict:
     print("\n  Searching knowledge base...")
-    state = app.invoke(
-        {
-            "student_id": student_id,
-            "student_db": student_db,
-            "question": question,
-            "student_response": question,
-            "top_k": top_k,
-            "student_profile": student_profile,
-        }
-    )
+    response_text = student_response if student_response is not None else question
+    payload = {
+        "student_id": student_id,
+        "student_db": student_db,
+        "question": question,
+        "student_response": response_text,
+        "top_k": top_k,
+        "student_profile": student_profile,
+    }
+    if student_response is not None:
+        payload["force_intent"] = "answer"
+    if check_answer_hint:
+        payload["check_answer_hint"] = check_answer_hint
+
+    state = app.invoke(payload)
 
     docs = state.get("docs", [])
     if docs:
@@ -92,12 +99,17 @@ def _answer_question(
         print(f"{remediation_explanation}")
     print(f"{'─' * 60}\n")
 
+    return state
+
 
 def run_interactive(app, top_k: int, student_id: str, student_profile: dict, student_db: StudentDB) -> None:
     print("\n" + "=" * 60)
     print("  Malayalam RAG System (LangGraph Phase 1)")
     print("  Type 'exit' or 'quit' to stop")
     print("=" * 60 + "\n")
+
+    pending_check_question: str | None = None
+    pending_check_answer_hint: str | None = None
 
     while True:
         try:
@@ -111,21 +123,34 @@ def run_interactive(app, top_k: int, student_id: str, student_profile: dict, stu
             print("\nExiting. Goodbye!")
             break
 
-        _answer_question(question, app, top_k, student_id, student_profile, student_db)
+        if pending_check_question:
+            # Treat next user turn as an answer to the last generated check question.
+            state = _answer_question(
+                pending_check_question,
+                app,
+                top_k,
+                student_id,
+                student_profile,
+                student_db,
+                student_response=question,
+                check_answer_hint=pending_check_answer_hint,
+            )
+        else:
+            state = _answer_question(question, app, top_k, student_id, student_profile, student_db)
 
-        # Offer retry after remediation
-        try:
-            retry = input("\n  Do you want to try again? (yes/no/exit): ").strip().lower()
-            if retry in ("yes", "y", "again", "retry"):
-                answer = input("  Enter your answer: ").strip()
-                if answer:
-                    _answer_question(answer, app, top_k, student_id, student_profile, student_db)
-            elif retry in ("exit", "quit", "stop", "bye", "no", "n"):
-                if retry in ("exit", "quit", "stop", "bye"):
-                    print("\nExiting. Goodbye!")
-                break
-        except (EOFError, KeyboardInterrupt):
-            break
+        evaluation_result = state.get("evaluation_result") or {}
+        is_correct = evaluation_result.get("is_correct")
+        check_question = state.get("check_question")
+
+        if check_question:
+            pending_check_question = check_question
+            pending_check_answer_hint = state.get("check_answer_hint")
+            print("  Next: answer the check question above.")
+        elif is_correct is True:
+            pending_check_question = None
+            pending_check_answer_hint = None
+        elif is_correct is False and pending_check_question:
+            print("  Try answering the same check question again.")
 
 
 def run_single_query(

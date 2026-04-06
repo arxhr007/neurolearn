@@ -33,6 +33,17 @@ class StudentDB:
                 )
                 """
             )
+            # Backward-compatible migration for existing DBs.
+            try:
+                conn.execute(
+                    """
+                    ALTER TABLE students
+                    ADD COLUMN neuro_profile TEXT NOT NULL DEFAULT '["general"]'
+                    """
+                )
+            except sqlite3.OperationalError:
+                # Column already exists.
+                pass
             conn.execute(
                 """
                 CREATE TRIGGER IF NOT EXISTS students_updated_at
@@ -138,22 +149,26 @@ class StudentDB:
         learning_style: str,
         reading_age: int,
         interest_graph: list[str],
+        neuro_profile: list[str] | None = None,
     ) -> None:
+        neuro_profile = neuro_profile or ["general"]
         with self._connect() as conn:
             conn.execute(
                 """
-                INSERT INTO students (student_id, learning_style, reading_age, interest_graph)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO students (student_id, learning_style, reading_age, interest_graph, neuro_profile)
+                VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT(student_id) DO UPDATE SET
                     learning_style=excluded.learning_style,
                     reading_age=excluded.reading_age,
-                    interest_graph=excluded.interest_graph
+                    interest_graph=excluded.interest_graph,
+                    neuro_profile=excluded.neuro_profile
                 """,
                 (
                     student_id,
                     learning_style,
                     int(reading_age),
                     json.dumps(interest_graph, ensure_ascii=False),
+                    json.dumps(neuro_profile, ensure_ascii=False),
                 ),
             )
 
@@ -161,7 +176,7 @@ class StudentDB:
         with self._connect() as conn:
             row = conn.execute(
                 """
-                SELECT student_id, learning_style, reading_age, interest_graph
+                SELECT student_id, learning_style, reading_age, interest_graph, neuro_profile
                 FROM students
                 WHERE student_id = ?
                 """,
@@ -176,13 +191,14 @@ class StudentDB:
             "learning_style": row["learning_style"],
             "reading_age": int(row["reading_age"]),
             "interest_graph": json.loads(row["interest_graph"]),
+            "neuro_profile": json.loads(row["neuro_profile"] or '["general"]'),
         }
 
     def list_students(self) -> list[dict[str, Any]]:
         with self._connect() as conn:
             rows = conn.execute(
                 """
-                SELECT student_id, learning_style, reading_age, interest_graph, updated_at
+                SELECT student_id, learning_style, reading_age, interest_graph, neuro_profile, updated_at
                 FROM students
                 ORDER BY student_id
                 """
@@ -196,6 +212,7 @@ class StudentDB:
                     "learning_style": row["learning_style"],
                     "reading_age": int(row["reading_age"]),
                     "interest_graph": json.loads(row["interest_graph"]),
+                    "neuro_profile": json.loads(row["neuro_profile"] or '["general"]'),
                     "updated_at": row["updated_at"],
                 }
             )
@@ -350,6 +367,7 @@ class StudentDB:
                 learning_style=profile["learning_style"],
                 reading_age=new_reading_age,
                 interest_graph=updated_interests,
+                neuro_profile=profile.get("neuro_profile") or ["general"],
             )
             print(f"   Profile saved: reading_age={new_reading_age}, interests={updated_interests}")
             if new_reading_age != profile["reading_age"]:
@@ -360,6 +378,7 @@ class StudentDB:
             "learning_style": profile["learning_style"],
             "reading_age": new_reading_age,
             "interest_graph": updated_interests,
+            "neuro_profile": profile.get("neuro_profile") or ["general"],
         }
 
     def set_learning_goal(self, student_id: str, goal_text: str) -> int:

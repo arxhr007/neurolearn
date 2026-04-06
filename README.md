@@ -2,6 +2,12 @@
 
 High-performance pipeline that converts batches of Malayalam PDFs into chunked, cleaned Unicode text ready for vector databases (FAISS, Chroma, Pinecone).
 
+## Document Status
+
+- Scope: project entry guide (pipeline + tutor MVP quickstart)
+- Audience: developers and testers
+- Status: current MVP documentation
+
 ## Prerequisites
 
 | Dependency | Install |
@@ -109,3 +115,48 @@ A `_manifest.json` summary is also generated listing success/failure status for 
 - Empty pages produce no chunks
 - OCR failures on individual pages are skipped (other pages still processed)
 - Final manifest shows success/failure counts
+
+## LangGraph Tutor App (Current MVP)
+
+The repository also includes a graph-based tutoring runtime (`rag_langgraph.py`) with:
+
+- Intent routing (`new_concept` vs `answer`)
+- Learning-goal drift checker (off-goal redirect)
+- Personalized explanations with Gate A complexity guardrail
+- Answer evaluator + remediation loop
+- Mastery event persistence in SQLite
+- Guarded profile updater (hysteresis + cooldown)
+- Neurodivergent profile adaptation (supports known and custom condition labels)
+- Answer source tracing (textbook/page/chunk/json hint)
+
+### Create or update student profile
+
+```powershell
+python .\manage_student_db.py add --student-id s100 --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia
+```
+
+### Set active learning goal
+
+```powershell
+python .\manage_student_db.py set-goal --student-id s100 --goal "Learn handwashing and hygiene basics"
+```
+
+### Run single query
+
+```powershell
+python .\rag_langgraph.py --student-id s100 --text "കൈകഴുകൽ എന്തുകൊണ്ട് പ്രധാനമാണ്?"
+```
+
+### Inspect profile and mastery
+
+```powershell
+python .\manage_student_db.py get --student-id s100
+python .\manage_student_db.py mastery --student-id s100 --limit 20
+```
+
+## Related Docs
+
+- [FLOW.md](FLOW.md)
+- [plan.md](plan.md)
+- [FROM_SCRATCH_SUMMARY.md](FROM_SCRATCH_SUMMARY.md)
+- [FULL_TEST_RUNBOOK.md](FULL_TEST_RUNBOOK.md)

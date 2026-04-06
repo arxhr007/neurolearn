@@ -14,6 +14,15 @@ def make_parent_orchestrator():
 
 def make_intent_classifier():
     def intent_classifier(state: RAGState) -> RAGState:
+        forced_intent = state.get("force_intent")
+        if forced_intent in ("new_concept", "answer"):
+            print(f"   Intent classified as: {forced_intent} (forced)")
+            return {
+                "intent": forced_intent,
+                "intent_source": "forced",
+                "active_node": "intent_classifier",
+            }
+
         question = state["question"]
         intent = classify_intent(question)
         print(f"   Intent classified as: {intent}")
@@ -27,6 +36,15 @@ def make_intent_classifier():
 
 def make_llm_intent_classifier(classifier):
     def intent_classifier(state: RAGState) -> RAGState:
+        forced_intent = state.get("force_intent")
+        if forced_intent in ("new_concept", "answer"):
+            print(f"   Intent classified as: {forced_intent} (forced)")
+            return {
+                "intent": forced_intent,
+                "intent_source": "forced",
+                "active_node": "intent_classifier",
+            }
+
         question = state["question"]
         intent, source = classifier.classify_with_source(question)
         print(f"   Intent classified as: {intent} ({source})")
@@ -208,12 +226,15 @@ def make_evaluator(llm, node_name: str = "evaluator"):
         explanation = (state.get("personalized_explanation") or state.get("answer") or "").strip()
         question = state.get("question", "")
         student_profile = state.get("student_profile")
-        check_question = llm.generate_check_question(question, explanation, student_profile)
+        bundle = llm.generate_check_question_bundle(question, explanation, student_profile)
+        check_question = str(bundle.get("question") or "").strip()
+        check_answer_hint = str(bundle.get("expected_answer") or "").strip()
 
         print(f"   Evaluator generated check question: {check_question}")
 
         return {
             "check_question": check_question,
+            "check_answer_hint": check_answer_hint,
             "evaluation_result": {
                 "status": "check_question_generated",
                 "check_question": check_question,
@@ -243,6 +264,7 @@ def make_answer_evaluator(llm, node_name: str = "answer_evaluator"):
             student_response,
             state.get("docs", []),
             state.get("student_profile"),
+            state.get("check_answer_hint"),
         )
         print(f"   Answer evaluator result: is_correct={evaluation.get('is_correct')} feedback={evaluation.get('feedback')}")
         student_db = state.get("student_db")
