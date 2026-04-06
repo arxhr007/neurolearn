@@ -35,6 +35,9 @@ Thumbs.db
 
 # Runtime data
 vectorstore/
+chroma.sqlite3
+chroma/
+chromadb/
 data/
 *.db
 *.sqlite
