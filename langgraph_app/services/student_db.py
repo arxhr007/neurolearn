@@ -65,6 +65,41 @@ class StudentDB:
                 ON mastery_events(student_id, created_at DESC)
                 """
             )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS profile_update_meta (
+                    student_id TEXT PRIMARY KEY,
+                    last_reading_age_update_event_id INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY(student_id) REFERENCES students(student_id)
+                )
+                """
+            )
+
+    def _get_last_reading_age_update_event_id(self, student_id: str) -> int:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT last_reading_age_update_event_id
+                FROM profile_update_meta
+                WHERE student_id = ?
+                """,
+                (student_id,),
+            ).fetchone()
+        if not row:
+            return 0
+        return int(row["last_reading_age_update_event_id"])
+
+    def _set_last_reading_age_update_event_id(self, student_id: str, event_id: int) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO profile_update_meta (student_id, last_reading_age_update_event_id)
+                VALUES (?, ?)
+                ON CONFLICT(student_id) DO UPDATE SET
+                    last_reading_age_update_event_id=excluded.last_reading_age_update_event_id
+                """,
+                (student_id, int(event_id)),
+            )
 
     def upsert_student(
         self,
@@ -199,6 +234,11 @@ class StudentDB:
         recent_limit: int = 10,
     ) -> dict[str, Any] | None:
         """Analyze recent mastery and auto-adjust profile (reading_age, interests)."""
+        min_attempts_for_reading_age = 8
+        up_threshold = 0.8
+        down_threshold = 0.35
+        reading_age_cooldown_events = 10
+
         profile = self.get_student_profile(student_id)
         if not profile:
             return None
@@ -231,14 +271,39 @@ class StudentDB:
                 if topic_rate >= 0.6:
                     strong_topics.append(topic)
 
-        # Auto-adjust reading age
+        latest_event_id = int(events[0]["id"])
+        last_update_event_id = self._get_last_reading_age_update_event_id(student_id)
+        events_since_last_update = latest_event_id - last_update_event_id
+
+        # Auto-adjust reading age with guardrails.
         new_reading_age = profile["reading_age"]
-        if success_rate >= 0.75 and profile["reading_age"] < 16:
+        if total_count < min_attempts_for_reading_age:
+            print(
+                "   Profile auto-update: reading_age held "
+                f"(need >= {min_attempts_for_reading_age} attempts, have {total_count})"
+            )
+        elif events_since_last_update < reading_age_cooldown_events:
+            print(
+                "   Profile auto-update: reading_age held "
+                f"(cooldown active: {events_since_last_update}/{reading_age_cooldown_events} events since last change)"
+            )
+        elif success_rate >= up_threshold and profile["reading_age"] < 16:
             new_reading_age = min(profile["reading_age"] + 1, 16)
-            print(f"   Profile auto-update: reading_age {profile['reading_age']} -> {new_reading_age} (success_rate={success_rate:.1%})")
-        elif success_rate <= 0.4 and profile["reading_age"] > 8:
+            print(
+                "   Profile auto-update: reading_age "
+                f"{profile['reading_age']} -> {new_reading_age} (success_rate={success_rate:.1%} >= {up_threshold:.0%})"
+            )
+        elif success_rate <= down_threshold and profile["reading_age"] > 8:
             new_reading_age = max(profile["reading_age"] - 1, 8)
-            print(f"   Profile auto-update: reading_age {profile['reading_age']} -> {new_reading_age} (success_rate={success_rate:.1%})")
+            print(
+                "   Profile auto-update: reading_age "
+                f"{profile['reading_age']} -> {new_reading_age} (success_rate={success_rate:.1%} <= {down_threshold:.0%})"
+            )
+        else:
+            print(
+                "   Profile auto-update: reading_age held "
+                f"(success_rate={success_rate:.1%}, hysteresis band {down_threshold:.0%}-{up_threshold:.0%})"
+            )
 
         # Update interests: keep existing + add strong topics not yet in interests
         updated_interests = list(profile["interest_graph"])
@@ -256,6 +321,8 @@ class StudentDB:
                 interest_graph=updated_interests,
             )
             print(f"   Profile saved: reading_age={new_reading_age}, interests={updated_interests}")
+            if new_reading_age != profile["reading_age"]:
+                self._set_last_reading_age_update_event_id(student_id, latest_event_id)
 
         return {
             "student_id": student_id,
