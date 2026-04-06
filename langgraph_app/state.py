@@ -10,6 +10,7 @@ class RAGState(TypedDict, total=False):
     drift_detected: bool
     drift_reason: str
     drift_message: str
+    force_intent: str
     question: str
     student_response: str
     top_k: int
@@ -27,4 +28,5 @@ class RAGState(TypedDict, total=False):
     answer: str
     remediation_explanation: str
     attempt_count: int
+    check_answer_hint: str
     active_node: str

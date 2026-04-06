@@ -1,136 +1,166 @@
+# NeuroLearn Current Architecture Plan
 
-# Personalized Hierarchical Education Agent (LangGraph)
+This document reflects the architecture that is currently implemented in code.
 
-This architecture uses a strict Orchestrator-Worker pattern.
-The Parent Agent is the single point of entry and exit, so every response is routed, personalized, evaluated, and tracked before it reaches the student.
+## Document Status
 
-## 1. Sub-Agent Definitions and KPIs
+- Scope: architecture blueprint (implemented state)
+- Audience: architects, developers, reviewers
+- Status: current MVP architecture
 
-| Sub-Agent | Technical Role | Success Metric (KPI) |
-|---|---|---|
-| Parent Orchestrator | Supervisor/Router: interprets user intent and chooses the correct graph path. | Routing Accuracy: correctly classifies New Concept vs Answer at 98%. |
-| Knowledge Retriever | Context Provider: connects to Vector DB (RAG) and pulls chunked educational data. | Faithfulness: output is fully grounded in retrieved docs, no hallucinations. |
-| Personalization Engine | Style Transformer: maps raw knowledge to reading level and interests. | Alignment: response includes the learner's interest keywords. |
-| Concept Evaluator | Diagnostic Analyst: compares user response against ground truth from retrieved context. | Precision: correctly distinguishes Partial Mastery vs Misconception. |
-| Profile Updater | Data Sync: converts natural language evaluation into structured DB updates. | Schema Integrity: updates mastery matrix fields correctly. |
+## 1) Core Design
 
-## 2. Memory Architecture and Data Schema
+The app uses a Parent-Orchestrator style LangGraph with conditional routing:
 
-### A. Persistent Long-Term Memory (Profile DB)
+1. Intent classification
+2. Learning-goal drift check
+3. On-goal branch execution (`new_concept` or `answer`)
+4. Evaluation/remediation and persistence
 
-Loaded at the start of every session (PostgreSQL/Supabase).
-
-- Student Profile Table:
-    - `learning_style` (for example: Socratic, Analogy-heavy, Direct)
-    - `interest_graph` (JSON array of analogy keywords)
-    - `reading_age` (integer controlling vocabulary complexity)
-- Mastery Matrix Table:
-    - `concept_id` (unique curriculum concept id)
-    - `proficiency_score` (float from 0.0 to 1.0)
-    - `attempts_count` (engagement count per concept)
-
-### B. Ephemeral Short-Term Memory (LangGraph State)
-
-Shared graph state across nodes:
-
-```python
-class EducationState(TypedDict):
-        user_input: str
-        student_profile: dict                  # Loaded from DB at start
-        retrieved_context: str                 # Raw RAG data
-        personalized_explanation: str          # Final output text
-        evaluation_result: dict                # {"is_correct": bool, "feedback": str}
-        internal_monologue: str                # Parent reasoning for debugging
-        active_node: str                       # Current sub-agent in control
-```
-
-## 3. Detailed Functional Flows
-
-### Flow 1: New Knowledge Loop
-
-1. Intent Classification: Parent detects the user wants to learn something new.
-2. RAG Fetch: Retriever pulls top 3 relevant chunks from the Vector DB.
-3. Synthesis: Personalizer combines retrieved chunks and `interest_graph` to produce relatable analogies.
-4. Active Verification: Parent forces Evaluator to generate a check-for-understanding question based only on retrieved content.
-5. Delivery: User receives explanation plus question.
-
-### Flow 2: Correction and Remediation Loop
-
-1. Submission: User answers the question.
-2. Logic Audit: Evaluator compares user answer with `retrieved_context`.
-3. Gap Analysis: If incorrect, Evaluator identifies the misconception.
-4. Pivot: Parent triggers Retriever with targeted query (for example, gravity vs air pressure differences).
-5. Re-Explanation: Personalizer delivers a focused correction.
-
-## 4. State Machine Logic (Guardrails)
-
-### No-Skip Policy
-
-- Gate A (Personalization Check): if `personalized_explanation` is too complex, route back to Personalizer for simplification.
-- Gate B (Evaluation Requirement): `END` is unreachable unless `evaluation_result` is populated.
-
-### Drift Guardrail
-
-Every 3 turns, Parent runs a context check against the Mastery Matrix.
-If drift is detected, Parent redirects the learner back to the original learning goal.
-
-## 5. Example Interaction Scenarios
-
-| Scenario | Parent Decision | Sub-Agent Chain |
-|---|---|---|
-| User asks a Why question | Deep Dive | RAG -> Personalizer -> Evaluator |
-| User gives a vague answer | Probe for Clarity | Evaluator (requests more detail) -> User |
-| User expresses frustration | Emotional Support | Personalizer (encouraging tone) -> RAG (simpler content) |
-| User masters a topic | Progress Update | Evaluator -> Profile Updater -> Parent (suggests next topic) |
-
-## 6. Technical Integration Requirements
-
-- Orchestration: LangGraph using `StateGraph` for cycles.
-- Vector Store: requires metadata filters (for example `grade_level`) during RAG.
-- Latency: stream Personalizer output while Evaluator prepares quiz in background.
-
-## Things Not Included
-
-1. Personalized voice.
-2. Runtime subject switching.
-3. MCP tool integration for teacher progress updates.
-4. Safety guardrail that checks output against student profile for distress triggers.
-
-## Main System Graph (Process-Labeled)
+## 2) Implemented Graph
 
 ```mermaid
 flowchart TD
-        U[Student] -->|Submission| P[Parent Orchestrator];
+    U[Student Input] --> P[parent_orchestrator]
+    P --> I[intent_classifier]
+    I --> D[goal_drift_checker]
 
-        P -->|Intent Classification| I{New Concept or Answer};
+    D -->|off-goal| R[drift_redirect]
+    R --> END1[END]
 
-        I -->|New Concept| KR[Knowledge Retriever];
-        KR -->|RAG Fetch Top 3 Chunks| VS[(Vector DB)];
-        KR -->|Retrieved Context| PE[Personalization Engine];
-        PE -->|Synthesis with interest_graph| P;
-        P -->|Active Verification| CE[Concept Evaluator];
-        CE -->|Check Question| P;
-        P -->|Delivery: Explanation and Question| U;
+    D -->|on-goal + new_concept| NC_R[new_concept_retriever]
+    NC_R --> NC_P[new_concept_personalizer]
+    NC_P --> GATE[personalization_gate]
+    GATE -->|revise| NC_P
+    GATE -->|deliver| EVAL[evaluator]
+    EVAL --> END2[END]
 
-        I -->|Answer| CE;
-        CE -->|Logic Audit vs retrieved_context| J{Correct};
-        J -->|No: Gap Analysis| KR;
-        KR -->|Targeted Retrieval Pivot| PE;
-        PE -->|Re-Explanation| P;
-        P -->|Remediation Delivery| U;
-        J -->|Yes: Partial or Full Mastery| PU[Profile Updater];
+    D -->|on-goal + answer| ANS_R[answer_retriever]
+    ANS_R --> ANS_E[answer_evaluator]
+    ANS_E --> C{is_correct?}
+    C -->|yes| END3[END]
+    C -->|no| REM[remediation]
+    REM --> END4[END]
 
-        CE -->|Evaluation Result| PU;
-        PU -->|Schema Update| DB[(Profile DB)];
-        P -->|Session Load and Drift Check| DB;
-
-        P -->|Gate A: Personalization Check| G1{Too complex};
-        G1 -->|Yes: Simplification Pass| PE;
-        G1 -->|No| G2{evaluation_result populated};
-        G2 -->|No| CE;
-        G2 -->|Yes| END[Turn Complete];
-
-        P -->|Every 3 Turns: Context Check| D{Drift from learning goal};
-        D -->|Yes: Topic Redirect| U;
-        D -->|No| END;
+    ANS_E --> M[(mastery_events)]
+    ANS_E --> PU[profile updater]
+    PU --> S[(students)]
+    PU --> PM[(profile_update_meta)]
 ```
+
+## 3) Node Responsibilities
+
+- `parent_orchestrator`: Graph entry point.
+- `intent_classifier`: Classifies user input into `new_concept` or `answer`.
+- `goal_drift_checker`: Compares query with active learning goal.
+- `drift_redirect`: Sends short Malayalam refocus response for off-goal input.
+- `new_concept_retriever`: Retrieves context chunks from vector DB.
+- `new_concept_personalizer`: Generates tailored explanation.
+- `personalization_gate`: Ensures complexity is suitable before delivery.
+- `evaluator`: Generates check-for-understanding question.
+- `answer_retriever`: Retrieves context for answer evaluation.
+- `answer_evaluator`: Scores student answer and stores mastery event.
+- `remediation`: Provides simpler correction when answer is incorrect.
+
+## 4) Personalization Inputs
+
+Student profile fields used at runtime:
+
+- `learning_style`
+- `reading_age`
+- `interest_graph`
+- `neuro_profile`
+
+Neurodivergent adaptation behavior:
+
+- Known conditions (e.g., ADHD/autism/dyslexia) apply specific communication rules.
+- Unknown/custom conditions are still supported via open-ended accommodation instructions.
+- LLM is instructed to optimize clarity and reduce cognitive overload.
+
+## 5) Data Model (SQLite)
+
+### `students`
+- `student_id` (PK)
+- `learning_style`
+- `reading_age`
+- `interest_graph` (JSON)
+- `neuro_profile` (JSON)
+- `created_at`
+- `updated_at`
+
+### `mastery_events`
+- `id` (PK)
+- `student_id` (FK)
+- `concept_key`
+- `is_correct`
+- `misconception`
+- `confidence`
+- `created_at`
+
+### `profile_update_meta`
+- `student_id` (PK/FK)
+- `last_reading_age_update_event_id`
+
+### `learning_goals`
+- `id` (PK)
+- `student_id` (FK)
+- `goal_text`
+- `is_active`
+- `created_at`
+- `updated_at`
+
+## 6) Guardrails
+
+### Gate A Complexity Guardrail
+- LLM judges complexity with conservative delivery preference.
+- Only loops for revision when clearly over-complex.
+
+### Profile Updater Guardrails
+- Minimum attempts before reading-age change: 8
+- Hysteresis:
+  - Increase when success rate >= 0.80
+  - Decrease when success rate <= 0.35
+- Cooldown: max one reading-age change per 10 events
+
+### Drift Guardrail
+- If query is off active learning goal, route to `drift_redirect` and end the turn.
+
+## 7) Output Traceability
+
+The CLI prints:
+
+- Retrieved passages
+- Final answer/check/evaluation/remediation as relevant
+- `Answer Sources` with:
+  - textbook
+  - page
+  - `chunk_id` (or vector id fallback)
+  - JSON hint path (`output/rag_chunks/<book>.json`)
+
+## 8) Operational Commands
+
+```powershell
+python .\manage_student_db.py add --student-id s100 --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia
+python .\manage_student_db.py set-goal --student-id s100 --goal "Learn handwashing and hygiene basics"
+python .\rag_langgraph.py --student-id s100 --text "Why is handwashing important?"
+python .\manage_student_db.py mastery --student-id s100 --limit 20
+```
+
+## 9) Current Stage
+
+This is an MVP with functional end-to-end loops for:
+
+- on-goal concept teaching
+- answer evaluation
+- remediation
+- profile/memory updates
+- drift redirection
+
+Next focus should be test automation and semantic concept IDs for stronger analytics.
+
+## Related Docs
+
+- [README.md](README.md)
+- [FLOW.md](FLOW.md)
+- [FROM_SCRATCH_SUMMARY.md](FROM_SCRATCH_SUMMARY.md)
+- [FULL_TEST_RUNBOOK.md](FULL_TEST_RUNBOOK.md)

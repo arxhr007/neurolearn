@@ -21,6 +21,72 @@ class MalayalamLLM:
         self.client = Groq(api_key=api_key)
         print(f"[LLM] Using Groq model: {GROQ_MODEL}")
 
+    def _build_neuro_support_guidelines(self, student_profile: dict | None) -> tuple[list[str], str]:
+        profile = student_profile or {}
+        raw = profile.get("neuro_profile", ["general"])
+        if isinstance(raw, str):
+            tags = [t.strip().lower() for t in raw.split(",") if t.strip()]
+        elif isinstance(raw, list):
+            tags = [str(t).strip().lower() for t in raw if str(t).strip()]
+        else:
+            tags = ["general"]
+
+        if not tags:
+            tags = ["general"]
+
+        rules: list[str] = []
+        rules.append(
+            "Interpret the listed neurodivergent conditions as support needs and adapt communication accordingly."
+        )
+        rules.append(
+            "If a condition is uncommon or not explicitly known, still provide high-clarity, low-overload, supportive output."
+        )
+        rules.append(
+            "Do not mention diagnosis labels in the final answer unless the user explicitly asks for them."
+        )
+
+        if "adhd" in tags:
+            rules.extend(
+                [
+                    "Keep response concise and high-focus (short paragraphs).",
+                    "Use clear step-by-step structure.",
+                    "Highlight key points early.",
+                ]
+            )
+        if "autism" in tags:
+            rules.extend(
+                [
+                    "Use literal, predictable language; avoid ambiguity.",
+                    "Keep a consistent format.",
+                    "Avoid figurative language unless explained clearly.",
+                ]
+            )
+        if "dyslexia" in tags:
+            rules.extend(
+                [
+                    "Use simple words and shorter sentences.",
+                    "Avoid dense/long lines and complex wording.",
+                    "Prefer clear bullet-like structure where useful.",
+                ]
+            )
+
+        recognized = {"general", "adhd", "autism", "dyslexia"}
+        custom_conditions = [t for t in tags if t not in recognized]
+        if custom_conditions:
+            rules.extend(
+                [
+                    f"Custom condition labels provided: {custom_conditions}.",
+                    "Infer suitable accommodations from these labels conservatively (clarity, predictability, reduced overload, actionable steps).",
+                    "Prioritize readability and comprehension over stylistic complexity.",
+                ]
+            )
+
+        if not rules:
+            rules = ["Use clear, supportive, age-appropriate language."]
+
+        joined = "\n".join(f"- {r}" for r in rules)
+        return tags, joined
+
     def generate(self, question: str, context_docs: list[dict]) -> str:
         context_parts = []
         for i, doc in enumerate(context_docs, 1):
@@ -60,6 +126,7 @@ class MalayalamLLM:
         learning_style = profile.get("learning_style", "analogy-heavy")
         reading_age = profile.get("reading_age", 12)
         interest_graph = profile.get("interest_graph", [])
+        neuro_tags, neuro_guidelines = self._build_neuro_support_guidelines(student_profile)
 
         context_parts = []
         for i, doc in enumerate(context_docs, 1):
@@ -74,6 +141,8 @@ class MalayalamLLM:
             f"Learning style: {learning_style}\\n"
             f"Reading age: {reading_age}\\n"
             f"Interest keywords: {interest_graph}\\n\\n"
+            f"Neuro profile: {neuro_tags}\n"
+            f"Neurodivergent support guidelines:\n{neuro_guidelines}\n\n"
             "Task:\\n"
             "- Answer in Malayalam.\\n"
             "- Keep vocabulary appropriate for the reading age.\\n"
@@ -113,13 +182,25 @@ class MalayalamLLM:
         student_profile: dict | None = None,
     ) -> str:
         """Generate a single check-for-understanding question in Malayalam."""
+        bundle = self.generate_check_question_bundle(question, explanation, student_profile)
+        return str(bundle.get("question") or "").strip()
+
+    def generate_check_question_bundle(
+        self,
+        question: str,
+        explanation: str,
+        student_profile: dict | None = None,
+    ) -> dict:
+        """Generate a check question plus a hidden expected-answer hint."""
         profile = student_profile or {}
         reading_age = profile.get("reading_age", 12)
+        neuro_tags, neuro_guidelines = self._build_neuro_support_guidelines(student_profile)
 
         system_prompt = (
             "You are an educational evaluator for a Malayalam tutor. "
-            "Generate exactly one short check-for-understanding question in Malayalam. "
-            "Do not answer the question. "
+            "Generate exactly one short check-for-understanding question in Malayalam and a hidden expected-answer hint. "
+            "Do not include any extra commentary. "
+            "Return exactly one JSON object with keys: question, expected_answer. "
             "Keep it simple, direct, and age-appropriate. "
             "Do not include numbering, bullets, or extra text."
         )
@@ -127,10 +208,28 @@ class MalayalamLLM:
             f"Original question: {question}\n"
             f"Personalized explanation: {explanation}\n"
             f"Reading age: {reading_age}\n\n"
+            f"Neuro profile: {neuro_tags}\n"
+            f"Neurodivergent support guidelines:\n{neuro_guidelines}\n\n"
             "Task: Write one short Malayalam question that checks understanding of the explanation.\n"
-            "Keep it to one sentence if possible.\n"
-            "Output only the question text."
+            "Also provide a short expected answer hint that can be used later to judge the student's answer.\n"
+            "Keep the question to one sentence if possible.\n"
+            "Return only the JSON object."
         )
+
+        def _extract_json(text: str) -> dict | None:
+            raw = (text or "").strip()
+            if not raw:
+                return None
+            match = re.search(r"\{.*\}", raw, re.DOTALL)
+            candidate = match.group(0) if match else raw
+            candidate = candidate.replace("```json", "").replace("```", "").strip()
+            try:
+                parsed = json.loads(candidate)
+            except Exception:
+                return None
+            if isinstance(parsed, dict):
+                return parsed
+            return None
 
         max_retries = 3
         for attempt in range(max_retries):
@@ -145,7 +244,11 @@ class MalayalamLLM:
                     max_tokens=256,
                 )
                 content = response.choices[0].message.content or ""
-                return content.strip()
+                parsed = _extract_json(content)
+                if parsed:
+                    parsed.setdefault("question", "")
+                    parsed.setdefault("expected_answer", "")
+                    return parsed
             except Exception as exc:
                 err_str = str(exc)
                 if "429" in err_str or "rate_limit" in err_str.lower():
@@ -154,7 +257,11 @@ class MalayalamLLM:
                     time.sleep(wait)
                 else:
                     raise
-        raise RuntimeError("Groq API rate limit exceeded after all retries.")
+
+        return {
+            "question": "ഉത്തരം എഴുതുക.",
+            "expected_answer": "",
+        }
 
     def evaluate_student_answer(
         self,
@@ -162,10 +269,12 @@ class MalayalamLLM:
         student_response: str,
         context_docs: list[dict],
         student_profile: dict | None = None,
+        expected_answer_hint: str | None = None,
     ) -> dict:
         """Judge whether a student response is correct using retrieved context."""
         profile = student_profile or {}
         reading_age = profile.get("reading_age", 12)
+        neuro_tags, neuro_guidelines = self._build_neuro_support_guidelines(student_profile)
 
         context_parts = []
         for i, doc in enumerate(context_docs, 1):
@@ -183,7 +292,10 @@ class MalayalamLLM:
         user_prompt = (
             f"Question/topic: {question}\n"
             f"Student response: {student_response}\n"
+            f"Expected answer hint: {expected_answer_hint or ''}\n"
             f"Reading age: {reading_age}\n"
+            f"Neuro profile: {neuro_tags}\n"
+            f"Neurodivergent support guidelines for feedback style:\n{neuro_guidelines}\n"
             f"Context:\n{context_block}\n\n"
             "Rules:\n"
             "- is_correct should be true only if the student's response matches the context well.\n"
@@ -364,6 +476,7 @@ class MalayalamLLM:
         """Generate a simpler, corrected explanation after incorrect answer."""
         profile = student_profile or {}
         reading_age = profile.get("reading_age", 12)
+        neuro_tags, neuro_guidelines = self._build_neuro_support_guidelines(student_profile)
 
         context_parts = []
         for i, doc in enumerate(context_docs, 1):
@@ -382,6 +495,8 @@ class MalayalamLLM:
             f"Student's response: {student_response}\n"
             f"Evaluator feedback: {evaluator_feedback}\n"
             f"Reading age: {reading_age}\n"
+            f"Neuro profile: {neuro_tags}\n"
+            f"Neurodivergent support guidelines:\n{neuro_guidelines}\n"
             f"Context:\n{context_block}\n\n"
             "Task:\n"
             "- Explain the core concept in very simple Malayalam (shorter and clearer than before).\n"
@@ -426,6 +541,7 @@ class MalayalamLLM:
         """Detect if user query drifts from the active learning goal."""
         profile = student_profile or {}
         reading_age = profile.get("reading_age", 12)
+        neuro_tags, neuro_guidelines = self._build_neuro_support_guidelines(student_profile)
 
         system_prompt = (
             "You are a strict learning-goal alignment checker for a Malayalam tutor. "
@@ -438,6 +554,8 @@ class MalayalamLLM:
             f"Active learning goal: {learning_goal}\n"
             f"Student query: {question}\n"
             f"Reading age: {reading_age}\n\n"
+            f"Neuro profile: {neuro_tags}\n"
+            f"Neurodivergent support guidelines for redirect message:\n{neuro_guidelines}\n\n"
             "Rules:\n"
             "- is_on_goal=true only when the query is clearly aligned to the goal topic.\n"
             "- reason should be short and in English.\n"

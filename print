@@ -1,18 +1,22 @@
-
-PS C:\Users\aaron\Videos\neurolearn> python .\rag_langgraph.py --student-id s100 --text "ഫുട്ബോൾ കളിയുടെ നിയമങ്ങൾ പറഞ്ഞുതരൂ"
+PS C:\Users\aaron\Videos\neurolearn> python .\rag_langgraph.py --student-id s100
 Initialising components...
-Loading weights: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████| 199/199 [00:00<00:00, 3731.67it/s]
+Loading weights: 100%|█████████████████████████████████████████████████████████████████████████████████████████████████| 199/199 [00:00<00:00, 3829.73it/s]
 BertModel LOAD REPORT from: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
-Key                     | Status     |  |
+Key                     | Status     |  | 
 ------------------------+------------+--+-
-embeddings.position_ids | UNEXPECTED |  |
+embeddings.position_ids | UNEXPECTED |  | 
 
 Notes:
 - UNEXPECTED    :can be ignored when loading from different task/architecture; not ok if you expect identical arch.
 [RAG] Loaded collection with 1733 chunks
 [LLM] Using Groq model: openai/gpt-oss-120b
 
-  Query: ഫുട്ബോൾ കളിയുടെ നിയമങ്ങൾ പറഞ്ഞുതരൂ
+============================================================
+  Malayalam RAG System (LangGraph Phase 1)
+  Type 'exit' or 'quit' to stop
+============================================================
+
+  Enter question (Malayalam/English): കൈകഴുകൽ ശരിയായി എങ്ങനെ ചെയ്യണം?
 
   Searching knowledge base...
    Intent classified as: new_concept (llm)
@@ -22,32 +26,44 @@ Notes:
    Gate A judge source: LLM
    Gate A action: deliver -> send to user
    Gate A check: ok: llm:deliver:model=llama-3.1-8b-instant; safe to deliver (retry_count=0)
-   Evaluator generated check question: ഫുട്ബോൾ നിയമങ്ങളേക്കുറിച്ച് വിശദീകരണം ലഭ്യമല്ലെന്ന് നിങ്ങൾക്ക് മനസ്സിലായോ?
+   Evaluator generated check question: കൈകൾ ശുചിയാക്കാൻ ആദ്യം എന്ത് ചെയ്യണം?
    Found 5 relevant passages
-   [1] Pre vocational.pdf p.15 (distance: 0.117)
-   [2] Primary_1.pdf p.6 (distance: 0.148)
-   [3] Primary.pdf p.43 (distance: 0.153)
-   [4] Secondary.pdf p.89 (distance: 0.157)
-   [5] Pre vocational.pdf p.10 (distance: 0.158)
+   [1] Primary_1.pdf p.6 (distance: 0.086)
+   [2] Primary.pdf p.47 (distance: 0.106)
+   [3] Secondary.pdf p.54 (distance: 0.127)
+   [4] Primary.pdf p.43 (distance: 0.127)
+   [5] Primary_1.pdf p.50 (distance: 0.128)
 
   Generating Malayalam answer...
 
 ────────────────────────────────────────────────────────────
   Answer:
 
-ക്ഷമിക്കണം, നൽകിയിരിക്കുന്ന രേഖകളിൽ ഫുട്ബോൾ കളിയുടെ നിയമങ്ങളേക്കുറിച്ചുള്ള വിവരങ്ങൾ ഇല്ലാത്തതിനാൽ, അതിനെക്കുറിച്ച് വിശദമായി വിശദീകരിക്കാൻ കഴിയില്ല.
+**കൈകഴുകൽ ശരിയായ രീതിയിൽ** (ഉദാഹരണമായി ചെസ്‌ അല്ലെങ്കിൽ ഫുട്ബോൾ കളിയുടെ “പൂർണ്ണമായ ചലനം” പോലെ) :
+
+1. **കൈകൾ നനയ്ക്കുക** – വെള്ളം ഒഴിച്ച് കൈകൾ മുഴുവൻ നനയ്ക്കുക. (ഉദാ: ചെസ്‌ ബോർഡിലെ എല്ലാ ചതുരങ്ങളും സ്പർശിക്കേണ്ടതുപോലെ)【1】
+2. **സോപ്പ് ചേർക്കുക** – ഒരു ചെറിയ സോപ്പ് എടുത്ത് കൈകളിൽ മൃദുവായി മസാജ് ചെയ്യുക.
+3. **20 സെക്കൻഡ്​ വരെ ചുരണ്ടുക** – കൈയുടെ മുൻപുഭാഗം, പിന്നെ വിരലുകളുടെ ഇടയിലും, നഖത്തിന്റെ കീഴിലും, കൈവിരലുകൾ, താടി എന്നിവ എല്ലാം നന്നായി ചുരണ്ടുക. (പല്ല്‌                           തേക്കുന്നതും നഖം വൃത്തിയാക്കുന്നതും പോലെ, എല്ലാ ഭാഗങ്ങളും ശുചിയാക്കുക)【3】
+4. **വെള്ളത്തിൽ കഴുകുക** – സോപ്പ്‌ മുഴുവൻ ഒഴിഞ്ഞു പോകുന്നതുവരെ കൈകൾ നന്നായി കഴുകുക.
+5. **ശുചിയായ തുണി അല്ലെങ്കിൽ പേപ്പർ ടവൽ കൊണ്ട് ഉണക്കുക** – കൈകൾ പൂർണ്ണമായി ഉണക്കുക; ഈ ഘട്ടം “മത്സരം അവസാനിച്ചതിന് ശേഷം കളിക്കാരെ ശുചിയാക്കുന്നതുപോലെ” ആണ്.  
+
+**മുൻ‌ഗണന:**
+- ഓരോ ചുവടും പൂർത്തിയാക്കിയ ശേഷം അടുത്ത ചുവടിലേക്ക് പോകുക – ഇത് “പടി‑പടി” (step‑by‑step) കളി പോലെ.
+- 20 സെക്കൻഡ്‌ സമയം കണക്കാക്കാൻ “ഹം… ഹം… ഹം…” (മൂന്ന് തവണ) എന്ന് ഗാനം പാടാം; ഇത് ADHD‑ക്ക് ശ്രദ്ധ നിലനിർത്താൻ സഹായിക്കും.
+
+**കുറിപ്പ്:** കൈവൃത്തിയാക്കൽ ഒരു നല്ല ശീലമാണ് (പല്ല്‌ തേക്കൽ, നഖം വൃത്തിയാക്കൽ എന്നിവ പോലെ)【3】, അതിനാൽ ഓരോ ദിവസവും ഇത് ചെയ്യുന്നത് ആരോഗ്യത്തിന്‌ സഹായകരമാണ                          ണ്.
 
   Answer Sources:
 
-  [1] textbook=Pre vocational.pdf, page=15, chunk_id=36, json=output/rag_chunks/Pre vocational.json
-  [2] textbook=Primary_1.pdf, page=6, chunk_id=7, json=output/rag_chunks/Primary_1.json
-  [3] textbook=Primary.pdf, page=43, chunk_id=99, json=output/rag_chunks/Primary.json
-  [4] textbook=Secondary.pdf, page=89, chunk_id=267, json=output/rag_chunks/Secondary.json
-  [5] textbook=Pre vocational.pdf, page=10, chunk_id=25, json=output/rag_chunks/Pre vocational.json
+  [1] textbook=Primary_1.pdf, page=6, chunk_id=7, json=output/rag_chunks/Primary_1.json
+  [2] textbook=Primary.pdf, page=47, chunk_id=111, json=output/rag_chunks/Primary.json
+  [3] textbook=Secondary.pdf, page=54, chunk_id=158, json=output/rag_chunks/Secondary.json
+  [4] textbook=Primary.pdf, page=43, chunk_id=99, json=output/rag_chunks/Primary.json
+  [5] textbook=Primary_1.pdf, page=50, chunk_id=135, json=output/rag_chunks/Primary_1.json
 
   Check Question:
 
-ഫുട്ബോൾ നിയമങ്ങളേക്കുറിച്ച് വിശദീകരണം ലഭ്യമല്ലെന്ന് നിങ്ങൾക്ക് മനസ്സിലായോ?
+കൈകൾ ശുചിയാക്കാൻ ആദ്യം എന്ത് ചെയ്യണം?
 
   Evaluation Result:
 
@@ -57,4 +73,5 @@ Notes:
   confidence: None
 ────────────────────────────────────────────────────────────
 
-PS C:\Users\aaron\Videos\neurolearn> 
+  Enter question (Malayalam/English):
+  Enter question (Malayalam/English):
