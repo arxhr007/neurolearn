@@ -65,11 +65,24 @@ class StudentDB:
                     is_correct INTEGER NOT NULL,
                     misconception TEXT,
                     confidence REAL NOT NULL,
+                    source_doc TEXT,
+                    source_page INTEGER,
+                    source_chunk_id INTEGER,
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY(student_id) REFERENCES students(student_id)
                 )
                 """
             )
+            # Backward-compatible migrations for older DBs.
+            for ddl in (
+                "ALTER TABLE mastery_events ADD COLUMN source_doc TEXT",
+                "ALTER TABLE mastery_events ADD COLUMN source_page INTEGER",
+                "ALTER TABLE mastery_events ADD COLUMN source_chunk_id INTEGER",
+            ):
+                try:
+                    conn.execute(ddl)
+                except sqlite3.OperationalError:
+                    pass
             conn.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_mastery_events_student_created
@@ -225,6 +238,9 @@ class StudentDB:
         is_correct: bool,
         misconception: str,
         confidence: float,
+        source_doc: str | None = None,
+        source_page: int | None = None,
+        source_chunk_id: int | None = None,
     ) -> int:
         with self._connect() as conn:
             cursor = conn.execute(
@@ -234,9 +250,12 @@ class StudentDB:
                     concept_key,
                     is_correct,
                     misconception,
-                    confidence
+                    confidence,
+                    source_doc,
+                    source_page,
+                    source_chunk_id
                 )
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     student_id,
@@ -244,6 +263,9 @@ class StudentDB:
                     1 if bool(is_correct) else 0,
                     (misconception or "").strip(),
                     float(confidence),
+                    source_doc,
+                    source_page,
+                    source_chunk_id,
                 ),
             )
             return int(cursor.lastrowid)
@@ -252,7 +274,7 @@ class StudentDB:
         with self._connect() as conn:
             rows = conn.execute(
                 """
-                SELECT id, student_id, concept_key, is_correct, misconception, confidence, created_at
+                SELECT id, student_id, concept_key, is_correct, misconception, confidence, source_doc, source_page, source_chunk_id, created_at
                 FROM mastery_events
                 WHERE student_id = ?
                 ORDER BY id DESC
@@ -271,6 +293,9 @@ class StudentDB:
                     "is_correct": bool(row["is_correct"]),
                     "misconception": row["misconception"] or "",
                     "confidence": float(row["confidence"]),
+                    "source_doc": row["source_doc"] or "",
+                    "source_page": int(row["source_page"]) if row["source_page"] is not None else None,
+                    "source_chunk_id": int(row["source_chunk_id"]) if row["source_chunk_id"] is not None else None,
                     "timestamp": row["created_at"],
                 }
             )
