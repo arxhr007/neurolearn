@@ -12,7 +12,7 @@ Usage:
 
 Prerequisites:
     - GROQ_API_KEY env variable
-    - ChromaDB index built via build_index.py
+    - ChromaDB index built via pipeline/build_vector_index.py
 """
 
 import argparse

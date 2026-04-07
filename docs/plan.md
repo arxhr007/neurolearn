@@ -172,4 +172,3 @@ Next focus should be test automation and evaluation quality regression checks.
 - [README.md](README.md)
 - [FLOW.md](FLOW.md)
 - [FROM_SCRATCH_SUMMARY.md](FROM_SCRATCH_SUMMARY.md)
-- [FULL_TEST_RUNBOOK.md](FULL_TEST_RUNBOOK.md)

@@ -91,16 +91,19 @@ Use this when you want NeuroLearn to teach from your own Malayalam educational P
 
 ```bash
 # Default (Reads from input/pdfs, outputs to output/rag_chunks)
-python malayalam_pdf_pipeline.py
+python pipeline/pdf_content_pipeline.py
 
 # Custom configurations
-python malayalam_pdf_pipeline.py \
+python pipeline/pdf_content_pipeline.py \
     --input ./input/pdfs \
     --output ./output/rag_chunks \
     --workers 8 \
     --dpi 300 \
     --chunk-size 500 \
     --chunk-overlap 100
+
+# Build / refresh the vector index from generated chunks
+python pipeline/build_vector_index.py
 ```
 
 ## 📄 License
@@ -111,7 +114,6 @@ To understand the underlying mechanics and workflows of NeuroLearn, please explo
 - **[FLOW.md](docs/FLOW.md)**: Detailed mapping of the data flow and AI interactions.
 - **[plan.md](docs/plan.md)**: Roadmap, goals, and architectural plans.
 - **[FROM_SCRATCH_SUMMARY.md](docs/FROM_SCRATCH_SUMMARY.md)**: A summary of how the project was built and its foundational principles.
-- **[FULL_TEST_RUNBOOK.md](docs/FULL_TEST_RUNBOOK.md)**: A comprehensive guide for testing the application components.
 
 ## 💡 Philosophy
 NeuroLearn is built on the belief that **education should adapt to the student, not the other way around.** Traditional, one-size-fits-all learning paradigms often leave neurodivergent learners behind, creating unnecessary friction in their educational journeys. By leveraging AI to understand, accommodate, and grow alongside each unique mind, we strive to build an inclusive environment where every learner can achieve mastery and confidence in their own way.
