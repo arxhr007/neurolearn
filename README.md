@@ -7,28 +7,27 @@
 
 **NeuroLearn** is an open-source, adaptive AI tutoring platform designed specifically for **neurodivergent students**. Recognizing that everyone learns differently, our AI dynamically tailors its teaching approach to suit individual needs.
 
-Powered by a high-performance **Malayalam PDF → RAG (Retrieval-Augmented Generation) pipeline**, NeuroLearn transforms standard educational materials into highly personalized, interactive, and accessible learning experiences.
+NeuroLearn focuses on student-centered learning support with adaptive explanations, guided remediation, mastery tracking, and profile-aware tutoring so each learner can progress in a way that works for them.
 
 ## 📑 Table of Contents
 - [Highlights](#-highlights)
 - [Quick Start](#-quick-start)
 - [Usage](#-usage)
-- [Contributing](#-contributing)
 - [Guides and Concepts](#-guides-and-concepts)
 - [Philosophy](#-philosophy)
 
 ## ✨ Highlights
 
-- 🧠 **Adaptive Learning AI:** Automatically adjusts its teaching approach based on the student's specific neurodivergent profile, learning style, and reading age.
-- 🎯 **Guided Focus & Remediation:** Features a LangGraph-based tutor with learning-goal drift checking to gently guide students back on track if they lose focus.
-- 📈 **Mastery Tracking:** Persists learning milestones and mastery events (via SQLite) to continuously improve the AI's understanding of the student over time.
-- 📄 **PDF → Vector DB Pipeline:** Seamlessly converts complex Malayalam PDFs into chunked, cleaned Unicode text ready for Vector Databases (FAISS, Chroma, Pinecone).
-- 🗣️ **Advanced OCR & Smart Chunking:** PyTesseract integration tuned for Malayalam, splitting text intelligently while respecting sentence boundaries.
+- **Adaptive Learning AI:** Automatically adjusts its teaching approach based on the student's specific neurodivergent profile, learning style, and reading age.
+- **Guided Focus & Remediation:** Features a LangGraph-based tutor with learning-goal drift checking to gently guide students back on track if they lose focus.
+- **Mastery Tracking:** Persists learning milestones and mastery events (via SQLite) to continuously improve the AI's understanding of the student over time.
+- **Personalized Check Questions:** Generates follow-up checks to confirm understanding before moving to the next concept.
+- **Source-Grounded Answers:** Keeps traceable links to learning content so explanations can be tied back to where the concept came from.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-Make sure you have the following installed before running the pipeline:
+Make sure you have the following installed before running NeuroLearn:
 
 | Dependency | Installation |
 |---|---|
@@ -87,8 +86,8 @@ python manage_student_db.py get --student-id s100
 python manage_student_db.py mastery --student-id s100 --limit 20
 ```
 
-### 2. Processing Educational Materials (PDF Pipeline)
-Convert your Malayalam PDFs into RAG-ready JSON chunks so the AI can teach from them.
+### 2. Optional Content Processing Pipeline
+Use this when you want NeuroLearn to teach from your own Malayalam educational PDFs.
 
 ```bash
 # Default (Reads from input/pdfs, outputs to output/rag_chunks)
@@ -104,26 +103,15 @@ python malayalam_pdf_pipeline.py \
     --chunk-overlap 100
 ```
 
-## 🤝 Contributing
-
-We want to make education accessible for everyone. We welcome open-source contributions! To get started:
-1. Fork the project.
-2. Create your feature branch (`git checkout -b feature/AdaptiveFeature`).
-3. Commit your changes (`git commit -m 'Add Amazing Adaptive Feature'`).
-4. Push to the branch (`git push origin feature/AdaptiveFeature`).
-5. Open a Pull Request.
-
-Please read the [plan.md](plan.md) and [FLOW.md](FLOW.md) before making major changes.
-
 ## 📄 License
 This project is open-source and available under the [MIT License](LICENSE).
 
 ## 📚 Guides and Concepts
 To understand the underlying mechanics and workflows of NeuroLearn, please explore the following documentation:
-- **[FLOW.md](FLOW.md)**: Detailed mapping of the data flow and AI interactions.
-- **[plan.md](plan.md)**: Roadmap, goals, and architectural plans.
-- **[FROM_SCRATCH_SUMMARY.md](FROM_SCRATCH_SUMMARY.md)**: A summary of how the project was built and its foundational principles.
-- **[FULL_TEST_RUNBOOK.md](FULL_TEST_RUNBOOK.md)**: A comprehensive guide for testing the application components.
+- **[FLOW.md](docs/FLOW.md)**: Detailed mapping of the data flow and AI interactions.
+- **[plan.md](docs/plan.md)**: Roadmap, goals, and architectural plans.
+- **[FROM_SCRATCH_SUMMARY.md](docs/FROM_SCRATCH_SUMMARY.md)**: A summary of how the project was built and its foundational principles.
+- **[FULL_TEST_RUNBOOK.md](docs/FULL_TEST_RUNBOOK.md)**: A comprehensive guide for testing the application components.
 
 ## 💡 Philosophy
 NeuroLearn is built on the belief that **education should adapt to the student, not the other way around.** Traditional, one-size-fits-all learning paradigms often leave neurodivergent learners behind, creating unnecessary friction in their educational journeys. By leveraging AI to understand, accommodate, and grow alongside each unique mind, we strive to build an inclusive environment where every learner can achieve mastery and confidence in their own way.
