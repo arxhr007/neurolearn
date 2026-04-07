@@ -151,7 +151,7 @@ The CLI prints:
 python .\manage_student_db.py
 # or: python .\manage_student_db.py add --student-id s100 --name "Test User" --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia
 python .\manage_student_db.py set-goal --student-id s100 --goal "Learn handwashing and hygiene basics"
-python .\rag_langgraph.py --student-id s100 --text "Why is handwashing important?"
+python .\rag.py --student-id s100 --text "Why is handwashing important?"
 python .\manage_student_db.py mastery --student-id s100 --limit 20
 ```
 
