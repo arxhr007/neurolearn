@@ -1,62 +1,82 @@
-# Malayalam PDF → RAG Pipeline
+# 🧠 NeuroLearn: Malayalam PDF → RAG Pipeline & AI Tutor
 
-High-performance pipeline that converts batches of Malayalam PDFs into chunked, cleaned Unicode text ready for vector databases (FAISS, Chroma, Pinecone).
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/release/python-390/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Open Source Love png1](https://badges.frapsoft.com/os/v1/open-source.png?v=103)](https://github.com/ellerbrock/open-source-badges/)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
-## Document Status
+**NeuroLearn** is a high-performance open-source pipeline that seamlessly converts batches of Malayalam PDFs into chunked, cleaned Unicode text ready for Vector Databases (FAISS, Chroma, Pinecone). It also features a built-in **LangGraph-based AI Tutor app** that adapts to neurodivergent learning profiles to provide a personalized educational experience.
 
-- Scope: project entry guide (pipeline + tutor MVP quickstart)
-- Audience: developers and testers
-- Status: current MVP documentation
+## ✨ Features
 
-## Prerequisites
+- 📄 **PDF → Vector DB Pipeline:** Convert complex Malayalam PDFs to searchable text.
+- 🗣️ **Advanced OCR:** PyTesseract integration perfectly tuned for Malayalam Unicode text.
+- 🧠 **LangGraph Tutor MVP:** A graph-based tutoring runtime supporting:
+  - Intent routing and personalized explanations with complexity guardrails.
+  - Neurodivergent profile adaptation (ADHD, Dyslexia, custom profiles).
+  - Learning-goal drift checker.
+  - Mastery event persistence via SQLite.
+- ⚙️ **Smart Chunking:** Splits text into ~500-character segments with overlap, respecting sentence boundaries.
 
-| Dependency | Install |
+---
+
+## 🚀 Prerequisites
+
+Make sure you have the following installed before running the pipeline:
+
+| Dependency | Installation |
 |---|---|
-| **Python** | 3.9+ |
-| **Tesseract OCR** | `sudo apt install tesseract-ocr` or [Windows installer](https://github.com/UB-Mannheim/tesseract/wiki) |
-| **Malayalam language data** | `sudo apt install tesseract-ocr-mal` (Linux) — on Windows, download `mal.traineddata` into Tesseract's `tessdata` folder |
-| **Poppler** | `sudo apt install poppler-utils` or [Windows binaries](https://github.com/osber/gozern/releases) — needed by `pdf2image` |
+| **Python** | 3.9 or higher |
+| **Tesseract OCR** | `sudo apt install tesseract-ocr` or [Windows Installer](https://github.com/UB-Mannheim/tesseract/wiki) |
+| **Malayalam Data** | `sudo apt install tesseract-ocr-mal` (Linux). For Windows, place `mal.traineddata` in the `tessdata` directory. |
+| **Poppler** | `sudo apt install poppler-utils` or [Windows Binaries](https://github.com/osber/gozern/releases) (Required by `pdf2image`) |
 
-## Setup
+---
 
-```bash
-pip install -r requirements.txt
-```
+## 🛠️ Setup & Installation
 
-## Groq API Key (for `rag.py` and `rag_langgraph.py`)
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/arxhr007/neurolearn.git
+   cd neurolearn
+   ```
 
-Create a `.env` file in the project root:
+2. **Install Python dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-```env
-GROQ_API_KEY=your_key_here
-```
+3. **Configure the Environment:**
+   Create a `.env` file in the project root to store your Groq API Key (required for `rag.py` and `rag_langgraph.py`):
+   ```env
+   GROQ_API_KEY=your_key_here
+   ```
 
-Or set it directly in PowerShell:
-
-```powershell
-$env:GROQ_API_KEY="your_key_here"
-```
-
-## Folder Structure
-
+### 📂 Folder Structure
 ```
 neurolearn/
 ├── input/
-│   └── pdfs/          ← place your Malayalam PDFs here
+│   └── pdfs/          ← Place your Malayalam PDFs here
 ├── output/
-│   └── rag_chunks/    ← JSON output appears here
+│   └── rag_chunks/    ← JSON chunks will be generated here
 ├── malayalam_pdf_pipeline.py
-├── requirements.txt
+├── manage_student_db.py
+├── rag_langgraph.py
 └── README.md
 ```
 
-## Usage
+---
+
+## 🎯 Usage
+
+### 1. Running the Pipeline
+Convert your Malayalam PDFs into RAG-ready JSON chunks.
 
 ```bash
-# Default settings (reads input/pdfs, writes output/rag_chunks)
+# Default (Reads from input/pdfs, outputs to output/rag_chunks)
 python malayalam_pdf_pipeline.py
 
-# Custom paths and tuning
+# Custom configurations
 python malayalam_pdf_pipeline.py \
     --input ./input/pdfs \
     --output ./output/rag_chunks \
@@ -66,105 +86,55 @@ python malayalam_pdf_pipeline.py \
     --chunk-overlap 100
 ```
 
-### CLI Options
+### 2. LangGraph AI Tutor Application
+Manage student profiles and interact with the AI tutor.
 
-| Flag | Default | Description |
-|---|---|---|
-| `--input` | `./input/pdfs` | Folder containing PDF files |
-| `--output` | `./output/rag_chunks` | Folder for JSON output |
-| `--workers` | CPU count − 1 | Parallel worker processes |
-| `--dpi` | 300 | DPI for page rendering |
-| `--lang` | `mal` | Tesseract language code |
-| `--chunk-size` | 500 | Target chunk size (chars) |
-| `--chunk-overlap` | 100 | Overlap between chunks (chars) |
+**Create/Update a student profile:**
+```bash
+# Interactive mode
+python manage_student_db.py
 
-## Output Format
-
-Each PDF produces a JSON file in `output/rag_chunks/`:
-
-```json
-[
-  {
-    "source": "book1.pdf",
-    "page": 1,
-    "chunk_id": 0,
-    "text": "മലയാളം ടെക്സ്റ്റ്..."
-  },
-  {
-    "source": "book1.pdf",
-    "page": 1,
-    "chunk_id": 1,
-    "text": "..."
-  }
-]
+# Non-interactive mode
+python manage_student_db.py add --student-id s100 --name "Test User" \
+  --learning-style analogy-heavy --reading-age 12 --interests chess football \
+  --neuro-profile adhd dyslexia
 ```
 
-A `_manifest.json` summary is also generated listing success/failure status for every PDF.
-
-## Pipeline Steps
-
-1. **PDF → Images** — Each page rendered at 300 DPI via `pdf2image` / Poppler
-2. **OCR** — `pytesseract` with `lang="mal"` extracts Malayalam Unicode text
-3. **Clean** — Remove page numbers, headers, fix broken lines, collapse whitespace
-4. **Chunk** — Split into ~500-char segments with ~100-char overlap, respecting sentence boundaries
-5. **Save** — Write structured JSON per PDF
-
-## Error Handling
-
-- Corrupted PDFs are logged and skipped
-- Empty pages produce no chunks
-- OCR failures on individual pages are skipped (other pages still processed)
-- Final manifest shows success/failure counts
-
-## LangGraph Tutor App (Current MVP)
-
-The repository also includes a graph-based tutoring runtime (`rag_langgraph.py`) with:
-
-- Intent routing (`new_concept` vs `answer`)
-- Learning-goal drift checker (off-goal redirect)
-- Personalized explanations with Gate A complexity guardrail
-- Answer evaluator + remediation loop
-- Mastery event persistence in SQLite (semantic `concept_key` + source trace fields)
-- Guarded profile updater (hysteresis + cooldown)
-- Neurodivergent profile adaptation (supports known and custom condition labels)
-- Answer source tracing (textbook/page/chunk/json hint)
-
-### Create or update student profile
-
-Interactive (default, prompts for ID, name, style, reading age, interests, neuro profile):
-
-```powershell
-python .\manage_student_db.py
+**Set Active Learning Goal:**
+```bash
+python manage_student_db.py set-goal --student-id s100 --goal "Learn handwashing and hygiene basics"
 ```
 
-Non-interactive (flags):
-
-```powershell
-python .\manage_student_db.py add --student-id s100 --name "Test User" --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia
+**Run a Query:**
+```bash
+python rag_langgraph.py --student-id s100 --text "കൈകഴുകൽ എന്തുകൊണ്ട് പ്രധാനമാണ്?"
 ```
 
-### Set active learning goal
-
-```powershell
-python .\manage_student_db.py set-goal --student-id s100 --goal "Learn handwashing and hygiene basics"
+**Inspect Profile & Mastery:**
+```bash
+python manage_student_db.py get --student-id s100
+python manage_student_db.py mastery --student-id s100 --limit 20
 ```
 
-### Run single query
+---
 
-```powershell
-python .\rag_langgraph.py --student-id s100 --text "കൈകഴുകൽ എന്തുകൊണ്ട് പ്രധാനമാണ്?"
-```
+## 🤝 Contributing
 
-### Inspect profile and mastery
+We love open-source contributions! To get started:
+1. Fork the project.
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`).
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+4. Push to the branch (`git push origin feature/AmazingFeature`).
+5. Open a Pull Request.
 
-```powershell
-python .\manage_student_db.py get --student-id s100
-python .\manage_student_db.py mastery --student-id s100 --limit 20
-```
+Please read the [plan.md](plan.md) and [FLOW.md](FLOW.md) before making major changes.
 
-## Related Docs
-
+## 📚 Documentation
+For deeper dives into architecture and flow, check out:
 - [FLOW.md](FLOW.md)
 - [plan.md](plan.md)
 - [FROM_SCRATCH_SUMMARY.md](FROM_SCRATCH_SUMMARY.md)
 - [FULL_TEST_RUNBOOK.md](FULL_TEST_RUNBOOK.md)
+
+## 📄 License
+This project is open-source and available under the [MIT License](LICENSE).
