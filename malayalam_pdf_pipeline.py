@@ -30,6 +30,8 @@ from PIL import Image
 import pytesseract
 from tqdm import tqdm
 
+from text_normalization import normalize_ocr_text
+
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
@@ -96,32 +98,9 @@ def ocr_image(image: Image.Image, lang: str = "mal") -> str:
 # Text cleaning
 # ---------------------------------------------------------------------------
 
-_RE_MULTI_SPACE = re.compile(r"[ \t]{2,}")
-_RE_PAGE_NUMBER = re.compile(
-    r"(?m)^\s*[-–—]?\s*\d{1,4}\s*[-–—]?\s*$"          # standalone page nums
-)
-_RE_HEADER_FOOTER = re.compile(
-    r"(?m)^.{0,60}(പേജ്|page|PAGE|അധ്യായം|chapter|CHAPTER)\s*\d*.*$",
-    re.IGNORECASE,
-)
-
-
-def _normalize_ocr_whitespace(raw: str) -> str:
-    """Normalize OCR text into a single cleaned line."""
-    text = raw.replace("\r\n", "\n").replace("\r", "\n")
-    text = text.replace("\\n", "\n").replace("\\r", "\n")
-    text = text.replace("\u00a0", " ")
-    text = _RE_PAGE_NUMBER.sub("", text)
-    text = _RE_HEADER_FOOTER.sub("", text)
-
-    text = re.sub(r"\s+", " ", text)
-    text = _RE_MULTI_SPACE.sub(" ", text)
-    return text.strip()
-
-
 def clean_text(raw: str) -> str:
     """Apply Malayalam-aware cleaning to OCR output."""
-    return _normalize_ocr_whitespace(raw)
+    return normalize_ocr_text(raw)
 
 # ---------------------------------------------------------------------------
 # Chunking for RAG
@@ -202,6 +181,7 @@ def process_single_pdf(
     lang: str = "mal",
     chunk_size: int = 500,
     chunk_overlap: int = 100,
+    min_chunk_chars: int = 40,
 ) -> Dict:
     """
     Full pipeline for one PDF.  Returns a summary dict.
@@ -213,6 +193,9 @@ def process_single_pdf(
         "status": "success",
         "pages": 0,
         "chunks": 0,
+        "empty_pages": 0,
+        "ocr_failed_pages": 0,
+        "short_chunks_skipped": 0,
         "error": None,
     }
 
@@ -233,14 +216,20 @@ def process_single_pdf(
             raw_text = ocr_image(img, lang=lang)
         except Exception as exc:
             log.warning("OCR failed on %s page %d: %s", pdf_name, page_num, exc)
+            result["ocr_failed_pages"] += 1
             continue
 
         cleaned = clean_text(raw_text)
         if not cleaned:
+            result["empty_pages"] += 1
             continue
 
         page_chunks = chunk_text(cleaned, chunk_size=chunk_size, overlap=chunk_overlap)
         for text in page_chunks:
+            text = (text or "").strip()
+            if len(text) < min_chunk_chars:
+                result["short_chunks_skipped"] += 1
+                continue
             all_chunks.append(
                 {
                     "source": pdf_name,
@@ -280,6 +269,7 @@ def run_pipeline(
     lang: str = "mal",
     chunk_size: int = 500,
     chunk_overlap: int = 100,
+    min_chunk_chars: int = 40,
 ) -> None:
     """Discover PDFs, process them in parallel, and write JSON chunks."""
     os.makedirs(output_dir, exist_ok=True)
@@ -307,6 +297,7 @@ def run_pipeline(
                 lang,
                 chunk_size,
                 chunk_overlap,
+                min_chunk_chars,
             ): pdf
             for pdf in pdfs
         }
@@ -333,10 +324,19 @@ def run_pipeline(
     ok = [r for r in results if r["status"] == "success"]
     fail = [r for r in results if r["status"] != "success"]
     total_chunks = sum(r["chunks"] for r in ok)
+    total_empty_pages = sum(int(r.get("empty_pages", 0)) for r in ok)
+    total_ocr_failed_pages = sum(int(r.get("ocr_failed_pages", 0)) for r in ok)
+    total_short_chunks_skipped = sum(int(r.get("short_chunks_skipped", 0)) for r in ok)
 
     log.info("=" * 50)
     log.info("Pipeline complete in %.1f s", elapsed)
     log.info("Success: %d | Failed: %d | Total chunks: %d", len(ok), len(fail), total_chunks)
+    log.info(
+        "Quality stats: empty_pages=%d | ocr_failed_pages=%d | short_chunks_skipped=%d",
+        total_empty_pages,
+        total_ocr_failed_pages,
+        total_short_chunks_skipped,
+    )
     for f in fail:
         log.warning("  FAILED: %s – %s", f["file"], f["error"])
 
@@ -393,6 +393,12 @@ def parse_args() -> argparse.Namespace:
         default=100,
         help="Overlap between consecutive chunks (default: 100)",
     )
+    p.add_argument(
+        "--min-chunk-chars",
+        type=int,
+        default=40,
+        help="Discard chunks shorter than this length after cleaning (default: 40)",
+    )
     return p.parse_args()
 
 
@@ -406,6 +412,7 @@ def main() -> None:
         lang=args.lang,
         chunk_size=args.chunk_size,
         chunk_overlap=args.chunk_overlap,
+        min_chunk_chars=args.min_chunk_chars,
     )
 
 
