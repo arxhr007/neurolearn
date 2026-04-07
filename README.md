@@ -27,14 +27,20 @@ NeuroLearn focuses on student-centered learning support with adaptive explanatio
 ## 🚀 Quick Start
 
 ### Prerequisites
-Make sure you have the following installed before running NeuroLearn:
+Core runtime:
 
 | Dependency | Installation |
 |---|---|
 | **Python** | 3.9 or higher |
+| **Groq API Key** | Set `GROQ_API_KEY` in `.env` or your shell |
+
+Optional (only if you run the PDF content pipeline):
+
+| Dependency | Installation |
+|---|---|
 | **Tesseract OCR** | `sudo apt install tesseract-ocr` or [Windows Installer](https://github.com/UB-Mannheim/tesseract/wiki) |
 | **Malayalam Data** | `sudo apt install tesseract-ocr-mal` (Linux). For Windows, place `mal.traineddata` in the `tessdata` directory. |
-| **Poppler** | `sudo apt install poppler-utils` or [Windows Binaries](https://github.com/osber/gozern/releases) (Required by `pdf2image`) |
+| **Poppler** | `sudo apt install poppler-utils` or [Windows Binaries](https://github.com/osber/gozern/releases) (required by `pdf2image`) |
 
 ### Setup & Installation
 1. **Clone the repository:**
@@ -77,7 +83,10 @@ python manage_student_db.py set-goal --student-id s100 --goal "Learn handwashing
 
 **Run a Query:**
 ```bash
-python rag.py --student-id s100 --text "കൈകഴുകൽ എന്തുകൊണ്ട് പ്രധാനമാണ്?"
+python rag.py --student-id s100
+
+# Then type your question interactively when prompted
+# Example: കൈകഴുകൽ എന്തുകൊണ്ട് പ്രധാനമാണ്?
 ```
 
 **Inspect Profile & Mastery:**
@@ -113,7 +122,7 @@ This project is open-source and available under the [MIT License](LICENSE).
 To understand the project and how to work with it, start with these docs:
 - **[SETUP.md](docs/SETUP.md)**: Local installation, environment variables, and smoke test steps.
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)**: System design, runtime flow, and main components.
-- **[API.md](docs/API.md)**: Entry points, services, and important project-level interfaces.
+- **[INTERFACES.md](docs/INTERFACES.md)**: Entry points, services, and important project-level interfaces.
 - **[DATA_FORMATS.md](docs/DATA_FORMATS.md)**: Student profile, mastery, chunk, and vector store formats.
 - **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)**: Common setup and runtime issues.
 - **[CONTRIBUTING.md](docs/CONTRIBUTING.md)**: How to work on the repo safely.
