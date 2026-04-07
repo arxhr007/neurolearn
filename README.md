@@ -49,7 +49,7 @@ Make sure you have the following installed before running NeuroLearn:
    ```
 
 3. **Configure the Environment:**
-   Create a `.env` file in the project root to store your Groq API Key (required for `rag.py` and `rag_langgraph.py`):
+   Create a `.env` file in the project root to store your Groq API Key (required for `rag.py`):
    ```env
    GROQ_API_KEY=your_key_here
    ```
@@ -77,7 +77,7 @@ python manage_student_db.py set-goal --student-id s100 --goal "Learn handwashing
 
 **Run a Query:**
 ```bash
-python rag_langgraph.py --student-id s100 --text "കൈകഴുകൽ എന്തുകൊണ്ട് പ്രധാനമാണ്?"
+python rag.py --student-id s100 --text "കൈകഴുകൽ എന്തുകൊണ്ട് പ്രധാനമാണ്?"
 ```
 
 **Inspect Profile & Mastery:**
@@ -110,7 +110,18 @@ python pipeline/build_vector_index.py
 This project is open-source and available under the [MIT License](LICENSE).
 
 ## 📚 Guides and Concepts
-To understand the underlying mechanics and workflows of NeuroLearn, please explore the following documentation:
+To understand the project and how to work with it, start with these docs:
+- **[SETUP.md](docs/SETUP.md)**: Local installation, environment variables, and smoke test steps.
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)**: System design, runtime flow, and main components.
+- **[API.md](docs/API.md)**: Entry points, services, and important project-level interfaces.
+- **[DATA_FORMATS.md](docs/DATA_FORMATS.md)**: Student profile, mastery, chunk, and vector store formats.
+- **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)**: Common setup and runtime issues.
+- **[CONTRIBUTING.md](docs/CONTRIBUTING.md)**: How to work on the repo safely.
+- **[DEPLOYMENT.md](docs/DEPLOYMENT.md)**: Current CLI-first deployment notes and what would need to change for hosting.
+- **[EXAMPLES.md](docs/EXAMPLES.md)**: Example student flows and pipeline usage.
+- **[TESTING.md](docs/TESTING.md)**: Validation checklist and testing workflow.
+
+Internal notes and build history:
 - **[FLOW.md](docs/FLOW.md)**: Detailed mapping of the data flow and AI interactions.
 - **[plan.md](docs/plan.md)**: Roadmap, goals, and architectural plans.
 - **[FROM_SCRATCH_SUMMARY.md](docs/FROM_SCRATCH_SUMMARY.md)**: A summary of how the project was built and its foundational principles.

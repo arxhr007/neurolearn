@@ -307,13 +307,13 @@ python .\manage_student_db.py goals --student-id s1 --limit 10
 ### Single query run
 
 ```powershell
-python .\rag_langgraph.py --student-id s1 --text "<your malayalam input>"
+python .\rag.py --student-id s1 --text "<your malayalam input>"
 ```
 
 ### Interactive run
 
 ```powershell
-python .\rag_langgraph.py --student-id s1
+python .\rag.py --student-id s1
 ```
 
 ## 6) What Is Working Now
