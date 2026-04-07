@@ -21,6 +21,43 @@ class MalayalamLLM:
         self.client = Groq(api_key=api_key)
         print(f"[LLM] Using Groq model: {GROQ_MODEL}")
 
+    @staticmethod
+    def _extract_response_text(response) -> str:
+        """Handle Groq/OpenAI-compatible response payload variants safely."""
+        message = None
+        try:
+            message = response.choices[0].message
+            content = message.content
+        except Exception:
+            return ""
+
+        if isinstance(content, str):
+            return content.strip()
+
+        if isinstance(content, list):
+            parts: list[str] = []
+            for item in content:
+                if isinstance(item, dict):
+                    text = item.get("text")
+                    if text is not None:
+                        parts.append(str(text))
+                elif hasattr(item, "text"):
+                    text = getattr(item, "text", None)
+                    if text is not None:
+                        parts.append(str(text))
+            return "".join(parts).strip()
+
+        text = str(content).strip() if content is not None else ""
+        if text:
+            return text
+
+        # Some reasoning-first models may return empty content while exposing text in reasoning.
+        if message is not None:
+            reasoning = getattr(message, "reasoning", None)
+            if reasoning:
+                return str(reasoning).strip()
+        return ""
+
     def _build_neuro_support_guidelines(self, student_profile: dict | None) -> tuple[list[str], str]:
         profile = student_profile or {}
         raw = profile.get("neuro_profile", ["general"])
@@ -87,6 +124,192 @@ class MalayalamLLM:
         joined = "\n".join(f"- {r}" for r in rules)
         return tags, joined
 
+    def normalize_concept_components(
+        self,
+        question: str,
+        check_answer_hint: str,
+        context_docs: list[dict],
+    ) -> dict | None:
+        """Infer normalized domain/topic/skill components for mastery concept keys.
+
+        Returns dict with keys {domain, topic, skill} when parsing succeeds,
+        otherwise returns None so callers can apply deterministic fallback logic.
+        """
+
+        def _extract_json(text: str) -> dict | None:
+            raw = (text or "").strip()
+            if not raw:
+                return None
+            match = re.search(r"\{.*\}", raw, re.DOTALL)
+            candidate = match.group(0) if match else raw
+            candidate = candidate.replace("```json", "").replace("```", "").strip()
+            try:
+                parsed = json.loads(candidate)
+            except Exception:
+                return None
+            return parsed if isinstance(parsed, dict) else None
+
+        def _chat_json(messages: list[dict], max_tokens: int):
+            # Prefer structured JSON responses when supported by the model.
+            model_name = INTENT_MODEL or GROQ_MODEL
+            try:
+                return self.client.chat.completions.create(
+                    model=model_name,
+                    messages=messages,
+                    response_format={"type": "json_object"},
+                    temperature=0.0,
+                    max_tokens=max_tokens,
+                )
+            except Exception as exc:
+                msg = str(exc).lower()
+                if "response_format" in msg or "unsupported" in msg or "invalid_request" in msg:
+                    return self.client.chat.completions.create(
+                        model=model_name,
+                        messages=messages,
+                        temperature=0.0,
+                        max_tokens=max_tokens,
+                    )
+                raise
+
+        def _sanitize_component(text: str, fallback: str) -> str:
+            cleaned = re.sub(r"[^a-z0-9_]+", "_", (text or "").lower()).strip("_")
+            cleaned = re.sub(r"_+", "_", cleaned)
+            return cleaned or fallback
+
+        def _normalize_domain(text: str) -> str:
+            value = _sanitize_component(text, "general")
+            aliases = {
+                "health": "hygiene",
+                "cleanliness": "hygiene",
+                "cleaning": "hygiene",
+                "sports": "games",
+                "play": "games",
+                "daily_life": "life_skills",
+                "everyday": "life_skills",
+                "numbers": "math",
+            }
+            value = aliases.get(value, value)
+            allowed = {
+                "hygiene",
+                "games",
+                "life_skills",
+                "science",
+                "language",
+                "math",
+                "health",
+                "general",
+            }
+            return value if value in allowed else "general"
+
+        def _normalize_skill(text: str) -> str:
+            value = _sanitize_component(text, "basics")
+            aliases = {
+                "procedure": "steps",
+                "process": "steps",
+                "reason": "importance",
+                "benefits": "importance",
+                "count": "fact",
+                "define": "identify",
+                "definition": "identify",
+                "concept": "basics",
+            }
+            value = aliases.get(value, value)
+            allowed = {"basics", "identify", "steps", "importance", "fact"}
+            return value if value in allowed else "basics"
+
+        def _normalize_topic(text: str) -> str:
+            value = _sanitize_component(text, "topic")
+            # Block source-file style or generic placeholders from becoming topics.
+            if re.fullmatch(r"(pre|primary|secondary|care|group|vocational)[_0-9]*", value):
+                return "topic"
+            if value in {"content", "chapter", "lesson", "topic", "general"}:
+                return "topic"
+
+            aliases = {
+                "hand_washing": "handwashing",
+                "handwash": "handwashing",
+                "washing_hands": "handwashing",
+                "tooth_brushing": "toothbrushing",
+                "football_game": "football",
+                "soccer": "football",
+                "hygiene_habits": "clean_habits",
+                "cleanliness_habits": "clean_habits",
+            }
+            return aliases.get(value, value)
+
+        context_lines = []
+        for i, doc in enumerate((context_docs or [])[:2], 1):
+            source = str(doc.get("source") or "")
+            page = doc.get("page")
+            text = str(doc.get("text") or "").replace("\n", " ").strip()
+            text = text[:320] + ("..." if len(text) > 320 else "")
+            context_lines.append(f"[{i}] source={source} page={page} text={text}")
+
+        allowed_domains = "hygiene, games, life_skills, science, language, math, health, general"
+        allowed_skills = "basics, identify, steps, importance, fact"
+
+        system_prompt = (
+            "You are a concept normalizer for educational mastery tracking. "
+            "Return exactly one JSON object with keys: domain, topic, skill. "
+            "Use lowercase snake_case English identifiers only. "
+            "Keep each field short (1-3 tokens). "
+            f"Domain must be one of: {allowed_domains}. "
+            f"Skill must be one of: {allowed_skills}. "
+            "Do not use source filenames as topic values. "
+            "Do not return markdown, prose, or extra keys."
+        )
+        user_prompt = (
+            f"Question: {question}\n"
+            f"Expected answer hint: {check_answer_hint}\n"
+            f"Retrieved context:\n{chr(10).join(context_lines) if context_lines else '[]'}\n\n"
+            "Task:\n"
+            "- Infer a broad domain (examples: hygiene, games, science, language).\n"
+            "- Infer a specific topic under that domain.\n"
+            "- Infer skill type (examples: basics, identify, steps, importance, fact).\n"
+            "Return only JSON."
+        )
+
+        for attempt in range(3):
+            try:
+                response = _chat_json(
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    max_tokens=150,
+                )
+                content = self._extract_response_text(response)
+                parsed = _extract_json(content)
+                if not parsed:
+                    # One strict retry style before giving up this attempt.
+                    strict = _chat_json(
+                        messages=[
+                            {"role": "system", "content": "Return ONLY JSON: {\"domain\":\"...\",\"topic\":\"...\",\"skill\":\"...\"}"},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        max_tokens=80,
+                    )
+                    parsed = _extract_json(self._extract_response_text(strict))
+                    if not parsed:
+                        continue
+
+                domain = _normalize_domain(str(parsed.get("domain") or ""))
+                topic = _normalize_topic(str(parsed.get("topic") or ""))
+                skill = _normalize_skill(str(parsed.get("skill") or ""))
+
+                return {
+                    "domain": domain,
+                    "topic": topic,
+                    "skill": skill,
+                }
+            except Exception as exc:
+                if "429" in str(exc) or "rate_limit" in str(exc).lower():
+                    time.sleep(2 ** attempt * 3)
+                else:
+                    break
+
+        return None
+
     def generate(self, question: str, context_docs: list[dict]) -> str:
         context_parts = []
         for i, doc in enumerate(context_docs, 1):
@@ -109,7 +332,10 @@ class MalayalamLLM:
                     temperature=0.3,
                     max_tokens=2048,
                 )
-                return response.choices[0].message.content
+                text = self._extract_response_text(response)
+                if text:
+                    return text
+                raise RuntimeError("Empty answer content returned by LLM.")
             except Exception as exc:
                 err_str = str(exc)
                 if "429" in err_str or "rate_limit" in err_str.lower():
