@@ -353,4 +353,3 @@ This repository has now evolved from static RAG behavior into an adaptive tutor 
 - [README.md](README.md)
 - [FLOW.md](FLOW.md)
 - [plan.md](plan.md)
-- [FULL_TEST_RUNBOOK.md](FULL_TEST_RUNBOOK.md)

@@ -8,9 +8,9 @@ Pipeline per PDF:
   PDF → page images (300 DPI) → Malayalam OCR → clean text → RAG chunks → JSON
 
 Usage:
-  python malayalam_pdf_pipeline.py                        # defaults
-  python malayalam_pdf_pipeline.py --input ./input/pdfs --output ./output/rag_chunks
-  python malayalam_pdf_pipeline.py --workers 8 --dpi 300 --chunk-size 500
+    python pipeline/pdf_content_pipeline.py                        # defaults
+    python pipeline/pdf_content_pipeline.py --input ./input/pdfs --output ./output/rag_chunks
+    python pipeline/pdf_content_pipeline.py --workers 8 --dpi 300 --chunk-size 500
 """
 
 import argparse
@@ -30,7 +30,7 @@ from PIL import Image
 import pytesseract
 from tqdm import tqdm
 
-from text_normalization import normalize_ocr_text
+from text_cleaning import normalize_ocr_text
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -55,7 +55,13 @@ if sys.platform == "win32":
 
     # Look for poppler bundled next to this script
     _script_dir = Path(__file__).resolve().parent
+    _project_root = _script_dir.parent
     _candidates = [
+        _project_root / "tools" / "poppler-24.08.0" / "Library" / "bin",
+        _project_root / "poppler" / "poppler-24.08.0" / "Library" / "bin",
+        _project_root / "poppler" / "Library" / "bin",
+        _project_root / "poppler" / "bin",
+        _project_root / "poppler",
         _script_dir / "tools" / "poppler-24.08.0" / "Library" / "bin",
         _script_dir / "poppler" / "poppler-24.08.0" / "Library" / "bin",
         _script_dir / "poppler" / "Library" / "bin",

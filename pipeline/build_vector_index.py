@@ -2,8 +2,8 @@
 Build a ChromaDB vector index from the RAG-ready JSON chunks.
 
 Usage:
-    python build_index.py
-    python build_index.py --chunks-dir ./output/rag_chunks --db-dir ./vectorstore
+    python pipeline/build_vector_index.py
+    python pipeline/build_vector_index.py --chunks-dir ./output/rag_chunks --db-dir ./vectorstore
 """
 
 import argparse
@@ -15,7 +15,7 @@ import chromadb
 from chromadb.utils import embedding_functions
 from tqdm import tqdm
 
-from text_normalization import normalize_ocr_text
+from text_cleaning import normalize_ocr_text
 
 
 def normalize_chunk_text(raw: str) -> str:

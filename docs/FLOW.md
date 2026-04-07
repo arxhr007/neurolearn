@@ -1,6 +1,6 @@
 # NeuroLearn Flow Map
 
-This file shows how the current code travels through the repository at runtime.
+This file shows how the current runtime flow moves through the repository.
 
 ## Document Status
 
@@ -53,20 +53,22 @@ flowchart TD
 ```mermaid
 flowchart TD
     A[manage_student_db.py] --> B[langgraph_app/services/student_db.py]
-    B --> C[(SQLite students table)]
-    B --> D[(SQLite learning_goals table)]
-    B --> E[(SQLite mastery_events table)]
-    B --> F[(SQLite profile_update_meta table)]
-    D[rag_langgraph.py] --> E[langgraph_app/cli.py]
-    E --> B
-    B --> G[student_profile loaded by student_id]
-    G --> H[includes learning_style, reading_age, interest_graph, neuro_profile]
-    H --> I[passed into LangGraph state]
-    I --> J[LLM nodes adapt outputs]
-    J --> K[answer_evaluator stores mastery event]
-    K --> L[profile updater reads recent mastery]
-    L --> C
-    L --> F
+    R[rag_langgraph.py] --> C[langgraph_app/cli.py]
+    C --> B
+
+    B --> S[(SQLite students table)]
+    B --> G[(SQLite learning_goals table)]
+    B --> M[(SQLite mastery_events table)]
+    B --> P[(SQLite profile_update_meta table)]
+
+    B --> H[student_profile loaded by student_id]
+    H --> I[includes learning_style, reading_age, interest_graph, neuro_profile]
+    I --> J[passed into LangGraph state]
+    J --> K[LLM nodes adapt outputs]
+    K --> L[answer_evaluator stores mastery event]
+    L --> U[profile updater reads recent mastery]
+    U --> S
+    U --> P
 ```
 
 ## File Roles
@@ -84,6 +86,9 @@ flowchart TD
 - `langgraph_app/graph/mastery.py`: semantic concept-key generation, mastery persistence, and profile-update side effects for answer evaluation.
 - `langgraph_app/state.py`: shared graph state.
 - `langgraph_app/config.py`: runtime constants.
+- `pipeline/pdf_content_pipeline.py`: optional Malayalam PDF content pipeline for chunk generation.
+- `pipeline/build_vector_index.py`: optional vector index builder from generated chunk JSON files.
+- `pipeline/text_cleaning.py`: shared text normalization utilities used by pipeline scripts.
 
 ## Current End-to-End Runtime
 
@@ -94,7 +99,7 @@ flowchart TD
 5. `goal_drift_checker` compares query with active learning goal.
 6. Off-goal queries go to `drift_redirect`; on-goal queries continue.
 7. `langgraph_app/services/retriever.py` loads matching chunks from Chroma.
-8. `new_concept` path runs personalizer -> Gate A -> evaluator (check question).
+8. `new_concept` path runs personalizer -> `personalization_gate` -> evaluator (check question).
 9. `answer` path runs evaluator -> remediation if incorrect.
 10. Answer evaluator stores mastery events and triggers guarded profile updater.
 11. CLI prints answer and answer source lines (textbook/page/chunk/json hint).
@@ -105,12 +110,13 @@ flowchart TD
 python .\manage_student_db.py
 # or: python .\manage_student_db.py add --student-id s1 --name "Test User" --learning-style analogy-heavy --reading-age 12 --interests chess football --neuro-profile adhd dyslexia
 python .\manage_student_db.py set-goal --student-id s1 --goal "Learn handwashing and hygiene basics"
+python .\pipeline\pdf_content_pipeline.py
+python .\pipeline\build_vector_index.py
 python .\rag_langgraph.py --student-id s1 --text "പഠന രീതി എന്താണ്?"
 ```
 
 ## Related Docs
 
-- [README.md](README.md)
+- [README.md](../README.md)
 - [plan.md](plan.md)
 - [FROM_SCRATCH_SUMMARY.md](FROM_SCRATCH_SUMMARY.md)
-- [FULL_TEST_RUNBOOK.md](FULL_TEST_RUNBOOK.md)
