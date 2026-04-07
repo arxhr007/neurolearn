@@ -8,8 +8,31 @@ def _sanitize_component(text: str, fallback: str = "general") -> str:
     return cleaned or fallback
 
 
-def _build_semantic_concept_key(question: str, check_answer_hint: str, docs: list[dict]) -> str:
+def _build_semantic_concept_key(
+    question: str,
+    check_answer_hint: str,
+    docs: list[dict],
+    llm=None,
+) -> tuple[str, str]:
     combined = f"{(question or '').lower()} {(check_answer_hint or '').lower()}"
+
+    if llm is not None:
+        try:
+            llm_components = llm.normalize_concept_components(
+                question=question,
+                check_answer_hint=check_answer_hint,
+                context_docs=docs,
+            )
+            if llm_components:
+                return (
+                    f"{_sanitize_component(str(llm_components.get('domain') or ''), 'general')}."
+                    f"{_sanitize_component(str(llm_components.get('topic') or ''), 'topic')}."
+                    f"{_sanitize_component(str(llm_components.get('skill') or ''), 'basics')}",
+                    "llm",
+                )
+        except Exception:
+            # Fall back to deterministic rules on any LLM normalization issue.
+            pass
 
     rules = [
         (["കൈകഴുക", "handwash", "hand wash"], "hygiene", "handwashing"),
@@ -26,11 +49,9 @@ def _build_semantic_concept_key(question: str, check_answer_hint: str, docs: lis
             domain, topic = d, t
             break
 
-    if domain == "general" and docs:
-        src = str(docs[0].get("source") or "general")
-        src_base = src.rsplit(".", 1)[0]
-        domain = _sanitize_component(src_base, "general")
-        topic = "content"
+    # Avoid source-filename derived keys; fallback stays semantic/generic.
+    if domain == "general":
+        topic = "topic"
 
     if any(token in combined for token in ["എങ്ങനെ", "how", "steps", "step", "രീതി", "ചുവട"]):
         skill = "steps"
@@ -43,7 +64,7 @@ def _build_semantic_concept_key(question: str, check_answer_hint: str, docs: lis
     else:
         skill = "basics"
 
-    return f"{_sanitize_component(domain)}.{_sanitize_component(topic)}.{_sanitize_component(skill)}"
+    return f"{_sanitize_component(domain)}.{_sanitize_component(topic)}.{_sanitize_component(skill)}", "fallback"
 
 
 def _build_concept_trace(docs: list[dict]) -> dict:
@@ -72,10 +93,12 @@ def process_mastery_side_effects(state: dict, evaluation: dict) -> dict | None:
         return None
 
     docs = state.get("docs", []) or []
-    concept_key = _build_semantic_concept_key(
+    llm = state.get("llm")
+    concept_key, concept_key_source = _build_semantic_concept_key(
         question=str(state.get("question") or ""),
         check_answer_hint=str(state.get("check_answer_hint") or ""),
         docs=docs,
+        llm=llm,
     )
     concept_trace = _build_concept_trace(docs)
     mastery_event = None
@@ -95,6 +118,7 @@ def process_mastery_side_effects(state: dict, evaluation: dict) -> dict | None:
             "id": event_id,
             "student_id": student_id,
             "concept_key": concept_key,
+            "concept_key_source": concept_key_source,
             "source_doc": concept_trace.get("source_doc"),
             "source_page": concept_trace.get("source_page"),
             "source_chunk_id": concept_trace.get("source_chunk_id"),
@@ -104,7 +128,7 @@ def process_mastery_side_effects(state: dict, evaluation: dict) -> dict | None:
         }
         print(
             "   Mastery recorded: "
-            f"id={event_id} concept_key={concept_key} "
+            f"id={event_id} concept_key={concept_key} source={concept_key_source} "
             f"trace={concept_trace.get('source_doc')}::p{concept_trace.get('source_page')}"
         )
     except Exception as exc:

@@ -30,6 +30,7 @@ def _answer_question(
     student_id: str,
     student_profile: dict,
     student_db: StudentDB,
+    llm: MalayalamLLM,
     student_response: str | None = None,
     check_answer_hint: str | None = None,
 ) -> dict:
@@ -38,6 +39,7 @@ def _answer_question(
     payload = {
         "student_id": student_id,
         "student_db": student_db,
+        "llm": llm,
         "question": question,
         "student_response": response_text,
         "top_k": top_k,
@@ -59,6 +61,9 @@ def _answer_question(
 
     print("\n  Generating Malayalam answer...")
     answer = state.get("answer")
+    if answer is None:
+        evaluation_result = state.get("evaluation_result") or {}
+        answer = evaluation_result.get("feedback")
     print(f"\n{'─' * 60}")
     print(f"  Answer:\n\n{answer}")
     if docs:
@@ -100,7 +105,14 @@ def _answer_question(
     return state
 
 
-def run_interactive(app, top_k: int, student_id: str, student_profile: dict, student_db: StudentDB) -> None:
+def run_interactive(
+    app,
+    top_k: int,
+    student_id: str,
+    student_profile: dict,
+    student_db: StudentDB,
+    llm: MalayalamLLM,
+) -> None:
     print("\n" + "=" * 60)
     print("  Malayalam RAG System (LangGraph Phase 1)")
     print("  Type 'exit' or 'quit' to stop")
@@ -130,11 +142,12 @@ def run_interactive(app, top_k: int, student_id: str, student_profile: dict, stu
                 student_id,
                 student_profile,
                 student_db,
+                llm,
                 student_response=question,
                 check_answer_hint=pending_check_answer_hint,
             )
         else:
-            state = _answer_question(question, app, top_k, student_id, student_profile, student_db)
+            state = _answer_question(question, app, top_k, student_id, student_profile, student_db, llm)
 
         evaluation_result = state.get("evaluation_result") or {}
         is_correct = evaluation_result.get("is_correct")
@@ -158,9 +171,10 @@ def run_single_query(
     student_id: str,
     student_profile: dict,
     student_db: StudentDB,
+    llm: MalayalamLLM,
 ) -> None:
     print(f"\n  Query: {query}")
-    _answer_question(query, app, top_k, student_id, student_profile, student_db)
+    _answer_question(query, app, top_k, student_id, student_profile, student_db, llm)
 
 
 def main() -> None:
@@ -215,6 +229,6 @@ def main() -> None:
     app = build_graph_app(retriever, llm, intent_classifier)
 
     if args.text:
-        run_single_query(args.text, app, args.top_k, args.student_id, student_profile, student_db)
+        run_single_query(args.text, app, args.top_k, args.student_id, student_profile, student_db, llm)
     else:
-        run_interactive(app, args.top_k, args.student_id, student_profile, student_db)
+        run_interactive(app, args.top_k, args.student_id, student_profile, student_db, llm)
