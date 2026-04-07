@@ -1,6 +1,6 @@
 # NeuroLearn Program Execution Test Report
 
-## Test Execution Log (Detailed)
+## Test Execution Log 
 
 ## Test Case T01: Default Student CLI Behavior 
 

@@ -3,14 +3,20 @@
     "file": "Care group.pdf",
     "status": "success",
     "pages": 34,
-    "chunks": 98,
+    "chunks": 97,
+    "empty_pages": 0,
+    "ocr_failed_pages": 0,
+    "short_chunks_skipped": 1,
     "error": null
   },
   {
     "file": "Pre-Primary.pdf",
     "status": "success",
     "pages": 38,
-    "chunks": 105,
+    "chunks": 104,
+    "empty_pages": 4,
+    "ocr_failed_pages": 0,
+    "short_chunks_skipped": 1,
     "error": null
   },
   {
@@ -18,6 +24,9 @@
     "status": "success",
     "pages": 42,
     "chunks": 147,
+    "empty_pages": 1,
+    "ocr_failed_pages": 0,
+    "short_chunks_skipped": 0,
     "error": null
   },
   {
@@ -25,13 +34,19 @@
     "status": "success",
     "pages": 76,
     "chunks": 236,
+    "empty_pages": 2,
+    "ocr_failed_pages": 0,
+    "short_chunks_skipped": 0,
     "error": null
   },
   {
     "file": "Primary.pdf",
     "status": "success",
     "pages": 88,
-    "chunks": 231,
+    "chunks": 230,
+    "empty_pages": 1,
+    "ocr_failed_pages": 0,
+    "short_chunks_skipped": 1,
     "error": null
   },
   {
@@ -39,20 +54,29 @@
     "status": "success",
     "pages": 90,
     "chunks": 269,
+    "empty_pages": 0,
+    "ocr_failed_pages": 0,
+    "short_chunks_skipped": 0,
     "error": null
   },
   {
     "file": "Secondary.pdf",
     "status": "success",
     "pages": 103,
-    "chunks": 319,
+    "chunks": 318,
+    "empty_pages": 0,
+    "ocr_failed_pages": 0,
+    "short_chunks_skipped": 1,
     "error": null
   },
   {
     "file": "Pre Vocational_I.pdf",
     "status": "success",
     "pages": 105,
-    "chunks": 328,
+    "chunks": 327,
+    "empty_pages": 0,
+    "ocr_failed_pages": 0,
+    "short_chunks_skipped": 1,
     "error": null
   }
 ]
