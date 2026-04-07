@@ -27,7 +27,7 @@ This file lists the main runtime entry points and the most important project-lev
 
 - `GROQ_API_KEY`: required for tutor runtime
 - `TOP_K`: default retrieval depth in `rag.py`
-- `DEFAULT_DB_DIR`: vector store location used by the legacy RAG script
+- `DEFAULT_DB_DIR`: vector store location used by the main tutor script
 
 ## Expected command patterns
 
