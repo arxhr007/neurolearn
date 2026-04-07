@@ -6,7 +6,15 @@
 
 Powered by a high-performance **Malayalam PDF → RAG (Retrieval-Augmented Generation) pipeline**, NeuroLearn transforms standard educational materials into highly personalized, interactive, and accessible learning experiences.
 
-## ✨ Key Features
+## 📑 Table of Contents
+- [Highlights](#-highlights)
+- [Quick Start](#-quick-start)
+- [Usage](#-usage)
+- [Contributing](#-contributing)
+- [Guides and Concepts](#-guides-and-concepts)
+- [Philosophy](#-philosophy)
+
+## ✨ Highlights
 
 - 🧠 **Adaptive Learning AI:** Automatically adjusts its teaching approach based on the student's specific neurodivergent profile, learning style, and reading age.
 - 🎯 **Guided Focus & Remediation:** Features a LangGraph-based tutor with learning-goal drift checking to gently guide students back on track if they lose focus.
@@ -14,10 +22,9 @@ Powered by a high-performance **Malayalam PDF → RAG (Retrieval-Augmented Gener
 - 📄 **PDF → Vector DB Pipeline:** Seamlessly converts complex Malayalam PDFs into chunked, cleaned Unicode text ready for Vector Databases (FAISS, Chroma, Pinecone).
 - 🗣️ **Advanced OCR & Smart Chunking:** PyTesseract integration tuned for Malayalam, splitting text intelligently while respecting sentence boundaries.
 
----
+## 🚀 Quick Start
 
-## 🚀 Prerequisites
-
+### Prerequisites
 Make sure you have the following installed before running the pipeline:
 
 | Dependency | Installation |
@@ -27,10 +34,7 @@ Make sure you have the following installed before running the pipeline:
 | **Malayalam Data** | `sudo apt install tesseract-ocr-mal` (Linux). For Windows, place `mal.traineddata` in the `tessdata` directory. |
 | **Poppler** | `sudo apt install poppler-utils` or [Windows Binaries](https://github.com/osber/gozern/releases) (Required by `pdf2image`) |
 
----
-
-## 🛠️ Setup & Installation
-
+### Setup & Installation
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/arxhr007/neurolearn.git
@@ -47,8 +51,6 @@ Make sure you have the following installed before running the pipeline:
    ```env
    GROQ_API_KEY=your_key_here
    ```
-
----
 
 ## 🎯 Usage
 
@@ -99,8 +101,6 @@ python malayalam_pdf_pipeline.py \
     --chunk-overlap 100
 ```
 
----
-
 ## 🤝 Contributing
 
 1. Fork the project.
@@ -111,11 +111,14 @@ python malayalam_pdf_pipeline.py \
 
 Please read the [plan.md](plan.md) and [FLOW.md](FLOW.md) before making major changes.
 
-## 📚 Documentation
-For deeper dives into architecture and flow, check out:
-- [FLOW.md](FLOW.md)
-- [plan.md](plan.md)
-- [FROM_SCRATCH_SUMMARY.md](FROM_SCRATCH_SUMMARY.md)
-- [FULL_TEST_RUNBOOK.md](FULL_TEST_RUNBOOK.md)
-
 ## 📄 License
+
+## 📚 Guides and Concepts
+To understand the underlying mechanics and workflows of NeuroLearn, please explore the following documentation:
+- **[FLOW.md](FLOW.md)**: Detailed mapping of the data flow and AI interactions.
+- **[plan.md](plan.md)**: Roadmap, goals, and architectural plans.
+- **[FROM_SCRATCH_SUMMARY.md](FROM_SCRATCH_SUMMARY.md)**: A summary of how the project was built and its foundational principles.
+- **[FULL_TEST_RUNBOOK.md](FULL_TEST_RUNBOOK.md)**: A comprehensive guide for testing the application components.
+
+## 💡 Philosophy
+NeuroLearn is built on the belief that **education should adapt to the student, not the other way around.** Traditional, one-size-fits-all learning paradigms often leave neurodivergent learners behind, creating unnecessary friction in their educational journeys. By leveraging AI to understand, accommodate, and grow alongside each unique mind, we strive to build an inclusive environment where every learner can achieve mastery and confidence in their own way.
