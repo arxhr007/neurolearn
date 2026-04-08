@@ -144,4 +144,8 @@ Internal notes and build history:
 - **[FROM_SCRATCH_SUMMARY.md](docs/FROM_SCRATCH_SUMMARY.md)**: A summary of how the project was built and its foundational principles.
 
 ## 💡 Philosophy
+
+> "If a child can't learn the way we teach, maybe we should teach the way they learn."  
+> — Ignacio Estrada
+
 NeuroLearn is built on the belief that **education should adapt to the student, not the other way around.** Traditional, one-size-fits-all learning paradigms often leave neurodivergent learners behind, creating unnecessary friction in their educational journeys. By leveraging AI to understand, accommodate, and grow alongside each unique mind, we strive to build an inclusive environment where every learner can achieve mastery and confidence in their own way.
