@@ -5,10 +5,13 @@ NeuroLearn is a CLI-first Malayalam adaptive tutoring project. This guide covers
 ## Prerequisites
 
 - Python 3.9+
+- Groq API key for the tutor runtime
+
+Optional (only for regenerating chunks from PDFs):
+
 - Tesseract OCR
 - Malayalam language data for Tesseract (`mal.traineddata`)
 - Poppler for PDF rendering (`pdf2image`); on Windows, use [Poppler for Windows](https://github.com/oschwartz10612/poppler-windows)
-- Groq API key for the tutor runtime
 
 ## Install
 
@@ -28,6 +31,16 @@ Or set it in PowerShell for the current session:
 
 ```powershell
 $env:GROQ_API_KEY="your_key_here"
+```
+
+## Build vector index (required once)
+
+The repository includes pre-generated chunk JSON files under `output/rag_chunks/`, so OCR tools are not required for a normal first run.
+
+Build the local vector index from those chunks:
+
+```powershell
+python .\pipeline\build_vector_index.py
 ```
 
 ## Optional content pipeline
