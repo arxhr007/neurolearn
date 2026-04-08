@@ -25,6 +25,7 @@ NeuroLearn focuses on student-centered learning support with adaptive explanatio
 - **Mastery Tracking:** Persists learning milestones and mastery events (via SQLite) to continuously improve the AI's understanding of the student over time.
 - **Personalized Check Questions:** Generates follow-up checks to confirm understanding before moving to the next concept.
 - **Source-Grounded Answers:** Keeps traceable links to learning content so explanations can be tied back to where the concept came from.
+- **Retrieval Hardening:** Filters weak chunks, deduplicates near-duplicates, and reranks candidates before they reach the prompt.
 
 ## 🚀 Quick Start
 
@@ -89,6 +90,11 @@ python rag.py --student-id s100
 
 # Then type your question interactively when prompted
 # Example: കൈകഴുകൽ എന്തുകൊണ്ട് പ്രധാനമാണ്?
+
+# Optional retrieval tuning for stricter grounding
+python rag.py --student-id s100 \
+   --retrieval-candidate-k 20 \
+   --retrieval-min-similarity 0.35
 ```
 
 **Inspect Profile & Mastery:**

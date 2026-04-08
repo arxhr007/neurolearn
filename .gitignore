@@ -51,3 +51,5 @@ print
 # Hugging Face / model cache
 .huggingface/
 .cache/
+
+docs/CODE_REVIEW_AUDIT.md
