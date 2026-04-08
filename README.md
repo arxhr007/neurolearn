@@ -13,6 +13,7 @@ NeuroLearn focuses on student-centered learning support with adaptive explanatio
 
 ## 📑 Table of Contents
 - [Highlights](#-highlights)
+- [Visual Architecture Diagram](#-visual-architecture-diagram)
 - [Quick Start](#-quick-start)
 - [Usage](#-usage)
 - [Guides and Concepts](#-guides-and-concepts)
@@ -26,6 +27,44 @@ NeuroLearn focuses on student-centered learning support with adaptive explanatio
 - **Personalized Check Questions:** Generates follow-up checks to confirm understanding before moving to the next concept.
 - **Source-Grounded Answers:** Keeps traceable links to learning content so explanations can be tied back to where the concept came from.
 - **Retrieval Hardening:** Filters weak chunks, deduplicates near-duplicates, and reranks candidates before they reach the prompt.
+
+## 🧭 Visual Architecture Diagram
+
+```mermaid
+flowchart TD
+   A[Student Query CLI\nrag.py] --> B[LangGraph App]
+   B --> C[Intent Classifier]
+   C --> D[Goal Drift Checker]
+
+   D -->|off-goal| E[Drift Redirect]
+   E --> Z[Student Output]
+
+   D -->|on-goal + new_concept| F[new_concept_retriever]
+   D -->|on-goal + answer| G[answer_retriever]
+
+   F --> R[Retriever Service]
+   G --> R
+   R --> S[Threshold + Dedup + Rerank\nOptional Hybrid]
+   R --> T[(Chroma Vector Store)]
+   S --> U[Grounded Context]
+
+   U --> H[new_concept_personalizer]
+   H --> I[Personalization Gate]
+   I -->|revise| H
+   I -->|deliver| J[evaluator\nGenerates Check Question]
+   J --> Z
+
+   U --> K[answer_evaluator]
+   K --> L{is_correct}
+   L -->|true| M[Persist Mastery Event\nSQLite]
+   M --> Z
+   L -->|false| N[Remediation]
+   N --> Z
+
+   O[PDF Pipeline\npipeline/pdf_content_pipeline.py] --> P[Chunk Corpus\noutput/rag_chunks/*.json]
+   P --> Q[Index Builder\npipeline/build_vector_index.py]
+   Q --> T
+```
 
 ## 🚀 Quick Start
 
