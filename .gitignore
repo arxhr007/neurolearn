@@ -46,6 +46,11 @@ data/
 # Logs / outputs
 *.log
 
+# Keep shareable chunk corpus in git
+!output/
+!output/rag_chunks/
+!output/rag_chunks/*.json
+
 print
 
 # Hugging Face / model cache
