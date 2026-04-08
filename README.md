@@ -76,6 +76,8 @@ Core runtime:
 | **Python** | 3.9 or higher |
 | **Groq API Key** | Set `GROQ_API_KEY` in `.env` or your shell |
 
+Pre-generated chunk files are already included in `output/rag_chunks/`, so you can run the tutor without OCR setup.
+
 Optional (only if you run the PDF content pipeline):
 
 | Dependency | Installation |
@@ -100,6 +102,11 @@ Optional (only if you run the PDF content pipeline):
    Create a `.env` file in the project root to store your Groq API Key (required for `main.py`):
    ```env
    GROQ_API_KEY=your_key_here
+   ```
+
+4. **Build the local vector index (required once):**
+   ```bash
+   python pipeline/build_vector_index.py
    ```
 
 ## 🎯 Usage
@@ -143,7 +150,7 @@ python manage_student_db.py mastery --student-id s100 --limit 20
 ```
 
 ### 2. Optional Content Processing Pipeline
-Use this when you want NeuroLearn to teach from your own Malayalam educational PDFs.
+Use this only when you want NeuroLearn to teach from your own/new Malayalam educational PDFs.
 
 ```bash
 # Default (Reads from input/pdfs, outputs to output/rag_chunks)

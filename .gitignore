@@ -45,7 +45,7 @@ data/
 
 # Logs / outputs
 *.log
-output/
+
 print
 
 # Hugging Face / model cache
