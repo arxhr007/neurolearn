@@ -1,4 +1,4 @@
-# Architecture
+﻿# Architecture
 
 ## Overview
 
@@ -6,7 +6,7 @@ NeuroLearn is a CLI-first tutoring system built around a LangGraph runtime, a se
 
 ## Main layers
 
-- Entry points: `rag.py` and `manage_student_db.py`
+- Entry points: `main.py` and `manage_student_db.py`
 - Orchestration: `langgraph_app/cli.py`, `langgraph_app/graph/builder.py`, `langgraph_app/graph/nodes.py`
 - Services: `langgraph_app/services/student_db.py`, `langgraph_app/services/retriever.py`, `langgraph_app/services/llm.py`, `langgraph_app/services/intent_classifier.py`, `langgraph_app/services/intent_rules.py`
 - Shared state and config: `langgraph_app/state.py`, `langgraph_app/config.py`
@@ -14,7 +14,7 @@ NeuroLearn is a CLI-first tutoring system built around a LangGraph runtime, a se
 
 ## Runtime flow
 
-1. `rag.py` starts the tutor.
+1. `main.py` starts the tutor.
 2. `langgraph_app/cli.py` loads environment settings and student context.
 3. `student_db.py` loads the current student profile and active goal.
 4. `intent_classifier.py` decides whether the user is asking a new concept or answering a check question.
@@ -35,3 +35,4 @@ NeuroLearn is a CLI-first tutoring system built around a LangGraph runtime, a se
 - The tutor is modular by service, not by large monolithic scripts.
 - Intent logic lives in the service layer for consistency.
 - Source tracing is preserved so answers can be tied back to the original chunk and page.
+

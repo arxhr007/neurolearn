@@ -1,4 +1,4 @@
-# Examples
+﻿# Examples
 
 ## 1. Create a student profile
 
@@ -21,7 +21,7 @@ python .\manage_student_db.py set-goal --student-id s100 --goal "Learn handwashi
 ## 3. Ask the tutor a question
 
 ```powershell
-python .\rag.py --student-id s100 --text "കൈകഴുകൽ എന്തുകൊണ്ട് പ്രധാനമാണ്?"
+python .\main.py --student-id s100 --text "കൈകഴുകൽ എന്തുകൊണ്ട് പ്രധാനമാണ്?"
 ```
 
 ## 4. Use the optional PDF pipeline

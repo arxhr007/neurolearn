@@ -1,4 +1,4 @@
-# NeuroLearn Tutor System: From Scratch to Current State
+﻿# NeuroLearn Tutor System: From Scratch to Current State
 
 This document explains everything built in this repository from the beginning, in order, and how the current system works end-to-end.
 
@@ -307,13 +307,13 @@ python .\manage_student_db.py goals --student-id s1 --limit 10
 ### Single query run
 
 ```powershell
-python .\rag.py --student-id s1 --text "<your malayalam input>"
+python .\main.py --student-id s1 --text "<your malayalam input>"
 ```
 
 ### Interactive run
 
 ```powershell
-python .\rag.py --student-id s1
+python .\main.py --student-id s1
 ```
 
 ## 6) What Is Working Now
@@ -353,3 +353,4 @@ This repository has now evolved from static RAG behavior into an adaptive tutor 
 - [README.md](README.md)
 - [FLOW.md](FLOW.md)
 - [plan.md](plan.md)
+

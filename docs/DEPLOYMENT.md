@@ -1,10 +1,10 @@
-# Deployment
+﻿# Deployment
 
 NeuroLearn is currently CLI-first, so deployment mainly means packaging the tutor runtime and its local dependencies cleanly.
 
 ## Current state
 
-- Main runtime: `rag.py`
+- Main runtime: `main.py`
 - Student admin: `manage_student_db.py`
 - Optional content pipeline: `pipeline/pdf_content_pipeline.py` and `pipeline/build_vector_index.py`
 - Local persistence: SQLite plus Chroma vector store
@@ -22,7 +22,7 @@ NeuroLearn is currently CLI-first, so deployment mainly means packaging the tuto
 2. Set `.env`.
 3. Create at least one student profile.
 4. Build the vector index if you want custom content.
-5. Run `rag.py` with a valid `--student-id`.
+5. Run `main.py` with a valid `--student-id`.
 
 ## What would change for online hosting
 
@@ -35,3 +35,4 @@ NeuroLearn is currently CLI-first, so deployment mainly means packaging the tuto
 ## Practical advice
 
 If you want to publish the project before building a web app, keep the current CLI docs accurate and mark the online story as future work instead of promising a hosted deployment that does not exist yet.
+

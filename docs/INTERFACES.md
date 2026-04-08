@@ -1,10 +1,10 @@
-# API
+﻿# API
 
 This file lists the main runtime entry points and the most important project-level interfaces.
 
 ## CLI entry points
 
-- `rag.py`: main tutor runtime
+- `main.py`: main tutor runtime
 - `manage_student_db.py`: student profile and goal management
 - `pipeline/pdf_content_pipeline.py`: optional PDF processing pipeline
 - `pipeline/build_vector_index.py`: optional vector index builder
@@ -26,14 +26,15 @@ This file lists the main runtime entry points and the most important project-lev
 ## Useful configuration values
 
 - `GROQ_API_KEY`: required for tutor runtime
-- `TOP_K`: default retrieval depth in `rag.py`
+- `TOP_K`: default retrieval depth in `main.py`
 - `DEFAULT_DB_DIR`: vector store location used by the main tutor script
 
 ## Expected command patterns
 
 ```powershell
-python .\rag.py --student-id s100 --text "question"
+python .\main.py --student-id s100 --text "question"
 python .\manage_student_db.py get --student-id s100
 python .\pipeline\pdf_content_pipeline.py
 python .\pipeline\build_vector_index.py
 ```
+

@@ -1,4 +1,4 @@
-# Setup
+﻿# Setup
 
 NeuroLearn is a CLI-first Malayalam adaptive tutoring project. This guide covers the minimum setup needed to run the tutor and, optionally, the content pipeline.
 
@@ -52,5 +52,6 @@ python .\manage_student_db.py
 Run a sample tutor query after setup:
 
 ```powershell
-python .\rag.py --student-id s100 --text "കൈകഴുകൽ എന്തുകൊണ്ട് പ്രധാനമാണ്?"
+python .\main.py --student-id s100 --text "കൈകഴുകൽ എന്തുകൊണ്ട് പ്രധാനമാണ്?"
 ```
+
