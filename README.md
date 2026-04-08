@@ -159,6 +159,8 @@ python pipeline/pdf_content_pipeline.py \
 python pipeline/build_vector_index.py
 ```
 
+![NeuroLearn Demo](docs/demo.png)
+
 ## 📄 License
 
 ## 📚 Guides and Concepts
