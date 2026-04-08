@@ -1,4 +1,4 @@
-![NeuroLearn Logo](docs/logo.png)
+﻿![NeuroLearn Logo](docs/logo.png)
 
 # NeuroLearn: Adaptive AI Tutor for Neurodivergent Learners
 
@@ -32,7 +32,7 @@ NeuroLearn focuses on student-centered learning support with adaptive explanatio
 
 ```mermaid
 flowchart TD
-   A[Student Query CLI\nrag.py] --> B[LangGraph App]
+   A[Student Query CLI\nmain.py] --> B[LangGraph App]
    B --> C[Intent Classifier]
    C --> D[Goal Drift Checker]
 
@@ -66,7 +66,7 @@ flowchart TD
    Q --> T
 ```
 
-## 🚀 Quick Start
+## ðŸš€ Quick Start
 
 ### Prerequisites
 Core runtime:
@@ -97,7 +97,7 @@ Optional (only if you run the PDF content pipeline):
    ```
 
 3. **Configure the Environment:**
-   Create a `.env` file in the project root to store your Groq API Key (required for `rag.py`):
+   Create a `.env` file in the project root to store your Groq API Key (required for `main.py`):
    ```env
    GROQ_API_KEY=your_key_here
    ```
@@ -125,13 +125,13 @@ python manage_student_db.py set-goal --student-id s100 --goal "Learn handwashing
 
 **Run a Query:**
 ```bash
-python rag.py --student-id s100
+python main.py --student-id s100
 
 # Then type your question interactively when prompted
 # Example: കൈകഴുകൽ എന്തുകൊണ്ട് പ്രധാനമാണ്?
 
 # Optional retrieval tuning for stricter grounding
-python rag.py --student-id s100 \
+python main.py --student-id s100 \
    --retrieval-candidate-k 20 \
    --retrieval-min-similarity 0.35
 ```
@@ -188,3 +188,4 @@ Internal notes and build history:
 > — Ignacio Estrada
 
 NeuroLearn is built on the belief that **education should adapt to the student, not the other way around.** Traditional, one-size-fits-all learning paradigms often leave neurodivergent learners behind, creating unnecessary friction in their educational journeys. By leveraging AI to understand, accommodate, and grow alongside each unique mind, we strive to build an inclusive environment where every learner can achieve mastery and confidence in their own way.
+

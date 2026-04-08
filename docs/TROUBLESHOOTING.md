@@ -1,4 +1,4 @@
-# Troubleshooting
+﻿# Troubleshooting
 
 ## Groq API key missing
 
@@ -19,7 +19,7 @@ If OCR fails, confirm Tesseract is installed and that Malayalam language data (`
 If answers look irrelevant, first tune the retrieval settings before rebuilding:
 
 ```powershell
-python .\rag.py --student-id s100 --text "കൈകഴുകൽ എന്തുകൊണ്ട് പ്രധാനമാണ്?" \
+python .\main.py --student-id s100 --text "കൈകഴുകൽ എന്തുകൊണ്ട് പ്രധാനമാണ്?" \
 	--retrieval-candidate-k 20 \
 	--retrieval-min-similarity 0.35
 ```

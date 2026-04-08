@@ -1,4 +1,4 @@
-# NeuroLearn Flow Map
+﻿# NeuroLearn Flow Map
 
 This file shows how the current runtime flow moves through the repository.
 
@@ -12,7 +12,7 @@ This file shows how the current runtime flow moves through the repository.
 
 ```mermaid
 flowchart TD
-    A[rag.py] --> B[langgraph_app/cli.py]
+    A[main.py] --> B[langgraph_app/cli.py]
     B --> C[langgraph_app/config.py]
     B --> D[langgraph_app/services/student_db.py]
     B --> E[langgraph_app/services/retriever.py]
@@ -53,7 +53,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     A[manage_student_db.py] --> B[langgraph_app/services/student_db.py]
-    R[rag.py] --> C[langgraph_app/cli.py]
+    R[main.py] --> C[langgraph_app/cli.py]
     C --> B
 
     B --> S[(SQLite students table)]
@@ -73,7 +73,7 @@ flowchart TD
 
 ## File Roles
 
-- `rag.py`: thin entrypoint that starts the app.
+- `main.py`: thin entrypoint that starts the app.
 - `langgraph_app/cli.py`: loads `.env`, reads `student_id`, fetches student profile, and runs the graph.
 - `langgraph_app/services/student_db.py`: SQLite storage for students, goals, mastery events, and profile update metadata.
 - `manage_student_db.py`: script for student, mastery, and learning-goal management.
@@ -92,7 +92,7 @@ flowchart TD
 
 ## Current End-to-End Runtime
 
-1. `rag.py` starts the program.
+1. `main.py` starts the program.
 2. `langgraph_app/cli.py` loads config and environment.
 3. `langgraph_app/services/student_db.py` fetches student profile (including `neuro_profile`) by `student_id`.
 4. `langgraph_app/services/intent_classifier.py` classifies input as `new_concept` or `answer`.
@@ -112,7 +112,7 @@ python .\manage_student_db.py
 python .\manage_student_db.py set-goal --student-id s1 --goal "Learn handwashing and hygiene basics"
 python .\pipeline\pdf_content_pipeline.py
 python .\pipeline\build_vector_index.py
-python .\rag.py --student-id s1 --text "പഠന രീതി എന്താണ്?"
+python .\main.py --student-id s1 --text "പഠന രീതി എന്താണ്?"
 ```
 
 ## Related Docs
@@ -120,3 +120,4 @@ python .\rag.py --student-id s1 --text "പഠന രീതി എന്താ�
 - [README.md](../README.md)
 - [plan.md](plan.md)
 - [FROM_SCRATCH_SUMMARY.md](FROM_SCRATCH_SUMMARY.md)
+

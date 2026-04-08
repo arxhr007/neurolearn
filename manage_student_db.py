@@ -25,7 +25,7 @@ ASCII_BANNER = r"""
 ██║ ╚████║███████╗╚██████╔╝██║  ██║╚██████╔╝███████╗███████╗██║  ██║██║  ██║██║ ╚████║
 ╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝
 
-Adaptive AI Tutor for Neurodivergent Learners
+Adaptive AI Tutor for Neurodivergent Learners • V1
 """
 
 

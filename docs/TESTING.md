@@ -1,4 +1,4 @@
-# Testing
+﻿# Testing
 
 ## What to verify
 
@@ -15,13 +15,13 @@
 Compile the core runtime:
 
 ```powershell
-python -m compileall -q .\pipeline .\rag.py .\langgraph_app .\manage_student_db.py
+python -m compileall -q .\pipeline .\main.py .\langgraph_app .\manage_student_db.py
 ```
 
 Run a sample tutor query:
 
 ```powershell
-python .\rag.py --student-id s100 --text "കൈകഴുകൽ എന്തുകൊണ്ട് പ്രധാനമാണ്?"
+python .\main.py --student-id s100 --text "കൈകഴുകൽ എന്തുകൊണ്ട് പ്രധാനമാണ്?"
 ```
 
 ## Pipeline checks
@@ -44,3 +44,4 @@ python .\pipeline\build_vector_index.py
 ## Baseline expectation
 
 The repo is currently CLI-first. A good test run should show that the tutor can complete a single student interaction from start to finish without missing environment variables or broken file paths.
+
