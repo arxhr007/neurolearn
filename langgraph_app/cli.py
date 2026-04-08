@@ -4,7 +4,17 @@ import argparse
 import os
 import sys
 
-from langgraph_app.config import DEFAULT_DB_DIR, DEFAULT_MODEL, STUDENT_DB_PATH, TOP_K
+from langgraph_app.config import (
+    DEFAULT_DB_DIR,
+    DEFAULT_MODEL,
+    RETRIEVAL_CANDIDATE_K,
+    RETRIEVAL_DEDUP_MAX_PER_SOURCE_PAGE,
+    RETRIEVAL_HYBRID_ENABLED,
+    RETRIEVAL_MIN_SIMILARITY,
+    RETRIEVAL_RERANK_ENABLED,
+    STUDENT_DB_PATH,
+    TOP_K,
+)
 from langgraph_app.graph.builder import build_graph_app
 from langgraph_app.services.intent_classifier import IntentClassifier
 from langgraph_app.services.llm import MalayalamLLM
@@ -204,6 +214,53 @@ def main() -> None:
         help=f"Number of chunks to retrieve (default: {TOP_K})",
     )
     parser.add_argument(
+        "--retrieval-candidate-k",
+        type=int,
+        default=RETRIEVAL_CANDIDATE_K,
+        help=f"Candidate pool size before filtering/rerank (default: {RETRIEVAL_CANDIDATE_K})",
+    )
+    parser.add_argument(
+        "--retrieval-min-similarity",
+        type=float,
+        default=RETRIEVAL_MIN_SIMILARITY,
+        help=f"Minimum dense similarity to keep a chunk (default: {RETRIEVAL_MIN_SIMILARITY})",
+    )
+    parser.add_argument(
+        "--retrieval-max-per-source-page",
+        type=int,
+        default=RETRIEVAL_DEDUP_MAX_PER_SOURCE_PAGE,
+        help=(
+            "Max chunks kept from same source+page after dedup "
+            f"(default: {RETRIEVAL_DEDUP_MAX_PER_SOURCE_PAGE})"
+        ),
+    )
+    parser.add_argument(
+        "--retrieval-rerank",
+        dest="retrieval_rerank",
+        action="store_true",
+        default=RETRIEVAL_RERANK_ENABLED,
+        help=f"Enable lexical+dense rerank (default: {RETRIEVAL_RERANK_ENABLED})",
+    )
+    parser.add_argument(
+        "--no-retrieval-rerank",
+        dest="retrieval_rerank",
+        action="store_false",
+        help="Disable lexical+dense rerank",
+    )
+    parser.add_argument(
+        "--retrieval-hybrid",
+        dest="retrieval_hybrid",
+        action="store_true",
+        default=RETRIEVAL_HYBRID_ENABLED,
+        help=f"Enable stronger lexical+dense blend (default: {RETRIEVAL_HYBRID_ENABLED})",
+    )
+    parser.add_argument(
+        "--no-retrieval-hybrid",
+        dest="retrieval_hybrid",
+        action="store_false",
+        help="Disable hybrid lexical+dense blend",
+    )
+    parser.add_argument(
         "--student-id",
         required=True,
         help="Student ID to load profile from SQLite",
@@ -223,7 +280,15 @@ def main() -> None:
         print("Use manage_student_db.py to add a profile first.")
         sys.exit(1)
 
-    retriever = RAGRetriever(args.db_dir, args.model)
+    retriever = RAGRetriever(
+        args.db_dir,
+        args.model,
+        candidate_k=args.retrieval_candidate_k,
+        min_similarity=args.retrieval_min_similarity,
+        dedup_max_per_source_page=args.retrieval_max_per_source_page,
+        rerank_enabled=args.retrieval_rerank,
+        hybrid_enabled=args.retrieval_hybrid,
+    )
     llm = MalayalamLLM()
     intent_classifier = IntentClassifier(llm.client)
     app = build_graph_app(retriever, llm, intent_classifier)

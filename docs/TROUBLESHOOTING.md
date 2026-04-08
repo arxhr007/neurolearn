@@ -16,7 +16,17 @@ If OCR fails, confirm Tesseract is installed and that Malayalam language data (`
 
 ## Empty or weak retrieval results
 
-If answers look irrelevant, rebuild the chunks and vector index:
+If answers look irrelevant, first tune the retrieval settings before rebuilding:
+
+```powershell
+python .\rag.py --student-id s100 --text "കൈകഴുകൽ എന്തുകൊണ്ട് പ്രധാനമാണ്?" \
+	--retrieval-candidate-k 20 \
+	--retrieval-min-similarity 0.35
+```
+
+If the candidate pool is too small or the similarity threshold is too strict, you may lose useful passages. If the threshold is too loose, irrelevant chunks can still enter the prompt.
+
+If the corpus itself is stale or poor quality, rebuild the chunks and vector index:
 
 ```powershell
 python .\pipeline\pdf_content_pipeline.py
@@ -24,6 +34,8 @@ python .\pipeline\build_vector_index.py
 ```
 
 Also verify the input PDFs are actually present in `input/pdfs/`.
+
+The retrieval layer now also deduplicates near-duplicate chunks and reranks the filtered candidates, so the result list may be shorter than the raw Chroma top-k result.
 
 ## Student profile not found
 

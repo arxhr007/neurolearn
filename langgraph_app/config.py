@@ -7,6 +7,11 @@ GROQ_MODEL = "openai/gpt-oss-120b"
 INTENT_MODEL = "llama-3.1-8b-instant"
 COMPLEXITY_JUDGE_MODEL = "llama-3.1-8b-instant"
 TOP_K = 5
+RETRIEVAL_CANDIDATE_K = 25
+RETRIEVAL_MIN_SIMILARITY = 0.32
+RETRIEVAL_DEDUP_MAX_PER_SOURCE_PAGE = 1
+RETRIEVAL_RERANK_ENABLED = True
+RETRIEVAL_HYBRID_ENABLED = False
 
 SYSTEM_PROMPT = """You are a helpful assistant that answers questions in Malayalam.
 You will be given context passages extracted from Malayalam educational documents.
