@@ -8,6 +8,8 @@ If the tutor exits immediately or fails to generate output, confirm `GROQ_API_KE
 
 If PDF conversion fails on Windows, make sure Poppler binaries are available on `PATH` or under the bundled `poppler/` or `tools/` directories.
 
+For a fresh Windows install, download Poppler from [Poppler for Windows](https://github.com/oschwartz10612/poppler-windows) and add its `bin` directory to `PATH`.
+
 ## Tesseract not found
 
 If OCR fails, confirm Tesseract is installed and that Malayalam language data (`mal.traineddata`) is available.

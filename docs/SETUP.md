@@ -7,7 +7,7 @@ NeuroLearn is a CLI-first Malayalam adaptive tutoring project. This guide covers
 - Python 3.9+
 - Tesseract OCR
 - Malayalam language data for Tesseract (`mal.traineddata`)
-- Poppler for PDF rendering (`pdf2image`)
+- Poppler for PDF rendering (`pdf2image`); on Windows, use [Poppler for Windows](https://github.com/oschwartz10612/poppler-windows)
 - Groq API key for the tutor runtime
 
 ## Install
