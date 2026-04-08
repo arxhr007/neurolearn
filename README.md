@@ -63,7 +63,7 @@ flowchart TD
    Q --> T
 ```
 
-## ðŸš€ Quick Start
+## Quick Start
 
 ### Prerequisites
 Core runtime:
@@ -129,6 +129,10 @@ python manage_student_db.py set-goal --student-id s100 --goal "Learn handwashing
 
 **Run a Query:**
 ```bash
+# Run once after clone (or after updating chunks)
+python pipeline/build_vector_index.py
+
+# Start tutor
 python main.py --student-id s100
 
 # Then type your question interactively when prompted
