@@ -162,6 +162,8 @@ python pipeline/pdf_content_pipeline.py \
 python pipeline/build_vector_index.py
 ```
 
+![NeuroLearn Demo](docs/demo.png)
+
 ## 📄 License
 This project is open-source and available under the [MIT License](LICENSE).
 
