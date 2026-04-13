@@ -1,6 +1,9 @@
 """Chroma-backed retriever service."""
 
+import asyncio
+import logging
 import re
+from typing import Any
 
 import chromadb
 from chromadb.utils import embedding_functions
@@ -13,9 +16,13 @@ from langgraph_app.config import (
     RETRIEVAL_RERANK_ENABLED,
     TOP_K,
 )
+from langgraph_app.services.retriever_base import RetrieverBase
 
 
-class RAGRetriever:
+logger = logging.getLogger(__name__)
+
+
+class RAGRetriever(RetrieverBase):
     def __init__(
         self,
         db_dir: str,
@@ -26,20 +33,30 @@ class RAGRetriever:
         rerank_enabled: bool = RETRIEVAL_RERANK_ENABLED,
         hybrid_enabled: bool = RETRIEVAL_HYBRID_ENABLED,
     ):
-        ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name=model_name,
-        )
-        client = chromadb.PersistentClient(path=db_dir)
-        self.collection = client.get_collection(
-            name="malayalam_rag",
-            embedding_function=ef,
-        )
+        self.db_dir = db_dir
+        self.model_name = model_name
         self.candidate_k = max(int(candidate_k), TOP_K)
         self.min_similarity = float(min_similarity)
         self.dedup_max_per_source_page = max(int(dedup_max_per_source_page), 1)
         self.rerank_enabled = bool(rerank_enabled)
         self.hybrid_enabled = bool(hybrid_enabled)
-        print(f"[RAG] Loaded collection with {self.collection.count()} chunks")
+
+        if not self.validate_config():
+            raise ValueError("Invalid retriever configuration")
+
+        try:
+            ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+                model_name=model_name,
+            )
+            client = chromadb.PersistentClient(path=db_dir)
+            self.collection = client.get_collection(
+                name="malayalam_rag",
+                embedding_function=ef,
+            )
+            logger.info("RAG collection loaded with %s chunks", self.collection.count())
+        except Exception as exc:
+            logger.exception("Failed to initialize RAGRetriever")
+            raise RuntimeError(f"Failed to initialize RAGRetriever: {exc}") from exc
 
     @staticmethod
     def _distance_to_similarity(distance: float | None) -> float:
@@ -75,11 +92,21 @@ class RAGRetriever:
         return dense_similarity
 
     def query(self, question: str, top_k: int = TOP_K) -> list[dict]:
+        if not question or not question.strip():
+            raise ValueError("question must be non-empty")
+        if int(top_k) < 1:
+            raise ValueError("top_k must be >= 1")
+
         candidate_k = max(int(top_k), self.candidate_k)
-        results = self.collection.query(
-            query_texts=[question],
-            n_results=candidate_k,
-        )
+        try:
+            results = self.collection.query(
+                query_texts=[question],
+                n_results=candidate_k,
+            )
+        except Exception as exc:
+            logger.exception("RAG query failed")
+            raise RuntimeError(f"RAG query failed: {exc}") from exc
+
         candidates: list[dict] = []
         for i in range(len(results["ids"][0])):
             metadata = results["metadatas"][0][i] or {}
@@ -135,3 +162,92 @@ class RAGRetriever:
         for item in docs:
             item["low_confidence_retrieval"] = low_confidence_retrieval
         return docs
+
+    async def query_async(self, question: str, top_k: int = TOP_K) -> list[dict]:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self.query, question, top_k)
+
+    def add_documents(self, documents: list[str], metadatas: list[dict], ids: list[str]) -> None:
+        try:
+            self.collection.add(documents=documents, metadatas=metadatas, ids=ids)
+        except Exception as exc:
+            logger.exception("Failed to add documents to collection")
+            raise RuntimeError(f"Failed to add documents: {exc}") from exc
+
+    def delete_documents(self, ids: list[str]) -> None:
+        try:
+            self.collection.delete(ids=ids)
+        except Exception as exc:
+            logger.exception("Failed to delete documents from collection")
+            raise RuntimeError(f"Failed to delete documents: {exc}") from exc
+
+    def clear_collection(self) -> None:
+        try:
+            existing = self.collection.get(include=[])
+            existing_ids = existing.get("ids") or []
+            if existing_ids:
+                self.collection.delete(ids=existing_ids)
+        except Exception as exc:
+            logger.exception("Failed to clear collection")
+            raise RuntimeError(f"Failed to clear collection: {exc}") from exc
+
+    def get_collection_size(self) -> int:
+        try:
+            return int(self.collection.count())
+        except Exception as exc:
+            logger.exception("Failed to read collection size")
+            raise RuntimeError(f"Failed to read collection size: {exc}") from exc
+
+    def get_config(self) -> dict[str, Any]:
+        return {
+            "db_dir": self.db_dir,
+            "model_name": self.model_name,
+            "candidate_k": self.candidate_k,
+            "min_similarity": self.min_similarity,
+            "dedup_max_per_source_page": self.dedup_max_per_source_page,
+            "rerank_enabled": self.rerank_enabled,
+            "hybrid_enabled": self.hybrid_enabled,
+            "top_k": TOP_K,
+            "collection_name": "malayalam_rag",
+        }
+
+    def update_config(self, **kwargs) -> dict[str, Any]:
+        for key, value in kwargs.items():
+            if key == "candidate_k":
+                self.candidate_k = max(int(value), TOP_K)
+            elif key == "min_similarity":
+                self.min_similarity = float(value)
+            elif key == "dedup_max_per_source_page":
+                self.dedup_max_per_source_page = max(int(value), 1)
+            elif key == "rerank_enabled":
+                self.rerank_enabled = bool(value)
+            elif key == "hybrid_enabled":
+                self.hybrid_enabled = bool(value)
+        if not self.validate_config():
+            raise ValueError("Invalid configuration update")
+        return self.get_config()
+
+    def validate_config(self) -> bool:
+        if self.candidate_k < TOP_K:
+            return False
+        if not (0.0 <= float(self.min_similarity) <= 1.0):
+            return False
+        if self.dedup_max_per_source_page < 1:
+            return False
+        return True
+
+    def health_check(self) -> bool:
+        try:
+            _ = self.collection.count()
+            return True
+        except Exception:
+            return False
+
+    def get_stats(self) -> dict[str, Any]:
+        healthy = self.health_check()
+        return {
+            "chunk_count": self.get_collection_size() if healthy else 0,
+            "collection_name": "malayalam_rag",
+            "vector_model": self.model_name,
+            "healthy": healthy,
+        }

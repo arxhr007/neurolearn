@@ -1,12 +1,18 @@
 """SQLite-backed student profile store."""
 
 import json
+import logging
 import os
 import sqlite3
-from typing import Any
+from typing import Any, Optional
+
+from langgraph_app.services.student_db_base import StudentDBBase
 
 
-class StudentDB:
+logger = logging.getLogger(__name__)
+
+
+class StudentDB(StudentDBBase):
     def __init__(self, db_path: str):
         self.db_path = db_path
         parent = os.path.dirname(os.path.abspath(db_path))
@@ -367,29 +373,29 @@ class StudentDB:
         # Auto-adjust reading age with guardrails.
         new_reading_age = profile["reading_age"]
         if total_count < min_attempts_for_reading_age:
-            print(
+            logger.info(
                 "   Profile auto-update: reading_age held "
                 f"(need >= {min_attempts_for_reading_age} attempts, have {total_count})"
             )
         elif events_since_last_update < reading_age_cooldown_events:
-            print(
+            logger.info(
                 "   Profile auto-update: reading_age held "
                 f"(cooldown active: {events_since_last_update}/{reading_age_cooldown_events} events since last change)"
             )
         elif success_rate >= up_threshold and profile["reading_age"] < 16:
             new_reading_age = min(profile["reading_age"] + 1, 16)
-            print(
+            logger.info(
                 "   Profile auto-update: reading_age "
                 f"{profile['reading_age']} -> {new_reading_age} (success_rate={success_rate:.1%} >= {up_threshold:.0%})"
             )
         elif success_rate <= down_threshold and profile["reading_age"] > 8:
             new_reading_age = max(profile["reading_age"] - 1, 8)
-            print(
+            logger.info(
                 "   Profile auto-update: reading_age "
                 f"{profile['reading_age']} -> {new_reading_age} (success_rate={success_rate:.1%} <= {down_threshold:.0%})"
             )
         else:
-            print(
+            logger.info(
                 "   Profile auto-update: reading_age held "
                 f"(success_rate={success_rate:.1%}, hysteresis band {down_threshold:.0%}-{up_threshold:.0%})"
             )
@@ -399,7 +405,7 @@ class StudentDB:
         for topic in strong_topics:
             if topic not in updated_interests:
                 updated_interests.append(topic)
-                print(f"   Profile auto-update: added interest '{topic}'")
+                logger.info("   Profile auto-update: added interest '%s'", topic)
 
         # Update profile in DB if changes detected
         if new_reading_age != profile["reading_age"] or updated_interests != profile["interest_graph"]:
@@ -411,7 +417,11 @@ class StudentDB:
                 interest_graph=updated_interests,
                 neuro_profile=profile.get("neuro_profile") or ["general"],
             )
-            print(f"   Profile saved: reading_age={new_reading_age}, interests={updated_interests}")
+            logger.info(
+                "   Profile saved: reading_age=%s, interests=%s",
+                new_reading_age,
+                updated_interests,
+            )
             if new_reading_age != profile["reading_age"]:
                 self._set_last_reading_age_update_event_id(student_id, latest_event_id)
 
@@ -494,3 +504,188 @@ class StudentDB:
                 }
             )
         return goals
+
+    def get_learning_goals(self, student_id: str) -> list[dict[str, Any]]:
+        return self.list_learning_goals(student_id=student_id, limit=1000)
+
+    def create_learning_goal(self, student_id: str, goal_text: str) -> dict[str, Any]:
+        goal_id = self.set_learning_goal(student_id=student_id, goal_text=goal_text)
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT id, student_id, goal_text, is_active, created_at, updated_at
+                FROM learning_goals
+                WHERE student_id = ? AND id = ?
+                """,
+                (student_id, int(goal_id)),
+            ).fetchone()
+        if not row:
+            raise RuntimeError("Learning goal was created but could not be loaded")
+        return {
+            "id": int(row["id"]),
+            "student_id": row["student_id"],
+            "goal_text": row["goal_text"],
+            "is_active": bool(row["is_active"]),
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+        }
+
+    def update_learning_goal(
+        self,
+        student_id: str,
+        goal_id: str,
+        goal_text: Optional[str] = None,
+        is_active: Optional[bool] = None,
+    ) -> dict[str, Any]:
+        updates: list[str] = []
+        params: list[Any] = []
+        if goal_text is not None:
+            updates.append("goal_text = ?")
+            params.append(goal_text.strip())
+        if is_active is not None:
+            updates.append("is_active = ?")
+            params.append(1 if is_active else 0)
+
+        if updates:
+            with self._connect() as conn:
+                conn.execute(
+                    f"""
+                    UPDATE learning_goals
+                    SET {', '.join(updates)}
+                    WHERE student_id = ? AND id = ?
+                    """,
+                    (*params, student_id, int(goal_id)),
+                )
+
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT id, student_id, goal_text, is_active, created_at, updated_at
+                FROM learning_goals
+                WHERE student_id = ? AND id = ?
+                """,
+                (student_id, int(goal_id)),
+            ).fetchone()
+
+        if not row:
+            raise ValueError(f"Learning goal not found: {goal_id}")
+
+        return {
+            "id": int(row["id"]),
+            "student_id": row["student_id"],
+            "goal_text": row["goal_text"],
+            "is_active": bool(row["is_active"]),
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+        }
+
+    def delete_learning_goal(self, student_id: str, goal_id: str) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE learning_goals
+                SET is_active = 0
+                WHERE student_id = ? AND id = ?
+                """,
+                (student_id, int(goal_id)),
+            )
+
+    def get_mastery_events(
+        self,
+        student_id: str,
+        limit: int = 20,
+        offset: int = 0,
+        concept_key: Optional[str] = None,
+    ) -> tuple[int, list[dict[str, Any]]]:
+        where_sql = "WHERE student_id = ?"
+        params: list[Any] = [student_id]
+        if concept_key:
+            where_sql += " AND concept_key = ?"
+            params.append(concept_key)
+
+        with self._connect() as conn:
+            total_row = conn.execute(
+                f"SELECT COUNT(*) as count FROM mastery_events {where_sql}",
+                tuple(params),
+            ).fetchone()
+            rows = conn.execute(
+                f"""
+                SELECT id, student_id, concept_key, is_correct, misconception, confidence, source_doc, source_page, source_chunk_id, created_at
+                FROM mastery_events
+                {where_sql}
+                ORDER BY id DESC
+                LIMIT ? OFFSET ?
+                """,
+                (*params, int(limit), int(offset)),
+            ).fetchall()
+
+        events: list[dict[str, Any]] = []
+        for row in rows:
+            events.append(
+                {
+                    "id": int(row["id"]),
+                    "student_id": row["student_id"],
+                    "concept_key": row["concept_key"],
+                    "is_correct": bool(row["is_correct"]),
+                    "misconception": row["misconception"] or "",
+                    "confidence": float(row["confidence"]),
+                    "source_doc": row["source_doc"] or "",
+                    "source_page": int(row["source_page"]) if row["source_page"] is not None else None,
+                    "source_chunk_id": int(row["source_chunk_id"]) if row["source_chunk_id"] is not None else None,
+                    "timestamp": row["created_at"],
+                }
+            )
+
+        total_count = int(total_row["count"]) if total_row else 0
+        return total_count, events
+
+    def get_mastery_stats(self, student_id: str, recent_days: int = 7) -> dict[str, Any]:
+        with self._connect() as conn:
+            totals = conn.execute(
+                """
+                SELECT
+                    COUNT(*) as total_events,
+                    COALESCE(AVG(is_correct), 0) as accuracy,
+                    COUNT(DISTINCT concept_key) as concepts_attempted,
+                    COALESCE(AVG(confidence), 0) as avg_confidence
+                FROM mastery_events
+                WHERE student_id = ?
+                """,
+                (student_id,),
+            ).fetchone()
+            recent = conn.execute(
+                """
+                SELECT
+                    COUNT(*) as recent_events,
+                    COALESCE(AVG(is_correct), 0) as recent_accuracy
+                FROM mastery_events
+                WHERE student_id = ?
+                  AND created_at >= datetime('now', ?)
+                """,
+                (student_id, f"-{int(recent_days)} day"),
+            ).fetchone()
+
+        return {
+            "student_id": student_id,
+            "total_events": int(totals["total_events"] if totals else 0),
+            "accuracy": float(totals["accuracy"] if totals else 0.0),
+            "concepts_attempted": int(totals["concepts_attempted"] if totals else 0),
+            "avg_confidence": float(totals["avg_confidence"] if totals else 0.0),
+            "recent_days": int(recent_days),
+            "recent_events": int(recent["recent_events"] if recent else 0),
+            "recent_accuracy": float(recent["recent_accuracy"] if recent else 0.0),
+        }
+
+    def get_last_profile_update_event_id(self, student_id: str) -> int:
+        return self._get_last_reading_age_update_event_id(student_id)
+
+    def set_last_profile_update_event_id(self, student_id: str, event_id: int) -> None:
+        self._set_last_reading_age_update_event_id(student_id, event_id)
+
+    def health_check(self) -> bool:
+        try:
+            with self._connect() as conn:
+                conn.execute("SELECT 1").fetchone()
+            return True
+        except Exception:
+            return False
