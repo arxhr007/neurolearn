@@ -181,6 +181,7 @@ This project is open-source and available under the [MIT License](LICENSE).
 ## 📚 Guides and Concepts
 To understand the project and how to work with it, start with these docs:
 - **[SETUP.md](docs/SETUP.md)**: Local installation, environment variables, and smoke test steps.
+- **[WEB_PRODUCT_DESIGN.md](docs/WEB_PRODUCT_DESIGN.md)**: Product boundary, API contracts, frontend logic, and deployment architecture for web migration (student tutor UI + admin dashboard + single-VPS target).
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)**: System design, runtime flow, and main components.
 - **[INTERFACES.md](docs/INTERFACES.md)**: Entry points, services, and important project-level interfaces.
 - **[DATA_FORMATS.md](docs/DATA_FORMATS.md)**: Student profile, mastery, chunk, and vector store formats.
