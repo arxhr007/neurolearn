@@ -209,6 +209,7 @@ This project is open-source and available under the [MIT License](LICENSE).
 To understand the project and how to work with it, start with these docs:
 - **[SETUP.md](docs/SETUP.md)**: Local installation, environment variables, and smoke test steps.
 - **[WEB_PRODUCT_DESIGN.md](docs/WEB_PRODUCT_DESIGN.md)**: Product boundary, API contracts, frontend logic, and deployment architecture for web migration (student tutor UI + admin dashboard + single-VPS target).
+- **[FRONTEND_API_INTEGRATION.md](docs/FRONTEND_API_INTEGRATION.md)**: Practical frontend integration guide with auth flow, request/response examples, and endpoint-by-endpoint usage.
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)**: System design, runtime flow, and main components.
 - **[INTERFACES.md](docs/INTERFACES.md)**: Entry points, services, and important project-level interfaces.
 - **[DATA_FORMATS.md](docs/DATA_FORMATS.md)**: Student profile, mastery, chunk, and vector store formats.
