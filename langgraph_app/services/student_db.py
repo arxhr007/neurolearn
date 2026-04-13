@@ -1,5 +1,6 @@
 """SQLite-backed student profile store."""
 
+from contextlib import contextmanager
 import json
 import logging
 import os
@@ -20,10 +21,18 @@ class StudentDB(StudentDBBase):
             os.makedirs(parent, exist_ok=True)
         self._init_schema()
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self):
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
     def _init_schema(self) -> None:
         with self._connect() as conn:
@@ -209,7 +218,7 @@ class StudentDB(StudentDBBase):
         with self._connect() as conn:
             row = conn.execute(
                 """
-                SELECT student_id, name, learning_style, reading_age, interest_graph, neuro_profile
+                SELECT student_id, name, learning_style, reading_age, interest_graph, neuro_profile, created_at, updated_at
                 FROM students
                 WHERE student_id = ?
                 """,
@@ -226,6 +235,8 @@ class StudentDB(StudentDBBase):
             "reading_age": int(row["reading_age"]),
             "interest_graph": json.loads(row["interest_graph"]),
             "neuro_profile": json.loads(row["neuro_profile"] or '["general"]'),
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
         }
 
     def list_students(self) -> list[dict[str, Any]]:

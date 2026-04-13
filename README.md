@@ -111,6 +111,33 @@ Optional (only if you run the PDF content pipeline):
 
 ## 🎯 Usage
 
+### 0. FastAPI Web API (Phase 4)
+
+Run the API server:
+
+```bash
+uvicorn api_main:app --host 0.0.0.0 --port 8000
+```
+
+Open API docs:
+
+- Swagger UI: `http://localhost:8000/api/docs`
+- Redoc: `http://localhost:8000/api/redoc`
+
+Development login users:
+
+- student: `student@neurolearn.local` / `student123`
+- teacher: `teacher@neurolearn.local` / `teacher123`
+- admin: `admin@neurolearn.local` / `admin123`
+
+Example login request:
+
+```bash
+curl -X POST http://localhost:8000/api/auth/login \
+   -H "Content-Type: application/json" \
+   -d '{"email":"admin@neurolearn.local","password":"admin123","role":"admin"}'
+```
+
 ### 1. LangGraph AI Tutor Application
 Manage student profiles and interact with the adaptive AI tutor.
 
