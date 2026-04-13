@@ -4,6 +4,7 @@ import argparse
 import logging
 import os
 import sys
+from uuid import uuid4
 
 from langgraph_app.config import (
     DEFAULT_DB_DIR,
@@ -16,11 +17,12 @@ from langgraph_app.config import (
     STUDENT_DB_PATH,
     TOP_K,
 )
-from langgraph_app.graph.builder import build_graph_app, invoke_graph_safe
+from langgraph_app.graph.builder import build_graph_app
 from langgraph_app.services.intent_classifier import IntentClassifier
 from langgraph_app.services.llm import MalayalamLLM
 from langgraph_app.services.retriever import RAGRetriever
 from langgraph_app.services.student_db import StudentDB
+from langgraph_app.services.tutor_service import TutorService, TutorServiceConfig
 
 
 logger = logging.getLogger(__name__)
@@ -39,35 +41,44 @@ def _load_env_file() -> None:
 
 def _answer_question(
     question: str,
-    app,
+    service: TutorService,
     top_k: int,
     student_id: str,
     student_profile: dict,
-    student_db: StudentDB,
-    llm: MalayalamLLM,
+    conversation_id: str,
     student_response: str | None = None,
     check_answer_hint: str | None = None,
 ) -> dict:
     print("\n  Searching knowledge base...")
-    response_text = student_response if student_response is not None else question
-    payload = {
-        "student_id": student_id,
-        "student_db": student_db,
-        "llm": llm,
-        "question": question,
-        "student_response": response_text,
-        "top_k": top_k,
-        "student_profile": student_profile,
-    }
-    if check_answer_hint:
-        payload["check_answer_hint"] = check_answer_hint
-
     try:
-        state = invoke_graph_safe(app=app, payload=payload, timeout_seconds=30)
+        if student_response is None:
+            response = service.ask_question(
+                question=question,
+                student_id=student_id,
+                student_profile=student_profile,
+                top_k=top_k,
+                conversation_id=conversation_id,
+            )
+        else:
+            response = service.evaluate_answer(
+                question=question,
+                student_answer=student_response,
+                student_id=student_id,
+                student_profile=student_profile,
+                check_answer_hint=check_answer_hint,
+                top_k=top_k,
+                conversation_id=conversation_id,
+            )
     except Exception as exc:
         logger.exception("Failed to process question")
         print(f"\n  ERROR: {exc}\n")
         return {}
+
+    if response.is_error():
+        print(f"\n  ERROR: {response.answer or response.remediation_explanation or 'Unable to process request'}\n")
+        return response.raw_state or {}
+
+    state = response.raw_state or {}
 
     docs = state.get("docs", [])
     if docs:
@@ -125,12 +136,10 @@ def _answer_question(
 
 
 def run_interactive(
-    app,
+    service: TutorService,
     top_k: int,
     student_id: str,
     student_profile: dict,
-    student_db: StudentDB,
-    llm: MalayalamLLM,
 ) -> None:
     print("\n" + "=" * 60)
     print("  Malayalam RAG System (LangGraph Phase 1)")
@@ -139,6 +148,7 @@ def run_interactive(
 
     pending_check_question: str | None = None
     pending_check_answer_hint: str | None = None
+    conversation_id = str(uuid4())
 
     while True:
         try:
@@ -156,17 +166,16 @@ def run_interactive(
             # Treat next user turn as an answer to the last generated check question.
             state = _answer_question(
                 pending_check_question,
-                app,
+                service,
                 top_k,
                 student_id,
                 student_profile,
-                student_db,
-                llm,
+                conversation_id,
                 student_response=question,
                 check_answer_hint=pending_check_answer_hint,
             )
         else:
-            state = _answer_question(question, app, top_k, student_id, student_profile, student_db, llm)
+            state = _answer_question(question, service, top_k, student_id, student_profile, conversation_id)
 
         evaluation_result = state.get("evaluation_result") or {}
         is_correct = evaluation_result.get("is_correct")
@@ -185,15 +194,13 @@ def run_interactive(
 
 def run_single_query(
     query: str,
-    app,
+    service: TutorService,
     top_k: int,
     student_id: str,
     student_profile: dict,
-    student_db: StudentDB,
-    llm: MalayalamLLM,
 ) -> None:
     print(f"\n  Query: {query}")
-    _answer_question(query, app, top_k, student_id, student_profile, student_db, llm)
+    _answer_question(query, service, top_k, student_id, student_profile, str(uuid4()))
 
 
 def main() -> None:
@@ -302,8 +309,15 @@ def main() -> None:
     llm = MalayalamLLM()
     intent_classifier = IntentClassifier(llm.client)
     app = build_graph_app(retriever, llm, intent_classifier)
+    service = TutorService(
+        graph=app,
+        retriever=retriever,
+        student_db=student_db,
+        llm=llm,
+        config=TutorServiceConfig(default_top_k_retrieval=args.top_k),
+    )
 
     if args.text:
-        run_single_query(args.text, app, args.top_k, args.student_id, student_profile, student_db, llm)
+        run_single_query(args.text, service, args.top_k, args.student_id, student_profile)
     else:
-        run_interactive(app, args.top_k, args.student_id, student_profile, student_db, llm)
+        run_interactive(service, args.top_k, args.student_id, student_profile)
