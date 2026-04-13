@@ -1,5 +1,11 @@
 """Build and compile the LangGraph application."""
 
+import asyncio
+import logging
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+from pathlib import Path
+from typing import Any
+
 from langgraph.graph import END, StateGraph
 
 from langgraph_app.graph.nodes import (
@@ -17,7 +23,24 @@ from langgraph_app.graph.nodes import (
 from langgraph_app.state import RAGState
 
 
-def build_graph_app(retriever, llm, intent_classifier):
+logger = logging.getLogger(__name__)
+
+
+def _normalize_sqlite_conn_string(checkpoint_path: str) -> str:
+    """Normalize checkpoint input into a SqliteSaver connection string."""
+    raw = str(checkpoint_path or "").strip()
+    if raw.startswith("sqlite:"):
+        return raw
+    path = Path(raw).expanduser().resolve()
+    return f"sqlite:///{path.as_posix()}"
+
+
+def build_graph_app(
+    retriever: Any,
+    llm: Any,
+    intent_classifier: Any,
+    checkpoint_path: str | None = None,
+) -> Any:
     def route_by_intent_with_drift(state: RAGState) -> str:
         if state.get("drift_detected", False):
             return "drift_redirect"
@@ -110,4 +133,51 @@ def build_graph_app(retriever, llm, intent_classifier):
     graph.add_edge("drift_redirect", END)
     graph.add_edge("remediation", END)
 
+    if checkpoint_path:
+        try:
+            from langgraph.checkpoint.sqlite import SqliteSaver
+
+            conn_string = _normalize_sqlite_conn_string(checkpoint_path)
+            checkpointer = SqliteSaver.from_conn_string(conn_string)
+            return graph.compile(checkpointer=checkpointer)
+        except Exception as exc:
+            logger.warning("Checkpointing disabled due to error: %s", exc)
     return graph.compile()
+
+
+def invoke_graph_safe(
+    app: Any,
+    payload: dict,
+    timeout_seconds: int = 30,
+    config: dict | None = None,
+) -> dict:
+    """Invoke graph with timeout and normalized error handling."""
+    if not isinstance(payload, dict) or not payload:
+        raise ValueError("payload must be a non-empty dict")
+
+    def _invoke() -> dict:
+        return app.invoke(payload, config=config)
+
+    try:
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_invoke)
+            return future.result(timeout=max(int(timeout_seconds), 1))
+    except FuturesTimeoutError as exc:
+        raise TimeoutError(f"Graph invocation timed out after {timeout_seconds}s") from exc
+    except Exception as exc:
+        logger.exception("Graph invocation failed")
+        raise RuntimeError(f"Graph invocation failed: {exc}") from exc
+
+
+async def invoke_graph_async(
+    app: Any,
+    payload: dict,
+    timeout_seconds: int = 30,
+    config: dict | None = None,
+) -> dict:
+    """Async wrapper around invoke_graph_safe for web handlers."""
+    loop = asyncio.get_running_loop()
+    return await asyncio.wait_for(
+        loop.run_in_executor(None, lambda: invoke_graph_safe(app, payload, timeout_seconds, config)),
+        timeout=max(int(timeout_seconds), 1),
+    )

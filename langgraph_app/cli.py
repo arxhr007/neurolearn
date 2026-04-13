@@ -1,6 +1,7 @@
 """CLI runner for the modular LangGraph runtime."""
 
 import argparse
+import logging
 import os
 import sys
 
@@ -15,11 +16,14 @@ from langgraph_app.config import (
     STUDENT_DB_PATH,
     TOP_K,
 )
-from langgraph_app.graph.builder import build_graph_app
+from langgraph_app.graph.builder import build_graph_app, invoke_graph_safe
 from langgraph_app.services.intent_classifier import IntentClassifier
 from langgraph_app.services.llm import MalayalamLLM
 from langgraph_app.services.retriever import RAGRetriever
 from langgraph_app.services.student_db import StudentDB
+
+
+logger = logging.getLogger(__name__)
 
 
 def _load_env_file() -> None:
@@ -58,7 +62,12 @@ def _answer_question(
     if check_answer_hint:
         payload["check_answer_hint"] = check_answer_hint
 
-    state = app.invoke(payload)
+    try:
+        state = invoke_graph_safe(app=app, payload=payload, timeout_seconds=30)
+    except Exception as exc:
+        logger.exception("Failed to process question")
+        print(f"\n  ERROR: {exc}\n")
+        return {}
 
     docs = state.get("docs", [])
     if docs:
@@ -189,6 +198,7 @@ def run_single_query(
 
 def main() -> None:
     _load_env_file()
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
     parser = argparse.ArgumentParser(description="Malayalam Text RAG System (LangGraph Phase 1)")
     parser.add_argument(

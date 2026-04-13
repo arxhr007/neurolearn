@@ -46,6 +46,12 @@ data/
 # Logs / outputs
 *.log
 
+# Phase planning documents
+PHASE*_IMPLEMENTATION_PLAN.md
+
+# Phase regression tests
+test_phase*.py
+
 # Keep shareable chunk corpus in git
 !output/
 !output/rag_chunks/
