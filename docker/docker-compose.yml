@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  neurolearn-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: neurolearn-api
+    env_file:
+      - ../.env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../vectorstore:/app/vectorstore
+      - ../data:/app/data
+    restart: unless-stopped
