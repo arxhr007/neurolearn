@@ -1,0 +1,25 @@
+{% extends "login_base.html" %}
+
+{% block content %}
+  <div class="auth-header">
+    <p class="eyebrow">Student Access</p>
+    <h1>Student Login</h1>
+    <p class="subtitle">Continue your learning journey.</p>
+  </div>
+  {% if error %}
+    <div class="alert">Invalid credentials. Try again.</div>
+  {% endif %}
+  <form method="post" action="/auth/student/login" class="form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+    <label>
+      Username or Student ID
+      <input type="text" name="username" placeholder="student01 or s100" required />
+    </label>
+    <label>
+      Password
+      <input type="password" name="password" placeholder="password" required />
+    </label>
+    <button type="submit" class="btn">Sign in</button>
+  </form>
+  <p class="auth-footer">Teacher? <a href="/teacher/login">Go to teacher login</a></p>
+{% endblock %}

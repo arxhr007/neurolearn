@@ -1,0 +1,25 @@
+<aside class="sidebar">
+  <div class="brand">
+    <span class="brand-dot"></span>
+    NeuroLearn
+  </div>
+  <nav class="nav">
+    {% if role == "admin" %}
+      <a href="/admin/dashboard" class="nav-link {% if page == 'dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="/admin/teachers" class="nav-link {% if page == 'teachers' %}active{% endif %}">Teachers</a>
+      <a href="/admin/analytics" class="nav-link {% if page == 'analytics' %}active{% endif %}">Analytics</a>
+      <a href="/admin/settings" class="nav-link {% if page == 'settings' %}active{% endif %}">Settings</a>
+    {% elif role == "teacher" %}
+      <a href="/teacher/dashboard" class="nav-link {% if page == 'dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="/teacher/students" class="nav-link {% if page == 'students' %}active{% endif %}">Students</a>
+      <a href="/teacher/goals" class="nav-link {% if page == 'goals' %}active{% endif %}">Goals</a>
+      <a href="/teacher/analytics" class="nav-link {% if page == 'analytics' %}active{% endif %}">Analytics</a>
+    {% elif role == "student" %}
+      <a href="/student/dashboard" class="nav-link {% if page == 'dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="/student/chat" class="nav-link {% if page == 'chat' %}active{% endif %}">Chat</a>
+      <a href="/student/goals" class="nav-link {% if page == 'goals' %}active{% endif %}">Goals</a>
+      <a href="/student/progress" class="nav-link {% if page == 'progress' %}active{% endif %}">Progress</a>
+      <a href="/student/profile" class="nav-link {% if page == 'profile' %}active{% endif %}">Profile</a>
+    {% endif %}
+  </nav>
+</aside>

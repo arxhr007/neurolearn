@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="page-header">
+    <h1>Student: {{ student_id }}</h1>
+    <p class="subtitle">Profile and mastery snapshot.</p>
+  </div>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title">Learning style</div>
+      <div class="metric">--</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Reading age</div>
+      <div class="metric">--</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Active goal</div>
+      <div class="metric">--</div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Recent mastery (demo)</h3>
+    <canvas id="teacher-student-mastery" height="140"></canvas>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', path='js/charts.js') }}"></script>
+  <script>
+    if (window.NeuroCharts) {
+      window.NeuroCharts.renderStudentMastery();
+    }
+  </script>
+{% endblock %}

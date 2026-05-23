@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="page-header">
+    <h1>Analytics</h1>
+    <p class="subtitle">AI usage, mastery, and engagement trends.</p>
+  </div>
+  <div class="card-grid">
+    <div class="card">
+      <h3>Mastery growth</h3>
+      <canvas id="admin-mastery-chart" height="140"></canvas>
+    </div>
+    <div class="card">
+      <h3>AI usage</h3>
+      <canvas id="admin-usage-chart" height="140"></canvas>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', path='js/charts.js') }}"></script>
+  <script>
+    if (window.NeuroCharts) {
+      window.NeuroCharts.renderAdminAnalytics();
+    }
+  </script>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "login_base.html" %}
+
+{% block content %}
+  <div class="auth-header">
+    <p class="eyebrow">Teacher Access</p>
+    <h1>Teacher Login</h1>
+    <p class="subtitle">Create students, goals, and track progress.</p>
+  </div>
+  {% if error %}
+    <div class="alert">Invalid credentials. Try again.</div>
+  {% endif %}
+  <form method="post" action="/auth/teacher/login" class="form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+    <label>
+      Username
+      <input type="text" name="username" placeholder="teacher01" required />
+    </label>
+    <label>
+      Password
+      <input type="password" name="password" placeholder="password" required />
+    </label>
+    <button type="submit" class="btn">Sign in</button>
+  </form>
+  <p class="auth-footer">Admin? <a href="/admin/login">Go to admin login</a></p>
+{% endblock %}

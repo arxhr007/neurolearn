@@ -208,9 +208,11 @@ def _create_token(user: dict[str, Any], expires_minutes: int) -> str:
 def _decode_token(token: str) -> TokenData:
     settings = get_settings()
     payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+    email = payload.get("email") or payload.get("username") or payload.get("sub") or ""
+    user_id = payload.get("user_id") or payload.get("sub") or ""
     return TokenData(
-        user_id=str(payload.get("sub")),
-        email=str(payload.get("email")),
+        user_id=str(user_id),
+        email=str(email),
         role=str(payload.get("role")),
         student_id=payload.get("student_id"),
     )

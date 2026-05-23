@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="page-header">
+    <h1>Create Teacher</h1>
+    <p class="subtitle">Provision a new teacher account.</p>
+  </div>
+  <div class="card">
+    {% if error %}
+      <div class="alert">{{ error }}</div>
+    {% endif %}
+    <form class="form" method="post" action="/admin/teachers/create">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+      <label>
+        Username
+        <input type="text" name="username" value="{{ username or '' }}" placeholder="teacher01" required />
+      </label>
+      <label>
+        Full name
+        <input type="text" name="full_name" value="{{ full_name or '' }}" placeholder="Teacher Name" />
+      </label>
+      <label>
+        Temporary password
+        <input type="password" name="password" placeholder="password" required />
+      </label>
+      <button type="submit" class="btn">Create teacher</button>
+    </form>
+  </div>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="page-header">
+    <h1>Students</h1>
+    <p class="subtitle">Search, filter, and monitor student accounts.</p>
+    {% if created %}
+      <p class="subtitle">Student created successfully.</p>
+    {% endif %}
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <h3>Student list</h3>
+      <a class="btn" href="/teacher/students/create">Create student</a>
+    </div>
+    <div class="table">
+      <div class="table-row table-head">
+        <div>Student</div>
+        <div>Goals</div>
+        <div>Status</div>
+        <div>Actions</div>
+      </div>
+      {% if students %}
+        {% for student in students %}
+          <div class="table-row">
+            <div>{{ student.student_id }} · {{ student.username }}</div>
+            <div>{{ student.goal_count }}</div>
+            <div>{{ "Active" if student.is_active else "Inactive" }}</div>
+            <div><a class="btn ghost" href="/teacher/students/{{ student.student_id }}">View</a></div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="table-row">
+          <div>No students yet</div>
+          <div>--</div>
+          <div>--</div>
+          <div>--</div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

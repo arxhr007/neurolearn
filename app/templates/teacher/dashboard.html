@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="page-header">
+    <h1>Teacher Dashboard</h1>
+    <p class="subtitle">Track class progress and engagement.</p>
+  </div>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title">Active students</div>
+      <div class="metric">--</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Active goals</div>
+      <div class="metric">--</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Mastery events</div>
+      <div class="metric">--</div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Class progress (demo)</h3>
+    <canvas id="teacher-progress-chart" height="140"></canvas>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', path='js/charts.js') }}"></script>
+  <script>
+    if (window.NeuroCharts) {
+      window.NeuroCharts.renderTeacherCharts();
+    }
+  </script>
+{% endblock %}

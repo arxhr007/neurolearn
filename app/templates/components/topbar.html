@@ -1,0 +1,13 @@
+<header class="topbar">
+  <div>
+    <p class="eyebrow">Signed in</p>
+    <div class="user-info">{{ user.username }} · {{ role|capitalize }}</div>
+  </div>
+  <div class="topbar-actions">
+    <button type="button" id="theme-toggle" class="btn ghost">Toggle Theme</button>
+    <form method="post" action="/auth/logout">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+      <button type="submit" class="btn ghost">Logout</button>
+    </form>
+  </div>
+</header>

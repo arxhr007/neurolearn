@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="page-header">
+    <h1>Goals</h1>
+    <p class="subtitle">Assign and track learning goals.</p>
+    {% if created %}
+      <p class="subtitle">Goal assigned successfully.</p>
+    {% endif %}
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <h3>Active goals</h3>
+      <button class="btn" type="button" onclick="document.getElementById('goal-form').scrollIntoView({behavior: 'smooth'});">
+        Assign new goal
+      </button>
+    </div>
+    {% if error %}
+      <div class="alert">{{ error }}</div>
+    {% endif %}
+    <div class="table">
+      <div class="table-row table-head">
+        <div>Student</div>
+        <div>Goal</div>
+        <div>Status</div>
+      </div>
+      {% if goals %}
+        {% for goal in goals %}
+          <div class="table-row">
+            <div>{{ goal.student_id }} · {{ goal.student_name }}</div>
+            <div>{{ goal.goal_text }}</div>
+            <div>{{ "Active" if goal.is_active else "Inactive" }}</div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="table-row">
+          <div>No goals yet</div>
+          <div>--</div>
+          <div>--</div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="card" id="goal-form">
+    <div class="card-header">
+      <h3>Assign new goal</h3>
+    </div>
+    <form class="form" method="post" action="/teacher/goals">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+      <label>
+        Student
+        <select name="student_id" required>
+          <option value="" disabled {% if not selected_student_id %}selected{% endif %}>Select a student</option>
+          {% for student in students %}
+            <option value="{{ student.id }}" {% if selected_student_id == student.id %}selected{% endif %}>
+              {{ student.student_id }} · {{ student.username }}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Goal description
+        <textarea name="goal_text" rows="3" placeholder="e.g., Improve reading comprehension on short passages" required>{{ goal_text or '' }}</textarea>
+      </label>
+      <button type="submit" class="btn">Assign goal</button>
+    </form>
+  </div>
+{% endblock %}

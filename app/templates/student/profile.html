@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="page-header">
+    <h1>Profile</h1>
+    <p class="subtitle">Update your learning preferences.</p>
+  </div>
+  <div class="card">
+    <form class="form">
+      <label>
+        Full name
+        <input type="text" value="{{ user.username }}" />
+      </label>
+      <label>
+        Learning style
+        <input type="text" value="analogy-heavy" />
+      </label>
+      <label>
+        Reading age
+        <input type="number" value="12" min="6" max="18" />
+      </label>
+      <button type="button" class="btn">Save profile</button>
+    </form>
+  </div>
+{% endblock %}

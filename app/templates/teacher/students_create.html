@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="page-header">
+    <h1>Create Student</h1>
+    <p class="subtitle">Add a new learner profile.</p>
+  </div>
+  <div class="card">
+    {% if error %}
+      <div class="alert">{{ error }}</div>
+    {% endif %}
+    <form class="form" method="post" action="/teacher/students/create">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+      <label>
+        Student ID
+        <input type="text" name="student_id" value="{{ student_id or '' }}" placeholder="s100" required />
+      </label>
+      <label>
+        Username
+        <input type="text" name="username" value="{{ username or '' }}" placeholder="student01" required />
+      </label>
+      <label>
+        Full name
+        <input type="text" name="full_name" value="{{ full_name or '' }}" placeholder="Student Name" />
+      </label>
+      <label>
+        Temporary password
+        <input type="password" name="password" placeholder="password" required />
+      </label>
+      <label>
+        Age
+        <input type="number" name="age" value="{{ age or 10 }}" min="5" max="21" />
+      </label>
+      <label>
+        Reading age
+        <input type="number" name="reading_age" value="{{ reading_age or 8 }}" min="5" max="21" />
+      </label>
+      <label>
+        Learning style
+        <input type="text" name="learning_style" value="{{ learning_style or 'general' }}" placeholder="general" />
+      </label>
+      <label>
+        Interests (comma-separated)
+        <textarea name="interests" rows="3" placeholder="science, art, reading">{{ interests or '' }}</textarea>
+      </label>
+      <label>
+        Neuro profile (comma-separated)
+        <textarea name="neuro_profile" rows="3" placeholder="dyslexia, adhd">{{ neuro_profile or '' }}</textarea>
+      </label>
+      <button type="submit" class="btn">Create student</button>
+    </form>
+  </div>
+{% endblock %}

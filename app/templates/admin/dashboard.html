@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="page-header">
+    <h1>Admin Dashboard</h1>
+    <p class="subtitle">Platform-wide overview and activity.</p>
+  </div>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title">Total teachers</div>
+      <div class="metric" id="metric-teachers">--</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Total students</div>
+      <div class="metric" id="metric-students">--</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Active goals</div>
+      <div class="metric" id="metric-goals">--</div>
+    </div>
+    <div class="card">
+      <div class="card-title">AI conversations</div>
+      <div class="metric" id="metric-conversations">--</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <h3>Engagement (demo)</h3>
+    </div>
+    <canvas id="admin-engagement-chart" height="120"></canvas>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', path='js/charts.js') }}"></script>
+  <script>
+    if (window.NeuroCharts) {
+      window.NeuroCharts.renderAdminCharts();
+    }
+  </script>
+{% endblock %}

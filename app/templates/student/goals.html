@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="page-header">
+    <h1>Goals</h1>
+    <p class="subtitle">Track your active learning goals.</p>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <h3>Active goals</h3>
+    </div>
+    <div class="table">
+      <div class="table-row table-head">
+        <div>Goal</div>
+        <div>Status</div>
+      </div>
+      {% if goals %}
+        {% for goal in goals %}
+          <div class="table-row">
+            <div>{{ goal.goal_text }}</div>
+            <div>{{ "Active" if goal.is_active else "Inactive" }}</div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="table-row">
+          <div>No goals yet</div>
+          <div>--</div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

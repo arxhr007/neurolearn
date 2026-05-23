@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="page-header">
+    <h1>Progress</h1>
+    <p class="subtitle">Review mastery and learning history.</p>
+  </div>
+  <div class="card-grid">
+    <div class="card">
+      <h3>Mastery trend</h3>
+      <canvas id="student-mastery-chart" height="140"></canvas>
+    </div>
+    <div class="card">
+      <h3>Weak concepts</h3>
+      <canvas id="student-weakness-chart" height="140"></canvas>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', path='js/charts.js') }}"></script>
+  <script>
+    if (window.NeuroCharts) {
+      window.NeuroCharts.renderStudentProgress();
+    }
+  </script>
+{% endblock %}

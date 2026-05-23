@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="page-header">
+    <h1>Teachers</h1>
+    <p class="subtitle">Manage teacher accounts and access.</p>
+    {% if created %}
+      <p class="subtitle">Teacher created successfully.</p>
+    {% endif %}
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <h3>Teacher list</h3>
+      <a class="btn" href="/admin/teachers/create">Create teacher</a>
+    </div>
+    <div class="table">
+      <div class="table-row table-head">
+        <div>Username</div>
+        <div>Status</div>
+        <div>Students</div>
+        <div>Actions</div>
+      </div>
+      {% if teachers %}
+        {% for teacher in teachers %}
+          <div class="table-row">
+            <div>{{ teacher.username }}</div>
+            <div>{{ "Active" if teacher.is_active else "Inactive" }}</div>
+            <div>{{ teacher.student_count }}</div>
+            <div><button class="btn ghost" type="button">Edit</button></div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="table-row">
+          <div>No teachers yet</div>
+          <div>--</div>
+          <div>--</div>
+          <div>--</div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}
