@@ -306,7 +306,11 @@ def main() -> None:
         rerank_enabled=args.retrieval_rerank,
         hybrid_enabled=args.retrieval_hybrid,
     )
-    llm = MalayalamLLM()
+    try:
+        llm = MalayalamLLM()
+    except RuntimeError as exc:
+        print(f"ERROR: {exc}")
+        sys.exit(1)
     intent_classifier = IntentClassifier(llm.client)
     app = build_graph_app(retriever, llm, intent_classifier)
     service = TutorService(

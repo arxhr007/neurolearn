@@ -177,6 +177,9 @@ def get_tutor_service() -> TutorService:
 def get_tutor_service_optional() -> TutorService | None:
     try:
         return _service_bundle()[0]
+    except SystemExit:
+        logger.warning("Tutor service unavailable: missing GROQ_API_KEY")
+        return None
     except Exception:
         return None
 

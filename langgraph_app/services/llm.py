@@ -3,7 +3,6 @@
 import os
 import json
 import re
-import sys
 import time
 
 from groq import Groq
@@ -15,9 +14,9 @@ class MalayalamLLM:
     def __init__(self):
         api_key = os.environ.get("GROQ_API_KEY")
         if not api_key:
-            print("ERROR: Set the GROQ_API_KEY environment variable.")
-            print("  Get a free key at https://console.groq.com/keys")
-            sys.exit(1)
+            raise RuntimeError(
+                "GROQ_API_KEY is required. Set it in the environment or .env file."
+            )
         self.client = Groq(api_key=api_key)
         print(f"[LLM] Using Groq model: {GROQ_MODEL}")
 
