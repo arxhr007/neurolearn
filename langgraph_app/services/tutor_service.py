@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
+import re
 from threading import Lock
 from typing import Any, Optional
 from uuid import uuid4
@@ -110,6 +111,16 @@ class TutorService:
         """Run the graph for a student question turn."""
         conversation_id = conversation_id or str(uuid4())
         turn_id = str(uuid4())
+        smalltalk_kind = self._smalltalk_kind(question)
+        if smalltalk_kind:
+            response = self._build_smalltalk_response(conversation_id, turn_id, smalltalk_kind)
+            self._store_turn(
+                conversation_id=conversation_id,
+                student_id=student_id,
+                learning_goal=self._extract_active_goal(student_id),
+                turn=self._build_question_turn(turn_id, question, response),
+            )
+            return response
         profile = self._resolve_student_profile(student_id, student_profile)
         payload = self._build_payload(
             question=question,
@@ -398,6 +409,64 @@ class TutorService:
             mastery_event=state.get("mastery_event"),
             remediation_explanation=state.get("remediation_explanation"),
             raw_state=state,
+        )
+
+    def _smalltalk_kind(self, question: str) -> str | None:
+        text = (question or "").strip()
+        if not text:
+            return None
+        normalized = re.sub(r"[^\w\s]", "", text.lower())
+        tokens = normalized.split()
+        if not tokens:
+            return None
+
+        greeting_tokens = {
+            "hi",
+            "hello",
+            "hey",
+            "hiya",
+            "greetings",
+        }
+        greeting_phrases = (
+            "good morning",
+            "good afternoon",
+            "good evening",
+            "how are you",
+            "whats up",
+            "what's up",
+            "hello there",
+        )
+        malayalam_greetings = ("ഹായ്", "ഹലോ", "നമസ്കാരം", "സുഖമാണോ")
+
+        ack_tokens = {"thanks", "thank", "thankyou", "ok", "okay"}
+        malayalam_acks = ("നന്ദി", "ശരി", "ഓകെ", "ഒകെ")
+
+        if any(phrase in normalized for phrase in greeting_phrases):
+            return "greeting"
+        if any(term in text for term in malayalam_greetings):
+            return "greeting"
+        if len(tokens) <= 4 and any(token in greeting_tokens for token in tokens):
+            return "greeting"
+
+        if any(token in ack_tokens for token in tokens):
+            return "ack"
+        if any(term in text for term in malayalam_acks):
+            return "ack"
+
+        return None
+
+    def _build_smalltalk_response(self, conversation_id: str, turn_id: str, kind: str) -> TutorResponse:
+        if kind == "ack":
+            answer = "സ്വാഗതം, മറ്റൊരു പഠനചോദ്യമുണ്ടെങ്കിൽ ചോദിക്കൂ."
+        else:
+            answer = "ഹായ്, എന്താണ് അറിയാൻ ആഗ്രഹിക്കുന്നത്?"
+        return TutorResponse(
+            conversation_id=conversation_id,
+            turn_id=turn_id,
+            status="answered",
+            answer=answer,
+            sources=[],
+            evaluation_result={"smalltalk": True, "kind": kind},
         )
 
     def _build_question_turn(self, turn_id: str, question: str, response: TutorResponse) -> ConversationTurn:

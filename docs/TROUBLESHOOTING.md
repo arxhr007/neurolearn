@@ -37,6 +37,21 @@ Also verify the input PDFs are actually present in `input/pdfs/`.
 
 The retrieval layer now also deduplicates near-duplicate chunks and reranks the filtered candidates, so the result list may be shorter than the raw Chroma top-k result.
 
+## Chroma initialization errors (Windows)
+
+If you see errors like `RustBindingsAPI` or `Could not connect to tenant`, the app will fall back to the JSON chunks under `output/rag_chunks/` so the tutor can still respond. If you want to restore Chroma:
+
+```powershell
+pip uninstall chromadb
+pip install chromadb
+```
+
+Then rebuild the vector index if needed:
+
+```powershell
+python .\pipeline\build_vector_index.py
+```
+
 ## Student profile not found
 
 If `--student-id` fails, create the profile first:

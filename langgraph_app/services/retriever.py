@@ -1,8 +1,10 @@
-"""Chroma-backed retriever service."""
+"""Chroma-backed retriever service with a JSON fallback."""
 
 import asyncio
+import json
 import logging
 import re
+from pathlib import Path
 from typing import Any
 
 import chromadb
@@ -40,6 +42,8 @@ class RAGRetriever(RetrieverBase):
         self.dedup_max_per_source_page = max(int(dedup_max_per_source_page), 1)
         self.rerank_enabled = bool(rerank_enabled)
         self.hybrid_enabled = bool(hybrid_enabled)
+        self._fallback_mode = False
+        self._fallback_docs: list[dict[str, Any]] = []
 
         if not self.validate_config():
             raise ValueError("Invalid retriever configuration")
@@ -56,7 +60,51 @@ class RAGRetriever(RetrieverBase):
             logger.info("RAG collection loaded with %s chunks", self.collection.count())
         except Exception as exc:
             logger.exception("Failed to initialize RAGRetriever")
-            raise RuntimeError(f"Failed to initialize RAGRetriever: {exc}") from exc
+            self.collection = None
+            self._fallback_docs = self._load_fallback_docs()
+            if not self._fallback_docs:
+                raise RuntimeError(f"Failed to initialize RAGRetriever: {exc}") from exc
+            self._fallback_mode = True
+            logger.warning("RAG retriever fallback enabled with %s docs", len(self._fallback_docs))
+
+    @staticmethod
+    def _load_fallback_docs() -> list[dict[str, Any]]:
+        root = Path(__file__).resolve().parents[2]
+        rag_dir = root / "output" / "rag_chunks"
+        if not rag_dir.exists():
+            return []
+
+        docs: list[dict[str, Any]] = []
+        for path in rag_dir.glob("*.json"):
+            if path.name == "_manifest.json":
+                continue
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                logger.exception("Failed to read fallback chunks from %s", path)
+                continue
+            if not isinstance(data, list):
+                continue
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                text = str(item.get("text") or "").strip()
+                if not text:
+                    continue
+                source = str(item.get("source") or path.stem)
+                page = item.get("page")
+                chunk_id = item.get("chunk_id")
+                vector_id = f"{source}:{page}:{chunk_id}"
+                docs.append(
+                    {
+                        "text": text,
+                        "source": source,
+                        "page": page,
+                        "chunk_id": chunk_id,
+                        "vector_id": vector_id,
+                    }
+                )
+        return docs
 
     @staticmethod
     def _distance_to_similarity(distance: float | None) -> float:
@@ -96,6 +144,29 @@ class RAGRetriever(RetrieverBase):
             raise ValueError("question must be non-empty")
         if int(top_k) < 1:
             raise ValueError("top_k must be >= 1")
+
+        if self._fallback_mode:
+            candidates: list[dict] = []
+            for doc in self._fallback_docs:
+                score = self._lexical_overlap_score(question, doc.get("text", ""))
+                candidates.append(
+                    {
+                        "text": doc.get("text"),
+                        "source": doc.get("source"),
+                        "page": doc.get("page"),
+                        "chunk_id": doc.get("chunk_id"),
+                        "vector_id": doc.get("vector_id"),
+                        "distance": None,
+                        "similarity_score": score,
+                        "lexical_score": score,
+                        "blended_score": score,
+                    }
+                )
+            candidates.sort(key=lambda d: d.get("blended_score", 0.0), reverse=True)
+            docs = candidates[: int(top_k)]
+            for item in docs:
+                item["low_confidence_retrieval"] = item.get("similarity_score", 0.0) < self.min_similarity
+            return docs
 
         candidate_k = max(int(top_k), self.candidate_k)
         try:
@@ -168,6 +239,20 @@ class RAGRetriever(RetrieverBase):
         return await loop.run_in_executor(None, self.query, question, top_k)
 
     def add_documents(self, documents: list[str], metadatas: list[dict], ids: list[str]) -> None:
+        if self._fallback_mode:
+            for doc, meta, doc_id in zip(documents, metadatas, ids):
+                if not doc:
+                    continue
+                self._fallback_docs.append(
+                    {
+                        "text": doc,
+                        "source": meta.get("source"),
+                        "page": meta.get("page"),
+                        "chunk_id": meta.get("chunk_id"),
+                        "vector_id": doc_id,
+                    }
+                )
+            return
         try:
             self.collection.add(documents=documents, metadatas=metadatas, ids=ids)
         except Exception as exc:
@@ -175,6 +260,12 @@ class RAGRetriever(RetrieverBase):
             raise RuntimeError(f"Failed to add documents: {exc}") from exc
 
     def delete_documents(self, ids: list[str]) -> None:
+        if self._fallback_mode:
+            if not ids:
+                return
+            id_set = set(ids)
+            self._fallback_docs = [doc for doc in self._fallback_docs if doc.get("vector_id") not in id_set]
+            return
         try:
             self.collection.delete(ids=ids)
         except Exception as exc:
@@ -182,6 +273,9 @@ class RAGRetriever(RetrieverBase):
             raise RuntimeError(f"Failed to delete documents: {exc}") from exc
 
     def clear_collection(self) -> None:
+        if self._fallback_mode:
+            self._fallback_docs = []
+            return
         try:
             existing = self.collection.get(include=[])
             existing_ids = existing.get("ids") or []
@@ -192,6 +286,8 @@ class RAGRetriever(RetrieverBase):
             raise RuntimeError(f"Failed to clear collection: {exc}") from exc
 
     def get_collection_size(self) -> int:
+        if self._fallback_mode:
+            return len(self._fallback_docs)
         try:
             return int(self.collection.count())
         except Exception as exc:
@@ -237,6 +333,8 @@ class RAGRetriever(RetrieverBase):
         return True
 
     def health_check(self) -> bool:
+        if self._fallback_mode:
+            return bool(self._fallback_docs)
         try:
             _ = self.collection.count()
             return True
@@ -250,4 +348,5 @@ class RAGRetriever(RetrieverBase):
             "collection_name": "malayalam_rag",
             "vector_model": self.model_name,
             "healthy": healthy,
+            "fallback_mode": self._fallback_mode,
         }
