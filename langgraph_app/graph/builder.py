@@ -19,6 +19,7 @@ from langgraph_app.graph.nodes import (
     make_personalization_gate,
     make_personalizer,
     make_remediation_node,
+    make_smalltalk_responder,
 )
 from langgraph_app.state import RAGState
 
@@ -42,9 +43,11 @@ def build_graph_app(
     checkpoint_path: str | None = None,
 ) -> Any:
     def route_by_intent_with_drift(state: RAGState) -> str:
+        intent = state.get("intent", "new_concept")
+        if intent == "smalltalk":
+            return "smalltalk_responder"
         if state.get("drift_detected", False):
             return "drift_redirect"
-        intent = state.get("intent", "new_concept")
         return "answer_retriever" if intent == "answer" else "new_concept_retriever"
 
     def route_by_correctness(state: RAGState) -> str:
@@ -72,6 +75,10 @@ def build_graph_app(
     graph.add_node(
         "answer_retriever",
         make_knowledge_retriever(retriever, node_name="answer_retriever"),
+    )
+    graph.add_node(
+        "smalltalk_responder",
+        make_smalltalk_responder(llm, node_name="smalltalk_responder"),
     )
     graph.add_node(
         "new_concept_personalizer",
@@ -108,6 +115,7 @@ def build_graph_app(
             "new_concept_retriever": "new_concept_retriever",
             "answer_retriever": "answer_retriever",
             "drift_redirect": "drift_redirect",
+            "smalltalk_responder": "smalltalk_responder",
         },
     )
     graph.add_edge("new_concept_retriever", "new_concept_personalizer")
@@ -132,6 +140,7 @@ def build_graph_app(
     graph.add_edge("evaluator", END)
     graph.add_edge("drift_redirect", END)
     graph.add_edge("remediation", END)
+    graph.add_edge("smalltalk_responder", END)
 
     if checkpoint_path:
         try:

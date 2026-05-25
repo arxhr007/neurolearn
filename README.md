@@ -23,6 +23,8 @@ NeuroLearn focuses on student-centered learning support with adaptive explanatio
 - **Mastery Tracking:** Persists learning milestones and mastery events (via SQLite) to continuously improve the AI's understanding of the student over time.
 - **Personalized Check Questions:** Generates follow-up checks to confirm understanding before moving to the next concept.
 - **Source-Grounded Answers:** Keeps traceable links to learning content so explanations can be tied back to where the concept came from.
+- **Smalltalk-Aware Routing:** Recognizes greetings/thanks and responds via the LLM without hitting retrieval.
+- **No-Docs Guardrail:** Suppresses answers when retrieval returns no passages and returns a clear error message.
 - **Retrieval Hardening:** Filters weak chunks, deduplicates near-duplicates, and reranks candidates before they reach the prompt.
 
 ## 🧭 Visual Architecture Diagram
@@ -170,6 +172,10 @@ python main.py --student-id s100 \
    --retrieval-candidate-k 20 \
    --retrieval-min-similarity 0.35
 ```
+
+**Behavior notes:**
+- Greetings/thanks are treated as smalltalk and answered without retrieval.
+- If no sources are found, the CLI returns an explicit no-sources error instead of a generated answer.
 
 **Inspect Profile & Mastery:**
 ```bash

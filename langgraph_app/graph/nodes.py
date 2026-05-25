@@ -28,6 +28,13 @@ def make_llm_intent_classifier(classifier):
 
 def make_goal_drift_checker(llm, node_name: str = "goal_drift_checker"):
     def goal_drift_checker(state: RAGState) -> RAGState:
+        if state.get("intent") == "smalltalk":
+            return {
+                "drift_detected": False,
+                "drift_reason": "smalltalk",
+                "active_node": node_name,
+            }
+
         if state.get("check_answer_hint"):
             return {
                 "drift_detected": False,
@@ -106,12 +113,31 @@ def make_knowledge_retriever(retriever, node_name: str = "knowledge_retriever"):
     def knowledge_retriever(state: RAGState) -> RAGState:
         question = state["question"]
         docs = retriever.query(question, top_k=state.get("top_k", TOP_K))
+        no_docs = not docs
+        if no_docs:
+            print("   No relevant passages found.")
+
         return {
             "docs": docs,
+            "no_docs_found": bool(no_docs),
             "active_node": node_name,
         }
 
     return knowledge_retriever
+
+
+def make_smalltalk_responder(llm, node_name: str = "smalltalk_responder"):
+    def smalltalk_responder(state: RAGState) -> RAGState:
+        text = state.get("student_response") or state.get("question", "")
+        print(f"   Smalltalk responder running for node: {node_name}")
+        reply = llm.generate_smalltalk(text)
+        return {
+            "answer": reply,
+            "evaluation_result": {"smalltalk": True},
+            "active_node": node_name,
+        }
+
+    return smalltalk_responder
 
 
 def make_answer_generator(llm, node_name: str = "answer_generator"):
@@ -127,6 +153,16 @@ def make_answer_generator(llm, node_name: str = "answer_generator"):
 
 def make_personalizer(llm, node_name: str = "personalizer"):
     def personalizer(state: RAGState) -> RAGState:
+        # Short-circuit if retriever found no documents
+        if state.get("no_docs_found") or not (state.get("docs") or []):
+            print(f"   Personalizer short-circuited for node: {node_name} (no docs)")
+            return {
+                "personalized_explanation": "",
+                "answer": "",
+                "no_docs_found": True,
+                "active_node": node_name,
+            }
+
         print(f"   Personalizer running for node: {node_name}")
         explanation = llm.personalize(
             state["question"],
@@ -225,6 +261,24 @@ def make_answer_evaluator(llm, node_name: str = "answer_evaluator"):
     def answer_evaluator(state: RAGState) -> RAGState:
         student_response = state.get("student_response") or state.get("question", "")
         print(f"   Answer evaluator running for node: {node_name}")
+        # Short-circuit evaluation if retriever found no documents
+        if state.get("no_docs_found") or not (state.get("docs") or []):
+            msg = "No relevant sources found; unable to evaluate or provide an answer."
+            print(f"   Answer evaluator short-circuited for node: {node_name} (no docs)")
+            evaluation = {
+                "is_correct": False,
+                "feedback": msg,
+                "confidence": 0.0,
+                "source": "no_docs",
+            }
+            mastery_event = process_mastery_side_effects(state, evaluation)
+            return {
+                "evaluation_result": evaluation,
+                "mastery_event": mastery_event,
+                "no_docs_found": True,
+                "active_node": node_name,
+            }
+
         evaluation = llm.evaluate_student_answer(
             state.get("question", ""),
             student_response,

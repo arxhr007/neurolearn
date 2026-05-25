@@ -319,7 +319,9 @@ python .\main.py --student-id s1
 ## 6) What Is Working Now
 
 - Intent classification with source-aware behavior.
+- Smalltalk intent routing with LLM-generated replies (no hardcoded responses).
 - Retrieval-backed Malayalam generation.
+- No-docs guardrail that blocks answers when retrieval returns zero passages.
 - Personalization with profile inputs.
 - Gate A complexity decisioning.
 - Evaluator check-question generation.

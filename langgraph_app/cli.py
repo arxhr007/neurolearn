@@ -49,7 +49,6 @@ def _answer_question(
     student_response: str | None = None,
     check_answer_hint: str | None = None,
 ) -> dict:
-    print("\n  Searching knowledge base...")
     try:
         if student_response is None:
             response = service.ask_question(
@@ -78,7 +77,17 @@ def _answer_question(
         print(f"\n  ERROR: {response.answer or response.remediation_explanation or 'Unable to process request'}\n")
         return response.raw_state or {}
 
+    # If this was handled as smalltalk, just print the answer and return.
+    if (response.evaluation_result or {}).get("smalltalk"):
+        print(f"\n{'─' * 60}")
+        print(f"  Answer:\n\n{response.answer}")
+        print(f"{'─' * 60}\n")
+        return response.raw_state or {}
+
     state = response.raw_state or {}
+
+    # Show retrieval info only when we actually ran retrieval.
+    print("\n  Searching knowledge base...")
 
     docs = state.get("docs", [])
     if docs:
@@ -89,8 +98,15 @@ def _answer_question(
     else:
         print("   No relevant passages found.")
 
+    if state.get("no_docs_found"):
+        msg = response.answer or "No relevant sources found; unable to provide an answer."
+        print(f"\n{'─' * 60}")
+        print(f"  Answer:\n\n{msg}")
+        print(f"{'─' * 60}\n")
+        return state
+
     print("\n  Generating Malayalam answer...")
-    answer = state.get("answer")
+    answer = state.get("answer") or response.answer
     if answer is None:
         evaluation_result = state.get("evaluation_result") or {}
         answer = evaluation_result.get("feedback")

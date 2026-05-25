@@ -28,6 +28,7 @@ class TutorServiceConfig:
     default_top_k_retrieval: int = 5
     default_response_timeout_seconds: int = 30
     enable_conversation_history: bool = True
+    enable_smalltalk_heuristics: bool = False
 
 
 @dataclass
@@ -111,7 +112,7 @@ class TutorService:
         """Run the graph for a student question turn."""
         conversation_id = conversation_id or str(uuid4())
         turn_id = str(uuid4())
-        smalltalk_kind = self._smalltalk_kind(question)
+        smalltalk_kind = self._smalltalk_kind(question) if self.config.enable_smalltalk_heuristics else None
         if smalltalk_kind:
             response = self._build_smalltalk_response(conversation_id, turn_id, smalltalk_kind)
             self._store_turn(
@@ -368,6 +369,23 @@ class TutorService:
         turn_id: str,
         state: dict[str, Any],
     ) -> TutorResponse:
+        # If the graph indicated no docs were found, surface a clear error message
+        if state.get("no_docs_found"):
+            msg = "No relevant sources found; unable to provide an answer."
+            return TutorResponse(
+                conversation_id=conversation_id,
+                turn_id=turn_id,
+                status="error",
+                answer=msg,
+                check_question=None,
+                check_answer_hint=None,
+                sources=[],
+                evaluation_result=state.get("evaluation_result") or {},
+                mastery_event=state.get("mastery_event"),
+                remediation_explanation=state.get("remediation_explanation"),
+                raw_state=state,
+            )
+
         answer = state.get("answer")
         if answer is None:
             evaluation_result = state.get("evaluation_result") or {}

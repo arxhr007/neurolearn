@@ -21,6 +21,40 @@ _ANSWER_HINTS = (
     "സഹായിക്കും",
 )
 
+_SMALLTALK_HINTS = (
+    "hi",
+    "hello",
+    "hey",
+    "hiya",
+    "greetings",
+    "good morning",
+    "good afternoon",
+    "good evening",
+    "how are you",
+    "whats up",
+    "what's up",
+    "thanks",
+    "thank you",
+    "thankyou",
+    "ok",
+    "okay",
+    "bye",
+    "goodbye",
+)
+
+_SMALLTALK_ML_HINTS = (
+    "ഹായ്",
+    "ഹലോ",
+    "നമസ്കാരം",
+    "വന്ദനം",
+    "സുഖമാണോ",
+    "നന്ദി",
+    "ശരി",
+    "ഓകെ",
+    "ഒകെ",
+    "വിട",
+)
+
 _NEW_CONCEPT_HINTS = (
     "എന്ത്",
     "എന്താണ്",
@@ -43,6 +77,15 @@ def classify_intent(question: str) -> str:
     # If the learner is asserting an answer/opinion, prioritize answer intent.
     if any(hint in text for hint in _ANSWER_HINTS):
         return "answer"
+
+    if any(hint in text for hint in _SMALLTALK_HINTS):
+        return "smalltalk"
+
+    if any(hint in question for hint in _SMALLTALK_ML_HINTS):
+        return "smalltalk"
+
+    if re.search(r"\bh+e+l+o+\b", text) or re.search(r"\bh+i+\b", text) or re.search(r"\bh+e+y+\b", text):
+        return "smalltalk"
 
     if re.search(r"\b(why|how|what|explain|define|meaning|difference)\b", text):
         return "new_concept"

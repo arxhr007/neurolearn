@@ -25,7 +25,7 @@ class IntentClassifier:
                 return None
 
             # Direct exact labels.
-            if text in ("new_concept", "answer"):
+            if text in ("new_concept", "answer", "smalltalk"):
                 return text
 
             # Tolerate minor formatting variations from the model.
@@ -34,6 +34,8 @@ class IntentClassifier:
                 return "new_concept"
             if compact in ("answer", "useranswer", "response"):
                 return "answer"
+            if compact in ("smalltalk", "greeting", "greet", "salutation", "ack"):
+                return "smalltalk"
 
             # Malayalam cues if model replies in Malayalam instead of labels.
             if any(k in text for k in ("ഉത്തരം", "മറുപടി", "പ്രതികരണം")):
@@ -46,18 +48,21 @@ class IntentClassifier:
         system_prompt = (
             "You are an intent classifier for a Malayalam educational tutor. "
             "The user input is usually in Malayalam. "
-            "Classify the input into exactly one label: new_concept or answer. "
+            "Classify the input into exactly one label: new_concept, answer, or smalltalk. "
             "Return only the label with no punctuation or explanation."
         )
         user_prompt = (
             "Rules:\n"
             "- new_concept: learner asks for explanation/definition/how/why/what in Malayalam or English.\n"
             "- answer: learner is responding to a previously asked check question with an attempt.\n"
+            "- smalltalk: greeting, thanks, or casual chit-chat not asking for learning content.\n"
             "Examples:\n"
             "Input: 'പഠന രീതി എന്താണ്?' -> new_concept\n"
             "Input: 'എന്റെ ഉത്തരം: സഹകരണം പ്രധാനമാണ്' -> answer\n"
             "Input: 'ഞാൻ കരുതുന്നത് സഹകരണം ടീമിന് സഹായിക്കും.' -> answer\n"
             "Input: 'എനിക്ക് തോന്നുന്നത് പങ്കുവെക്കൽ സാമൂഹിക കഴിവ് വളർത്തും.' -> answer\n"
+            "Input: 'hi' -> smalltalk\n"
+            "Input: 'how are you' -> smalltalk\n"
             "Input:\n"
             f"{question}\n\n"
             "Output label:"
@@ -80,7 +85,7 @@ class IntentClassifier:
 
             # Retry once with a stricter correction prompt if first output is not parseable.
             retry_prompt = (
-                "Return ONLY one token from this set: new_concept, answer.\n"
+                "Return ONLY one token from this set: new_concept, answer, smalltalk.\n"
                 "Do not include explanations, punctuation, or extra words.\n"
                 "Input:\n"
                 f"{question}\n\n"

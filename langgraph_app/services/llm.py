@@ -400,6 +400,43 @@ class MalayalamLLM:
                     raise
         raise RuntimeError("Groq API rate limit exceeded after all retries.")
 
+    def generate_smalltalk(self, text: str) -> str:
+        """Generate a brief friendly Malayalam smalltalk response."""
+        prompt = (
+            "You are a friendly Malayalam tutor. "
+            "Respond politely and briefly (1-2 sentences). "
+            "If the user is greeting or thanking you, reply warmly and invite a learning question. "
+            "Do not introduce academic content unless asked.\n\n"
+            f"User: {text}\n"
+            "Reply in Malayalam:"
+        )
+
+        max_retries = 4
+        for attempt in range(max_retries):
+            try:
+                response = self.client.chat.completions.create(
+                    model=GROQ_MODEL,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.4,
+                    max_tokens=256,
+                )
+                text_out = self._extract_response_text(response)
+                if text_out:
+                    return text_out
+                raise RuntimeError("Empty smalltalk content returned by LLM.")
+            except Exception as exc:
+                err_str = str(exc)
+                if "429" in err_str or "rate_limit" in err_str.lower():
+                    wait = 2 ** attempt * 6
+                    print(f"   Rate limited. Retrying in {wait}s... (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(wait)
+                else:
+                    raise
+        raise RuntimeError("Groq API rate limit exceeded after all retries.")
+
     def generate_check_question(
         self,
         question: str,
