@@ -21,6 +21,10 @@ def get_teacher_by_username(db: Session, username: str) -> Teacher | None:
     return db.query(Teacher).filter(Teacher.username == username).first()
 
 
+def get_teacher_by_id(db: Session, teacher_id: int) -> Teacher | None:
+    return db.query(Teacher).filter(Teacher.id == teacher_id).first()
+
+
 def list_teachers(db: Session) -> list[Teacher]:
     return db.query(Teacher).order_by(Teacher.created_at.desc()).all()
 
@@ -38,6 +42,29 @@ def create_teacher(db: Session, username: str, password: str, full_name: str = "
         password_hash=hash_password(password),
         is_active=True,
     )
+    db.add(teacher)
+    db.commit()
+    db.refresh(teacher)
+    return teacher
+
+
+def update_teacher(
+    db: Session,
+    teacher_id: int,
+    *,
+    full_name: str | None = None,
+    password: str | None = None,
+    is_active: bool | None = None,
+) -> Teacher:
+    teacher = get_teacher_by_id(db, teacher_id)
+    if not teacher:
+        raise ValueError("Teacher not found.")
+    if full_name is not None:
+        teacher.full_name = full_name.strip()
+    if password is not None:
+        teacher.password_hash = hash_password(password)
+    if is_active is not None:
+        teacher.is_active = bool(is_active)
     db.add(teacher)
     db.commit()
     db.refresh(teacher)
@@ -112,6 +139,47 @@ def create_student(
     return student
 
 
+def update_student(
+    db: Session,
+    student_id: str,
+    *,
+    full_name: str | None = None,
+    age: int | None = None,
+    reading_age: int | None = None,
+    learning_style: str | None = None,
+    interests: list[str] | None = None,
+    neuro_profile: list[str] | None = None,
+    password: str | None = None,
+    is_active: bool | None = None,
+) -> Student:
+    student = get_student_by_student_id(db, student_id)
+    if not student:
+        raise ValueError("Student not found.")
+
+    if full_name is not None:
+        student.full_name = full_name.strip()
+    if age is not None:
+        student.age = int(age)
+    if reading_age is not None:
+        student.reading_age = int(reading_age)
+    if learning_style is not None:
+        student.learning_style = learning_style.strip() or student.learning_style
+    if interests is not None:
+        student.interests = list(interests)
+    if neuro_profile is not None:
+        student.neuro_profile = list(neuro_profile)
+    if password is not None:
+        student.password_hash = hash_password(password)
+    if is_active is not None:
+        student.is_active = bool(is_active)
+
+    db.add(student)
+    db.commit()
+    db.refresh(student)
+    sync_student_profile_to_legacy(student)
+    return student
+
+
 def sync_student_profile_to_legacy(student: Student) -> None:
     settings = get_settings()
     student_db = StudentDB(settings.legacy_student_db_path)
@@ -148,6 +216,13 @@ def ensure_default_admin(db: Session, username: str = "admin", password: str = "
     db.commit()
     db.refresh(admin)
     return admin
+
+
+def ensure_single_admin(db: Session) -> None:
+    count = db.query(Admin).count()
+    if count > 1:
+        logger.error("Multiple admin accounts detected (%s).", count)
+        raise ValueError("Only one admin account is allowed.")
 
 
 def authenticate_admin(db: Session, username: str, password: str) -> Admin | None:

@@ -137,6 +137,12 @@ curl -X POST http://localhost:8000/api/auth/login \
    -d '{"email":"admin@neurolearn.local","password":"admin123","role":"admin"}'
 ```
 
+Role-based workflow (API):
+- Admin manages teachers: `GET/POST/PUT /api/admin/teachers`
+- Teacher manages students: `GET/POST/PUT /api/teacher/students`
+- Teacher assigns goals: `GET/POST /api/teacher/students/{student_id}/goals`
+- Teacher monitors students: `GET /api/teacher/students/{student_id}/mastery` and `.../conversations`
+
 ### 1. LangGraph AI Tutor Application
 Manage student profiles and interact with the adaptive AI tutor.
 

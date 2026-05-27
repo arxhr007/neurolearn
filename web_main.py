@@ -9,7 +9,7 @@ from app.config import get_settings
 from app.database import SessionLocal, init_db
 from app.routes import auth as auth_routes
 from app.routes import web as web_routes
-from app.services.user_service import ensure_default_admin
+from app.services.user_service import ensure_default_admin, ensure_single_admin
 
 
 settings = get_settings()
@@ -35,3 +35,4 @@ def _startup() -> None:
     init_db()
     with SessionLocal() as db:
         ensure_default_admin(db)
+        ensure_single_admin(db)

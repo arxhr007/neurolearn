@@ -36,3 +36,12 @@ class MasteryEvent(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     student = relationship("Student", back_populates="mastery_events")
+
+
+class ProfileUpdateMeta(Base):
+    __tablename__ = "profile_update_meta"
+
+    student_id = Column(Integer, ForeignKey("students.id"), primary_key=True)
+    last_reading_age_update_event_id = Column(Integer, nullable=False, default=0)
+
+    student = relationship("Student")

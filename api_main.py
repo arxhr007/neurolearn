@@ -16,6 +16,29 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.orm import Session
+
+from app.database import SessionLocal, get_db
+from app.models.conversation import Conversation, Message
+from app.models.learning import LearningGoal as LearningGoalModel, MasteryEvent as MasteryEventModel
+from app.models.user import Student, Teacher
+from app.services.auth import create_access_token, decode_access_token, is_jwt_error
+from app.services.learning_service import create_goal
+from app.services.user_service import (
+    authenticate_admin,
+    authenticate_student,
+    authenticate_teacher,
+    create_student,
+    create_teacher,
+    ensure_default_admin,
+    ensure_single_admin,
+    get_student_by_student_id,
+    get_teacher_by_id,
+    list_students_for_teacher,
+    list_teachers,
+    update_student,
+    update_teacher,
+)
 
 from langgraph_app.config import DEFAULT_DB_DIR, DEFAULT_MODEL, STUDENT_DB_PATH, TOP_K
 from langgraph_app.graph.builder import build_graph_app
@@ -43,7 +66,7 @@ from langgraph_app.models import (
 from langgraph_app.services.intent_classifier import IntentClassifier
 from langgraph_app.services.llm import MalayalamLLM
 from langgraph_app.services.retriever import RAGRetriever
-from langgraph_app.services.student_db import StudentDB
+from langgraph_app.services.sqlalchemy_student_db import SqlAlchemyStudentDB
 from langgraph_app.services.tutor_service import TutorService, TutorServiceConfig
 
 
@@ -68,6 +91,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440
     groq_api_key: str = ""
+    allow_dev_users: bool = True
 
     cors_origins_raw: str = "http://localhost:3000,http://localhost:5173,http://localhost:8000"
 
@@ -88,6 +112,101 @@ class TokenData(BaseModel):
     email: str
     role: str
     student_id: str | None = None
+
+
+class TeacherCreateRequest(BaseModel):
+    username: str
+    password: str
+    full_name: str = ""
+
+
+class TeacherUpdateRequest(BaseModel):
+    full_name: str | None = None
+    password: str | None = None
+    is_active: bool | None = None
+
+
+class TeacherResponse(BaseModel):
+    teacher_id: int
+    username: str
+    full_name: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class TeacherListResponse(BaseModel):
+    total: int
+    teachers: list[TeacherResponse]
+
+
+class StudentCreateRequest(BaseModel):
+    student_id: str
+    username: str
+    password: str
+    full_name: str = ""
+    age: int = 10
+    reading_age: int = 8
+    learning_style: str = "general"
+    interests: list[str] = []
+    neuro_profile: list[str] = ["general"]
+
+
+class StudentUpdateRequest(BaseModel):
+    full_name: str | None = None
+    age: int | None = None
+    reading_age: int | None = None
+    learning_style: str | None = None
+    interests: list[str] | None = None
+    neuro_profile: list[str] | None = None
+    password: str | None = None
+    is_active: bool | None = None
+
+
+class StudentResponse(BaseModel):
+    student_id: str
+    username: str
+    full_name: str
+    age: int
+    reading_age: int
+    learning_style: str
+    interests: list[str]
+    neuro_profile: list[str]
+    is_active: bool
+    teacher_id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class StudentListResponse(BaseModel):
+    total: int
+    students: list[StudentResponse]
+
+
+class ConversationListItem(BaseModel):
+    conversation_id: str
+    student_id: str
+    learning_goal: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ConversationMessageItem(BaseModel):
+    message_id: int
+    role: str
+    message_type: str
+    content: str
+    payload: dict[str, Any] = {}
+    created_at: datetime
+
+
+class ConversationDetailResponse(BaseModel):
+    conversation_id: str
+    student_id: str
+    learning_goal: str | None = None
+    created_at: datetime
+    updated_at: datetime
+    messages: list[ConversationMessageItem]
 
 
 @lru_cache(maxsize=1)
@@ -138,14 +257,86 @@ def _dev_users() -> dict[str, dict[str, Any]]:
     }
 
 
+def _build_login_response(
+    *,
+    user_id: int,
+    username: str,
+    role: str,
+    name: str,
+    student_id: str | None = None,
+) -> LoginResponse:
+    settings = get_settings()
+    access_token = create_access_token(
+        username=username,
+        role=role,
+        user_id=int(user_id),
+        student_id=student_id,
+        expires_minutes=settings.access_token_expire_minutes,
+    )
+    refresh_token = create_access_token(
+        username=username,
+        role=role,
+        user_id=int(user_id),
+        student_id=student_id,
+        expires_minutes=settings.access_token_expire_minutes * 7,
+    )
+    return LoginResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=settings.access_token_expire_minutes * 60,
+        user=User(
+            user_id=str(user_id),
+            email=username,
+            role=role,
+            name=name,
+            student_id=student_id,
+            cohort_id=None,
+        ),
+    )
+
+
+def _authenticate_db_user(db: Session, payload: LoginRequest) -> LoginResponse | None:
+    role = payload.role
+    identifier = payload.email
+    if role == "admin":
+        admin = authenticate_admin(db, identifier, payload.password)
+        if admin:
+            return _build_login_response(
+                user_id=admin.id,
+                username=admin.username,
+                role="admin",
+                name=admin.username,
+            )
+    if role == "teacher":
+        teacher = authenticate_teacher(db, identifier, payload.password)
+        if teacher:
+            return _build_login_response(
+                user_id=teacher.id,
+                username=teacher.username,
+                role="teacher",
+                name=teacher.full_name or teacher.username,
+            )
+    if role == "student":
+        student = authenticate_student(db, identifier, payload.password)
+        if student:
+            return _build_login_response(
+                user_id=student.id,
+                username=student.username,
+                role="student",
+                name=student.full_name or student.username,
+                student_id=student.student_id,
+            )
+    return None
+
+
 @lru_cache(maxsize=1)
-def _service_bundle() -> tuple[TutorService, StudentDB, RAGRetriever]:
+def _service_bundle() -> tuple[TutorService, SqlAlchemyStudentDB, RAGRetriever]:
     _load_runtime_env()
     settings = get_settings()
     if not os.getenv("GROQ_API_KEY") and settings.groq_api_key:
         os.environ["GROQ_API_KEY"] = settings.groq_api_key
 
-    student_db = StudentDB(settings.student_db_path)
+    student_db = SqlAlchemyStudentDB(SessionLocal)
     retriever = RAGRetriever(settings.retriever_db_dir, settings.retriever_model_name)
     llm = MalayalamLLM()
     intent_classifier = IntentClassifier(llm.client)
@@ -184,7 +375,7 @@ def get_tutor_service_optional() -> TutorService | None:
         return None
 
 
-def get_student_db() -> StudentDB:
+def get_student_db() -> SqlAlchemyStudentDB:
     return _service_bundle()[1]
 
 
@@ -206,8 +397,7 @@ def _create_token(user: dict[str, Any], expires_minutes: int) -> str:
 
 
 def _decode_token(token: str) -> TokenData:
-    settings = get_settings()
-    payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+    payload = decode_access_token(token)
     email = payload.get("email") or payload.get("username") or payload.get("sub") or ""
     user_id = payload.get("user_id") or payload.get("sub") or ""
     return TokenData(
@@ -226,8 +416,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> TokenData:
     )
     try:
         token_data = _decode_token(token)
-    except JWTError as exc:
-        raise creds_exception from exc
+    except Exception as exc:
+        if is_jwt_error(exc):
+            raise creds_exception from exc
+        raise
 
     if not token_data.user_id or not token_data.email or not token_data.role:
         raise creds_exception
@@ -267,6 +459,223 @@ def _map_student_profile(profile: dict[str, Any]) -> StudentProfile:
     )
 
 
+def _map_student_row(student: Student) -> StudentResponse:
+    return StudentResponse(
+        student_id=student.student_id,
+        username=student.username,
+        full_name=student.full_name or "",
+        age=int(student.age),
+        reading_age=int(student.reading_age),
+        learning_style=student.learning_style,
+        interests=list(student.interests or []),
+        neuro_profile=list(student.neuro_profile or []),
+        is_active=bool(student.is_active),
+        teacher_id=int(student.teacher_id),
+        created_at=student.created_at,
+        updated_at=student.updated_at,
+    )
+
+
+def _map_teacher_row(teacher: Teacher) -> TeacherResponse:
+    return TeacherResponse(
+        teacher_id=int(teacher.id),
+        username=teacher.username,
+        full_name=teacher.full_name or "",
+        is_active=bool(teacher.is_active),
+        created_at=teacher.created_at,
+        updated_at=teacher.updated_at,
+    )
+
+
+def _source_to_dict(source: Any) -> dict[str, Any]:
+    if hasattr(source, "model_dump"):
+        return source.model_dump()
+    if hasattr(source, "dict"):
+        return source.dict()
+    return dict(source)
+
+
+def _as_int_user_id(user: TokenData) -> int:
+    try:
+        return int(user.user_id)
+    except Exception as exc:
+        raise HTTPException(status_code=403, detail="Unsupported auth context for this action") from exc
+
+
+def _require_student_access(db: Session, user: TokenData, student_id: str) -> Student:
+    student = get_student_by_student_id(db, student_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    if user.role == "student":
+        if user.student_id != student.student_id:
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+    elif user.role == "teacher":
+        teacher_id = _as_int_user_id(user)
+        if int(student.teacher_id) != int(teacher_id):
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+
+    return student
+
+
+def _get_active_goal_text(db: Session, student_pk: int) -> str | None:
+    goal = (
+        db.query(LearningGoalModel)
+        .filter(LearningGoalModel.student_id == student_pk, LearningGoalModel.is_active.is_(True))
+        .order_by(LearningGoalModel.updated_at.desc())
+        .first()
+    )
+    return goal.goal_text if goal else None
+
+
+def _get_or_create_conversation(
+    db: Session,
+    *,
+    student_pk: int,
+    conversation_id: str,
+    learning_goal: str | None,
+) -> Conversation:
+    convo = db.query(Conversation).filter(Conversation.conversation_id == conversation_id).first()
+    if not convo:
+        convo = Conversation(
+            conversation_id=conversation_id,
+            student_id=student_pk,
+            learning_goal=learning_goal,
+        )
+        db.add(convo)
+        db.flush()
+        db.refresh(convo)
+    if learning_goal and convo.learning_goal != learning_goal:
+        convo.learning_goal = learning_goal
+        db.add(convo)
+    return convo
+
+
+def _save_message(
+    db: Session,
+    *,
+    conversation: Conversation,
+    role: str,
+    message_type: str,
+    content: str,
+    payload: dict[str, Any] | None = None,
+    turn_id: str | None = None,
+) -> Message:
+    msg = Message(
+        conversation_id=conversation.id,
+        role=role,
+        message_type=message_type,
+        content=content,
+        payload=payload or {},
+        turn_id=turn_id,
+    )
+    db.add(msg)
+    return msg
+
+
+def _persist_question_turn(
+    db: Session,
+    *,
+    student_pk: int,
+    conversation_id: str,
+    question: str,
+    response: Any,
+) -> None:
+    learning_goal = _get_active_goal_text(db, student_pk)
+    convo = _get_or_create_conversation(
+        db,
+        student_pk=student_pk,
+        conversation_id=conversation_id,
+        learning_goal=learning_goal,
+    )
+    _save_message(
+        db,
+        conversation=convo,
+        role="student",
+        message_type="question",
+        content=question,
+        payload={"turn_id": response.turn_id},
+        turn_id=response.turn_id,
+    )
+    _save_message(
+        db,
+        conversation=convo,
+        role="assistant",
+        message_type="answer",
+        content=response.answer or "",
+        payload={
+            "turn_id": response.turn_id,
+            "sources": [_source_to_dict(s) for s in (response.sources or [])],
+        },
+        turn_id=response.turn_id,
+    )
+    if response.check_question:
+        _save_message(
+            db,
+            conversation=convo,
+            role="assistant",
+            message_type="check_question",
+            content=response.check_question,
+            payload={
+                "turn_id": response.turn_id,
+                "check_answer_hint": response.check_answer_hint,
+            },
+            turn_id=response.turn_id,
+        )
+    convo.updated_at = datetime.utcnow()
+    db.add(convo)
+
+
+def _persist_answer_turn(
+    db: Session,
+    *,
+    student_pk: int,
+    conversation_id: str,
+    student_answer: str,
+    response: Any,
+) -> None:
+    learning_goal = _get_active_goal_text(db, student_pk)
+    convo = _get_or_create_conversation(
+        db,
+        student_pk=student_pk,
+        conversation_id=conversation_id,
+        learning_goal=learning_goal,
+    )
+    _save_message(
+        db,
+        conversation=convo,
+        role="student",
+        message_type="answer",
+        content=student_answer,
+        payload={"turn_id": response.turn_id},
+        turn_id=response.turn_id,
+    )
+    _save_message(
+        db,
+        conversation=convo,
+        role="assistant",
+        message_type="evaluation",
+        content=response.answer or "",
+        payload={
+            "turn_id": response.turn_id,
+            "evaluation_result": response.evaluation_result or {},
+        },
+        turn_id=response.turn_id,
+    )
+    if response.remediation_explanation:
+        _save_message(
+            db,
+            conversation=convo,
+            role="assistant",
+            message_type="remediation",
+            content=response.remediation_explanation,
+            payload={"turn_id": response.turn_id},
+            turn_id=response.turn_id,
+        )
+    convo.updated_at = datetime.utcnow()
+    db.add(convo)
+
+
 def _find_question_context(conversation: ConversationResponse, turn_id: str) -> tuple[str, str | None]:
     for turn in conversation.turns:
         if turn.turn_id == turn_id and turn.type == "question":
@@ -293,6 +702,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def _startup() -> None:
+    from app.database import init_db
+
+    init_db()
+    with SessionLocal() as db:
+        ensure_default_admin(db)
+        ensure_single_admin(db)
 
 
 @app.get("/", tags=["Meta"])
@@ -326,57 +745,50 @@ def health(service: TutorService | None = Depends(get_tutor_service_optional)) -
 
 
 @app.post("/api/auth/login", response_model=LoginResponse, tags=["Authentication"])
-def login(payload: LoginRequest) -> LoginResponse:
-    users = _dev_users()
-    user = users.get(payload.email)
-    if user is None or not compare_digest(payload.password, user["password"]):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    if payload.role != user["role"]:
-        raise HTTPException(status_code=403, detail="Role mismatch for user")
+def login(payload: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:
+    response = _authenticate_db_user(db, payload)
+    if response:
+        return response
 
-    access_token = _create_token(user, get_settings().access_token_expire_minutes)
-    refresh_token = _create_token(user, get_settings().access_token_expire_minutes * 7)
-    return LoginResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        expires_in=get_settings().access_token_expire_minutes * 60,
-        user=User(
-            user_id=user["user_id"],
-            email=user["email"],
+    settings = get_settings()
+    if settings.allow_dev_users:
+        users = _dev_users()
+        user = users.get(payload.email)
+        if user is None or not compare_digest(payload.password, user["password"]):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        if payload.role != user["role"]:
+            raise HTTPException(status_code=403, detail="Role mismatch for user")
+        return _build_login_response(
+            user_id=0,
+            username=user["email"],
             role=user["role"],
             name=user["name"],
             student_id=user.get("student_id"),
-            cohort_id=None,
-        ),
-    )
+        )
+
+    raise HTTPException(status_code=401, detail="Invalid credentials")
 
 
 @app.post("/api/auth/refresh", response_model=LoginResponse, tags=["Authentication"])
 def refresh_token(payload: RefreshRequest) -> LoginResponse:
     try:
         token_data = _decode_token(payload.refresh_token)
-    except JWTError as exc:
-        raise HTTPException(status_code=401, detail="Invalid refresh token") from exc
+    except Exception as exc:
+        if is_jwt_error(exc):
+            raise HTTPException(status_code=401, detail="Invalid refresh token") from exc
+        raise
 
-    users = _dev_users()
-    user = users.get(token_data.email)
-    if user is None:
-        raise HTTPException(status_code=401, detail="Unknown user")
+    try:
+        user_id = int(token_data.user_id)
+    except Exception:
+        user_id = 0
 
-    access_token = _create_token(user, get_settings().access_token_expire_minutes)
-    new_refresh_token = _create_token(user, get_settings().access_token_expire_minutes * 7)
-    return LoginResponse(
-        access_token=access_token,
-        refresh_token=new_refresh_token,
-        expires_in=get_settings().access_token_expire_minutes * 60,
-        user=User(
-            user_id=user["user_id"],
-            email=user["email"],
-            role=user["role"],
-            name=user["name"],
-            student_id=user.get("student_id"),
-            cohort_id=None,
-        ),
+    return _build_login_response(
+        user_id=user_id,
+        username=token_data.email,
+        role=token_data.role,
+        name=token_data.email,
+        student_id=token_data.student_id,
     )
 
 
@@ -388,10 +800,12 @@ def logout(_: TokenData = Depends(get_current_user)) -> LogoutResponse:
 @app.post("/api/tutor/question", response_model=TutorQuestionResponse, tags=["Tutor"])
 def tutor_question(
     payload: TutorQuestionRequest,
-    _: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
     service: TutorService = Depends(get_tutor_service),
-    student_db: StudentDB = Depends(get_student_db),
+    student_db: SqlAlchemyStudentDB = Depends(get_student_db),
+    db: Session = Depends(get_db),
 ) -> TutorQuestionResponse:
+    student = _require_student_access(db, current_user, payload.student_id)
     profile = student_db.get_student_profile(payload.student_id)
     if not profile:
         raise HTTPException(status_code=404, detail=f"Student not found: {payload.student_id}")
@@ -405,16 +819,25 @@ def tutor_question(
         top_k=max(top_k, 1),
         conversation_id=payload.conversation_id,
     )
+    _persist_question_turn(
+        db,
+        student_pk=int(student.id),
+        conversation_id=payload.conversation_id,
+        question=payload.question,
+        response=response,
+    )
     return response.to_question_model()
 
 
 @app.post("/api/tutor/answer", response_model=TutorAnswerResponse, tags=["Tutor"])
 def tutor_answer(
     payload: TutorAnswerRequest,
-    _: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
     service: TutorService = Depends(get_tutor_service),
-    student_db: StudentDB = Depends(get_student_db),
+    student_db: SqlAlchemyStudentDB = Depends(get_student_db),
+    db: Session = Depends(get_db),
 ) -> TutorAnswerResponse:
+    student = _require_student_access(db, current_user, payload.student_id)
     profile = student_db.get_student_profile(payload.student_id)
     if not profile:
         raise HTTPException(status_code=404, detail=f"Student not found: {payload.student_id}")
@@ -433,6 +856,13 @@ def tutor_answer(
         top_k=TOP_K,
         conversation_id=payload.conversation_id,
         turn_id=payload.turn_id,
+    )
+    _persist_answer_turn(
+        db,
+        student_pk=int(student.id),
+        conversation_id=payload.conversation_id,
+        student_answer=payload.student_answer,
+        response=result,
     )
 
     ev = result.evaluation_result or {}
@@ -458,9 +888,11 @@ def tutor_answer(
 def get_conversation_history(
     student_id: str,
     limit: int = Query(default=10, ge=1, le=100),
-    _: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
     service: TutorService = Depends(get_tutor_service),
+    db: Session = Depends(get_db),
 ) -> ConversationResponse:
+    _require_student_access(db, current_user, student_id)
     return service.get_conversation_history(student_id=student_id, limit=limit)
 
 
@@ -472,9 +904,11 @@ def get_conversation_history(
 def get_conversation_by_id(
     student_id: str,
     conversation_id: str,
-    _: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
     service: TutorService = Depends(get_tutor_service),
+    db: Session = Depends(get_db),
 ) -> ConversationResponse:
+    _require_student_access(db, current_user, student_id)
     return service.get_conversation_by_id(conversation_id=conversation_id, student_id=student_id)
 
 
@@ -490,9 +924,11 @@ def clear_conversation(
 @app.get("/api/students/{student_id}", response_model=StudentProfile, tags=["Students"])
 def get_student(
     student_id: str,
-    _: TokenData = Depends(require_roles("student", "teacher", "admin")),
-    student_db: StudentDB = Depends(get_student_db),
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    student_db: SqlAlchemyStudentDB = Depends(get_student_db),
+    db: Session = Depends(get_db),
 ) -> StudentProfile:
+    _require_student_access(db, current_user, student_id)
     profile = student_db.get_student_profile(student_id)
     if not profile:
         raise HTTPException(status_code=404, detail=f"Student not found: {student_id}")
@@ -503,15 +939,18 @@ def get_student(
 def put_student(
     student_id: str,
     payload: StudentProfileRequest,
-    _: TokenData = Depends(require_roles("teacher", "admin")),
-    student_db: StudentDB = Depends(get_student_db),
+    current_user: TokenData = Depends(require_roles("teacher", "admin")),
+    student_db: SqlAlchemyStudentDB = Depends(get_student_db),
+    db: Session = Depends(get_db),
 ) -> StudentProfile:
-    student_db.upsert_student(
+    _require_student_access(db, current_user, student_id)
+    update_student(
+        db,
         student_id=student_id,
-        name=payload.name,
-        learning_style=payload.learning_style,
+        full_name=payload.name,
         reading_age=payload.reading_age,
-        interest_graph=payload.interests,
+        learning_style=payload.learning_style,
+        interests=payload.interests,
         neuro_profile=payload.neuro_profile,
     )
     profile = student_db.get_student_profile(student_id)
@@ -530,9 +969,11 @@ def get_mastery_history(
     limit: int = Query(default=20, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     concept_key: str | None = Query(default=None),
-    _: TokenData = Depends(require_roles("student", "teacher", "admin")),
-    student_db: StudentDB = Depends(get_student_db),
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    student_db: SqlAlchemyStudentDB = Depends(get_student_db),
+    db: Session = Depends(get_db),
 ) -> MasteryHistoryResponse:
+    _require_student_access(db, current_user, student_id)
     total, events = student_db.get_mastery_events(
         student_id=student_id,
         limit=limit,
@@ -561,28 +1002,36 @@ def get_mastery_history(
 def get_mastery_stats(
     student_id: str,
     recent_days: int = Query(default=7, ge=1, le=365),
-    _: TokenData = Depends(require_roles("student", "teacher", "admin")),
-    student_db: StudentDB = Depends(get_student_db),
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    student_db: SqlAlchemyStudentDB = Depends(get_student_db),
+    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
+    _require_student_access(db, current_user, student_id)
     return student_db.get_mastery_stats(student_id=student_id, recent_days=recent_days)
 
 
 @app.get("/api/students/{student_id}/goals", response_model=LearningGoalsResponse, tags=["Goals"])
 def get_learning_goals(
     student_id: str,
-    _: TokenData = Depends(require_roles("student", "teacher", "admin")),
-    student_db: StudentDB = Depends(get_student_db),
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    db: Session = Depends(get_db),
 ) -> LearningGoalsResponse:
-    rows = student_db.list_learning_goals(student_id)
+    student = _require_student_access(db, current_user, student_id)
+    rows = (
+        db.query(LearningGoalModel)
+        .filter(LearningGoalModel.student_id == student.id)
+        .order_by(LearningGoalModel.updated_at.desc())
+        .all()
+    )
     active: list[LearningGoal] = []
     archived: list[LearningGoal] = []
     for row in rows:
         goal = LearningGoal(
-            goal_id=str(row["id"]),
-            goal_text=row["goal_text"],
-            is_active=bool(row["is_active"]),
-            created_at=_as_dt(row.get("created_at")),
-            updated_at=_as_dt(row.get("updated_at")),
+            goal_id=str(row.id),
+            goal_text=row.goal_text,
+            is_active=bool(row.is_active),
+            created_at=_as_dt(row.created_at),
+            updated_at=_as_dt(row.updated_at),
         )
         if goal.is_active:
             active.append(goal)
@@ -595,16 +1044,302 @@ def get_learning_goals(
 def create_learning_goal(
     student_id: str,
     payload: LearningGoalRequest,
-    _: TokenData = Depends(require_roles("teacher", "admin")),
-    student_db: StudentDB = Depends(get_student_db),
+    current_user: TokenData = Depends(require_roles("teacher", "admin")),
+    db: Session = Depends(get_db),
 ) -> LearningGoal:
-    row = student_db.create_learning_goal(student_id=student_id, goal_text=payload.goal_text)
+    student = _require_student_access(db, current_user, student_id)
+    row = create_goal(db, student_id=student.id, goal_text=payload.goal_text)
     return LearningGoal(
-        goal_id=str(row["id"]),
-        goal_text=row["goal_text"],
-        is_active=bool(row["is_active"]),
-        created_at=_as_dt(row.get("created_at")),
-        updated_at=_as_dt(row.get("updated_at")),
+        goal_id=str(row.id),
+        goal_text=row.goal_text,
+        is_active=bool(row.is_active),
+        created_at=_as_dt(row.created_at),
+        updated_at=_as_dt(row.updated_at),
+    )
+
+
+@app.get("/api/admin/teachers", response_model=TeacherListResponse, tags=["Admin"])
+def list_admin_teachers(
+    _: TokenData = Depends(require_roles("admin")),
+    db: Session = Depends(get_db),
+) -> TeacherListResponse:
+    teachers = list_teachers(db)
+    return TeacherListResponse(
+        total=len(teachers),
+        teachers=[_map_teacher_row(teacher) for teacher in teachers],
+    )
+
+
+@app.post("/api/admin/teachers", response_model=TeacherResponse, tags=["Admin"])
+def create_admin_teacher(
+    payload: TeacherCreateRequest,
+    _: TokenData = Depends(require_roles("admin")),
+    db: Session = Depends(get_db),
+) -> TeacherResponse:
+    teacher = create_teacher(db, username=payload.username, password=payload.password, full_name=payload.full_name)
+    return _map_teacher_row(teacher)
+
+
+@app.get("/api/admin/teachers/{teacher_id}", response_model=TeacherResponse, tags=["Admin"])
+def get_admin_teacher(
+    teacher_id: int,
+    _: TokenData = Depends(require_roles("admin")),
+    db: Session = Depends(get_db),
+) -> TeacherResponse:
+    teacher = get_teacher_by_id(db, teacher_id)
+    if not teacher:
+        raise HTTPException(status_code=404, detail="Teacher not found")
+    return _map_teacher_row(teacher)
+
+
+@app.put("/api/admin/teachers/{teacher_id}", response_model=TeacherResponse, tags=["Admin"])
+def update_admin_teacher(
+    teacher_id: int,
+    payload: TeacherUpdateRequest,
+    _: TokenData = Depends(require_roles("admin")),
+    db: Session = Depends(get_db),
+) -> TeacherResponse:
+    teacher = update_teacher(
+        db,
+        teacher_id,
+        full_name=payload.full_name,
+        password=payload.password,
+        is_active=payload.is_active,
+    )
+    return _map_teacher_row(teacher)
+
+
+@app.get("/api/teacher/students", response_model=StudentListResponse, tags=["Teacher"])
+def list_teacher_students(
+    current_user: TokenData = Depends(require_roles("teacher")),
+    db: Session = Depends(get_db),
+) -> StudentListResponse:
+    teacher_id = _as_int_user_id(current_user)
+    students = list_students_for_teacher(db, teacher_id)
+    return StudentListResponse(
+        total=len(students),
+        students=[_map_student_row(student) for student in students],
+    )
+
+
+@app.post("/api/teacher/students", response_model=StudentResponse, tags=["Teacher"])
+def create_teacher_student(
+    payload: StudentCreateRequest,
+    current_user: TokenData = Depends(require_roles("teacher")),
+    db: Session = Depends(get_db),
+) -> StudentResponse:
+    teacher_id = _as_int_user_id(current_user)
+    student = create_student(
+        db,
+        teacher_id=teacher_id,
+        student_id=payload.student_id,
+        username=payload.username,
+        password=payload.password,
+        full_name=payload.full_name,
+        age=payload.age,
+        reading_age=payload.reading_age,
+        learning_style=payload.learning_style,
+        interests=payload.interests,
+        neuro_profile=payload.neuro_profile,
+    )
+    return _map_student_row(student)
+
+
+@app.get("/api/teacher/students/{student_id}", response_model=StudentResponse, tags=["Teacher"])
+def get_teacher_student(
+    student_id: str,
+    current_user: TokenData = Depends(require_roles("teacher")),
+    db: Session = Depends(get_db),
+) -> StudentResponse:
+    student = _require_student_access(db, current_user, student_id)
+    return _map_student_row(student)
+
+
+@app.put("/api/teacher/students/{student_id}", response_model=StudentResponse, tags=["Teacher"])
+def update_teacher_student(
+    student_id: str,
+    payload: StudentUpdateRequest,
+    current_user: TokenData = Depends(require_roles("teacher")),
+    db: Session = Depends(get_db),
+) -> StudentResponse:
+    _require_student_access(db, current_user, student_id)
+    student = update_student(
+        db,
+        student_id=student_id,
+        full_name=payload.full_name,
+        age=payload.age,
+        reading_age=payload.reading_age,
+        learning_style=payload.learning_style,
+        interests=payload.interests,
+        neuro_profile=payload.neuro_profile,
+        password=payload.password,
+        is_active=payload.is_active,
+    )
+    return _map_student_row(student)
+
+
+@app.get("/api/teacher/students/{student_id}/goals", response_model=LearningGoalsResponse, tags=["Teacher"])
+def list_teacher_student_goals(
+    student_id: str,
+    current_user: TokenData = Depends(require_roles("teacher")),
+    db: Session = Depends(get_db),
+) -> LearningGoalsResponse:
+    student = _require_student_access(db, current_user, student_id)
+    goals = (
+        db.query(LearningGoalModel)
+        .filter(LearningGoalModel.student_id == student.id)
+        .order_by(LearningGoalModel.updated_at.desc())
+        .all()
+    )
+    active: list[LearningGoal] = []
+    archived: list[LearningGoal] = []
+    for goal_row in goals:
+        goal = LearningGoal(
+            goal_id=str(goal_row.id),
+            goal_text=goal_row.goal_text,
+            is_active=bool(goal_row.is_active),
+            created_at=_as_dt(goal_row.created_at),
+            updated_at=_as_dt(goal_row.updated_at),
+        )
+        if goal.is_active:
+            active.append(goal)
+        else:
+            archived.append(goal)
+    return LearningGoalsResponse(active=active, archived=archived)
+
+
+@app.post("/api/teacher/students/{student_id}/goals", response_model=LearningGoal, tags=["Teacher"])
+def create_teacher_student_goal(
+    student_id: str,
+    payload: LearningGoalRequest,
+    current_user: TokenData = Depends(require_roles("teacher")),
+    db: Session = Depends(get_db),
+) -> LearningGoal:
+    student = _require_student_access(db, current_user, student_id)
+    goal = create_goal(db, student_id=student.id, goal_text=payload.goal_text)
+    return LearningGoal(
+        goal_id=str(goal.id),
+        goal_text=goal.goal_text,
+        is_active=bool(goal.is_active),
+        created_at=_as_dt(goal.created_at),
+        updated_at=_as_dt(goal.updated_at),
+    )
+
+
+@app.get("/api/teacher/students/{student_id}/mastery", response_model=MasteryHistoryResponse, tags=["Teacher"])
+def list_teacher_student_mastery(
+    student_id: str,
+    limit: int = Query(default=20, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    concept_key: str | None = Query(default=None),
+    current_user: TokenData = Depends(require_roles("teacher")),
+    db: Session = Depends(get_db),
+    student_db: SqlAlchemyStudentDB = Depends(get_student_db),
+) -> MasteryHistoryResponse:
+    _require_student_access(db, current_user, student_id)
+    total, events = student_db.get_mastery_events(
+        student_id=student_id,
+        limit=limit,
+        offset=offset,
+        concept_key=concept_key,
+    )
+    mapped = [
+        MasteryEvent(
+            id=str(item["id"]),
+            student_id=item["student_id"],
+            concept_key=item["concept_key"],
+            is_correct=bool(item["is_correct"]),
+            confidence=float(item["confidence"]),
+            misconception=item.get("misconception"),
+            source_doc=item.get("source_doc") or None,
+            source_page=item.get("source_page"),
+            source_chunk_id=item.get("source_chunk_id"),
+            created_at=_as_dt(item.get("timestamp")),
+        )
+        for item in events
+    ]
+    return MasteryHistoryResponse(total=total, events=mapped, limit=limit, offset=offset)
+
+
+@app.get("/api/teacher/students/{student_id}/mastery/stats", tags=["Teacher"])
+def teacher_student_mastery_stats(
+    student_id: str,
+    recent_days: int = Query(default=7, ge=1, le=365),
+    current_user: TokenData = Depends(require_roles("teacher")),
+    db: Session = Depends(get_db),
+    student_db: SqlAlchemyStudentDB = Depends(get_student_db),
+) -> dict[str, Any]:
+    _require_student_access(db, current_user, student_id)
+    return student_db.get_mastery_stats(student_id=student_id, recent_days=recent_days)
+
+
+@app.get("/api/teacher/students/{student_id}/conversations", response_model=list[ConversationListItem], tags=["Teacher"])
+def list_teacher_student_conversations(
+    student_id: str,
+    current_user: TokenData = Depends(require_roles("teacher")),
+    db: Session = Depends(get_db),
+) -> list[ConversationListItem]:
+    student = _require_student_access(db, current_user, student_id)
+    conversations = (
+        db.query(Conversation)
+        .filter(Conversation.student_id == student.id)
+        .order_by(Conversation.updated_at.desc())
+        .all()
+    )
+    return [
+        ConversationListItem(
+            conversation_id=conv.conversation_id,
+            student_id=student.student_id,
+            learning_goal=conv.learning_goal,
+            created_at=conv.created_at,
+            updated_at=conv.updated_at,
+        )
+        for conv in conversations
+    ]
+
+
+@app.get(
+    "/api/teacher/students/{student_id}/conversations/{conversation_id}",
+    response_model=ConversationDetailResponse,
+    tags=["Teacher"],
+)
+def get_teacher_student_conversation(
+    student_id: str,
+    conversation_id: str,
+    current_user: TokenData = Depends(require_roles("teacher")),
+    db: Session = Depends(get_db),
+) -> ConversationDetailResponse:
+    student = _require_student_access(db, current_user, student_id)
+    convo = (
+        db.query(Conversation)
+        .filter(Conversation.student_id == student.id, Conversation.conversation_id == conversation_id)
+        .first()
+    )
+    if not convo:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    messages = (
+        db.query(Message)
+        .filter(Message.conversation_id == convo.id)
+        .order_by(Message.created_at.asc())
+        .all()
+    )
+    return ConversationDetailResponse(
+        conversation_id=convo.conversation_id,
+        student_id=student.student_id,
+        learning_goal=convo.learning_goal,
+        created_at=convo.created_at,
+        updated_at=convo.updated_at,
+        messages=[
+            ConversationMessageItem(
+                message_id=int(msg.id),
+                role=msg.role,
+                message_type=msg.message_type,
+                content=msg.content,
+                payload=msg.payload or {},
+                created_at=msg.created_at,
+            )
+            for msg in messages
+        ],
     )
 
 

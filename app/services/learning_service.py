@@ -32,6 +32,11 @@ def create_goal(db: Session, *, student_id: int, goal_text: str) -> LearningGoal
     student = db.query(Student).filter(Student.id == student_id).first()
     if not student:
         raise ValueError("Student not found.")
+    # Deactivate prior goals to keep a single active goal.
+    db.query(LearningGoal).filter(
+        LearningGoal.student_id == student_id,
+        LearningGoal.is_active.is_(True),
+    ).update({LearningGoal.is_active: False})
     goal = LearningGoal(student_id=student_id, goal_text=goal_text, is_active=True)
     db.add(goal)
     db.commit()
