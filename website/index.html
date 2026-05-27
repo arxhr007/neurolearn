@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NeuroLearn Console</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">N</div>
+          <div>
+            <div class="brand-title">NeuroLearn</div>
+            <div class="brand-subtitle">Role-based tutoring platform</div>
+          </div>
+        </div>
+        <nav class="nav">
+          <a class="active" href="index.html">Home</a>
+          <a href="admin.html">Admin</a>
+          <a href="teacher.html">Teacher</a>
+          <a href="student.html">Student</a>
+        </nav>
+        <div class="header-right">
+          <div class="base-controls">
+            <label for="base-url">Base URL</label>
+            <div class="inline">
+              <input id="base-url" type="text" value="http://localhost:8000" />
+              <button id="health-btn" class="btn ghost" type="button">Health</button>
+            </div>
+            <div id="health-status" class="status">Status: unknown</div>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section class="hero">
+          <div class="hero-copy">
+            <div class="eyebrow">Production Console</div>
+            <h1>Coordinate admin, teacher, and student workflows.</h1>
+            <p class="subtitle">
+              A clean console that mirrors the production workflow: admins create teachers,
+              teachers manage students, and students learn with the tutor.
+            </p>
+            <div class="hero-actions">
+              <a class="btn" href="admin.html">Open Admin Login</a>
+              <a class="btn ghost" href="student.html">Open Student Login</a>
+            </div>
+          </div>
+          <div class="hero-card">
+            <div class="hero-card-title">Standard flow</div>
+            <ol class="flow-list">
+              <li>Admin creates teacher accounts.</li>
+              <li>Teachers build student profiles.</li>
+              <li>Teachers assign learning goals.</li>
+              <li>Students ask and answer tutor checks.</li>
+            </ol>
+          </div>
+        </section>
+
+        <section class="grid grid-3">
+          <article class="card" style="--delay: 0ms">
+            <div class="card-header">
+              <h2 class="card-title">Admin</h2>
+              <p class="card-subtitle">Provision teachers and control access.</p>
+            </div>
+            <p class="subtitle">Create teacher accounts and review the directory.</p>
+            <a class="btn" href="admin.html">Go to Admin Login</a>
+          </article>
+          <article class="card" style="--delay: 120ms">
+            <div class="card-header">
+              <h2 class="card-title">Teacher</h2>
+              <p class="card-subtitle">Build student profiles and set goals.</p>
+            </div>
+            <p class="subtitle">Create students, update profiles, and assign goals.</p>
+            <a class="btn" href="teacher.html">Go to Teacher Login</a>
+          </article>
+          <article class="card" style="--delay: 240ms">
+            <div class="card-header">
+              <h2 class="card-title">Student</h2>
+              <p class="card-subtitle">Run tutoring sessions.</p>
+            </div>
+            <p class="subtitle">Ask questions, answer checks, and track responses.</p>
+            <a class="btn" href="student.html">Go to Student Login</a>
+          </article>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span>NeuroLearn UI</span>
+        <span>Base URL stored in localStorage</span>
+      </footer>
+    </div>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>

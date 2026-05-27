@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Student Login - NeuroLearn</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="auth-page">
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">N</div>
+          <div>
+            <div class="brand-title">NeuroLearn</div>
+            <div class="brand-subtitle">Student login</div>
+          </div>
+        </div>
+        <nav class="nav">
+          <a href="index.html">Home</a>
+          <a href="admin.html">Admin</a>
+          <a href="teacher.html">Teacher</a>
+          <a class="active" href="student.html">Student</a>
+        </nav>
+        <div class="header-right">
+          <div class="base-controls">
+            <label for="base-url">Base URL</label>
+            <div class="inline">
+              <input id="base-url" type="text" value="http://localhost:8000" />
+              <button id="health-btn" class="btn ghost" type="button">Health</button>
+            </div>
+            <div id="health-status" class="status">Status: unknown</div>
+          </div>
+        </div>
+      </header>
+
+      <main class="auth-layout">
+        <section class="auth-copy">
+          <div class="eyebrow">Student</div>
+          <h1>Sign in to start learning.</h1>
+          <p class="subtitle">Ask tutor questions, answer checks, and stay on track.</p>
+        </section>
+
+        <section class="card auth-card">
+          <div class="card-header">
+            <h2 class="card-title">Student sign in</h2>
+            <p class="card-subtitle">Use credentials provided by your teacher.</p>
+          </div>
+          <div id="status-banner" class="status-banner is-hidden" data-tone="info" aria-live="polite"></div>
+          <form id="login-form" class="form-grid" autocomplete="on">
+            <div class="field">
+              <label for="student-username">Username</label>
+              <input id="student-username" type="text" value="student1" autocomplete="username" required />
+            </div>
+            <div class="field">
+              <label for="student-password">Password</label>
+              <input id="student-password" type="password" value="student123" autocomplete="current-password" required />
+            </div>
+            <div class="button-row">
+              <button id="login-button" class="btn" type="submit">Sign in</button>
+            </div>
+          </form>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span>Student login</span>
+        <span>Need access? Ask your teacher.</span>
+      </footer>
+    </div>
+
+    <script src="app.js" defer></script>
+    <script src="student.js" defer></script>
+  </body>
+</html>

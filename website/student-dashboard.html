@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Student Dashboard - NeuroLearn</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body data-role="student">
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">N</div>
+          <div>
+            <div class="brand-title">NeuroLearn</div>
+            <div class="brand-subtitle">Student dashboard</div>
+          </div>
+        </div>
+        <nav class="nav">
+          <a href="index.html">Home</a>
+          <a href="admin-dashboard.html">Admin</a>
+          <a href="teacher-dashboard.html">Teacher</a>
+          <a class="active" href="student-dashboard.html">Student</a>
+        </nav>
+        <div class="header-right">
+          <div id="auth-indicator" class="auth-indicator">Not signed in</div>
+          <div class="button-row">
+            <button id="sign-out" class="btn ghost" type="button">Sign out</button>
+          </div>
+          <div class="base-controls">
+            <label for="base-url">Base URL</label>
+            <div class="inline">
+              <input id="base-url" type="text" value="http://localhost:8000" />
+              <button id="health-btn" class="btn ghost" type="button">Health</button>
+            </div>
+            <div id="health-status" class="status">Status: unknown</div>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section class="page-header">
+          <div>
+            <div class="eyebrow">Student</div>
+            <h1>Ask questions and respond to checks.</h1>
+            <p class="subtitle">Run a guided tutoring session and keep answers on track.</p>
+          </div>
+        </section>
+
+        <div id="status-banner" class="status-banner is-hidden" data-tone="info" aria-live="polite"></div>
+
+        <section class="grid grid-2">
+          <article class="card">
+            <div class="card-header">
+              <h2 class="card-title">Session setup</h2>
+              <p class="card-subtitle">Set the student and conversation IDs.</p>
+            </div>
+            <form id="session-form" class="form-grid" autocomplete="off">
+              <div class="field">
+                <label for="student-session-id">Student ID</label>
+                <input id="student-session-id" type="text" value="s100" required />
+              </div>
+              <div class="field">
+                <label for="conversation-id">Conversation ID</label>
+                <input id="conversation-id" type="text" placeholder="Auto-generated" />
+              </div>
+              <div class="button-row">
+                <button id="new-conversation" class="btn ghost" type="button">New conversation</button>
+              </div>
+            </form>
+          </article>
+
+          <article class="card">
+            <div class="card-header">
+              <h2 class="card-title">Tutor chat</h2>
+              <p class="card-subtitle">Review the conversation as you go.</p>
+            </div>
+            <div id="chat-window" class="chat-window"></div>
+          </article>
+        </section>
+
+        <section class="grid grid-2">
+          <article class="card">
+            <div class="card-header">
+              <h2 class="card-title">Ask a question</h2>
+              <p class="card-subtitle">Send a question to the tutor.</p>
+            </div>
+            <form id="question-form" class="form-grid" autocomplete="off">
+              <div class="field">
+                <label for="question-text">Question</label>
+                <input id="question-text" type="text" value="Why is handwashing important?" required />
+              </div>
+              <div class="button-row">
+                <button id="question-send" class="btn" type="submit">Send question</button>
+              </div>
+            </form>
+          </article>
+
+          <article class="card">
+            <div class="card-header">
+              <h2 class="card-title">Answer check</h2>
+              <p class="card-subtitle">Respond to the tutor check question.</p>
+            </div>
+            <div class="field">
+              <label>Check question</label>
+              <div id="check-question" class="status-banner" data-tone="info">No check question yet.</div>
+            </div>
+            <form id="answer-form" class="form-grid" autocomplete="off">
+              <div class="field">
+                <label for="answer-text">Answer</label>
+                <input id="answer-text" type="text" value="Because it prevents germs." required />
+              </div>
+              <div class="button-row">
+                <button id="answer-send" class="btn" type="submit">Submit answer</button>
+              </div>
+            </form>
+          </article>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span>Student dashboard</span>
+        <span>Tokens stored in localStorage</span>
+      </footer>
+    </div>
+
+    <script src="app.js" defer></script>
+    <script src="student-dashboard.js" defer></script>
+  </body>
+</html>

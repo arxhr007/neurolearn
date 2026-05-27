@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin Dashboard - NeuroLearn</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body data-role="admin">
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">N</div>
+          <div>
+            <div class="brand-title">NeuroLearn</div>
+            <div class="brand-subtitle">Admin dashboard</div>
+          </div>
+        </div>
+        <nav class="nav">
+          <a href="index.html">Home</a>
+          <a class="active" href="admin-dashboard.html">Admin</a>
+          <a href="teacher-dashboard.html">Teacher</a>
+          <a href="student-dashboard.html">Student</a>
+        </nav>
+        <div class="header-right">
+          <div id="auth-indicator" class="auth-indicator">Not signed in</div>
+          <div class="button-row">
+            <button id="sign-out" class="btn ghost" type="button">Sign out</button>
+          </div>
+          <div class="base-controls">
+            <label for="base-url">Base URL</label>
+            <div class="inline">
+              <input id="base-url" type="text" value="http://localhost:8000" />
+              <button id="health-btn" class="btn ghost" type="button">Health</button>
+            </div>
+            <div id="health-status" class="status">Status: unknown</div>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section class="page-header">
+          <div>
+            <div class="eyebrow">Admin</div>
+            <h1>Teacher access and account setup.</h1>
+            <p class="subtitle">Create teacher accounts and maintain the directory.</p>
+          </div>
+        </section>
+
+        <div id="status-banner" class="status-banner is-hidden" data-tone="info" aria-live="polite"></div>
+
+        <section class="grid grid-2">
+          <article class="card">
+            <div class="card-header">
+              <h2 class="card-title">Create teacher</h2>
+              <p class="card-subtitle">Provision a new teacher account.</p>
+            </div>
+            <form id="create-teacher-form" class="form-grid" autocomplete="off">
+              <div class="field">
+                <label for="teacher-username">Username</label>
+                <input id="teacher-username" type="text" value="teacher1" required />
+              </div>
+              <div class="field">
+                <label for="teacher-password">Password</label>
+                <input id="teacher-password" type="password" value="teacher123" required />
+              </div>
+              <div class="field">
+                <label for="teacher-full-name">Full name</label>
+                <input id="teacher-full-name" type="text" value="Teacher User" />
+              </div>
+              <div class="button-row">
+                <button id="teacher-create" class="btn" type="submit">Create teacher</button>
+              </div>
+            </form>
+          </article>
+
+          <article class="card">
+            <div class="card-header">
+              <h2 class="card-title">Teacher directory</h2>
+              <p class="card-subtitle">Review all teacher accounts.</p>
+            </div>
+            <div class="button-row">
+              <button id="teacher-refresh" class="btn ghost" type="button">Refresh</button>
+            </div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Username</th>
+                  <th>Full name</th>
+                  <th>Active</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody id="teacher-table-body"></tbody>
+            </table>
+          </article>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span>Admin dashboard</span>
+        <span>Tokens stored in localStorage</span>
+      </footer>
+    </div>
+
+    <script src="app.js" defer></script>
+    <script src="admin-dashboard.js" defer></script>
+  </body>
+</html>
