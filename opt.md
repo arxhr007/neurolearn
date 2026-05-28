@@ -265,9 +265,16 @@ Effect:
 - the tutor feels much more predictable in interactive mode
 - the interactive flow now matches the intended UX
 
+Latest verification:
+
+- the CLI now prints a `pending` evaluation state when a check question has been generated, instead of showing `None` fields as if evaluation had already failed
+- the reply to the check question is routed through the answer-evaluation path, and a correct short reply like `എട്ട്` is accepted correctly
+- the prompt changes to `Enter answer for the check question (or type a new question):` while a check question is active, which makes the current state explicit
+
 Touched code:
 
 - `langgraph_app/cli.py`
+- `langgraph_app/graph/builder.py`
 
 ## 8. Validation that was performed
 
@@ -277,6 +284,7 @@ The work was validated repeatedly as it progressed:
 - the API smoke test passed after the logger fix
 - performance improvements were exercised through benchmark runs
 - the CLI routing fix was validated with syntax checks after the patch
+- the interactive CLI was exercised manually to confirm that check-question replies and fresh questions both route correctly
 
 ## 9. Overall result
 
@@ -290,5 +298,7 @@ By the end of the chat, the repo had improvements in all the places that mattere
 - more stable runtime handling
 - per-node timing for future profiling
 - a fixed interactive CLI state machine
+
+The latest interactive behavior is now consistent: the tutor can ask a check question, accept a real answer on the next turn, and still let the user abandon that path by asking a new unrelated question.
 
 The main remaining work, if continued, would be more answer-path trimming and any further cleanup of duplicated tutor/web persistence paths.
