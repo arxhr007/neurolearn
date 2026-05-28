@@ -3,10 +3,12 @@
 This file collects the supported ways to run NeuroLearn from a fresh checkout.
 
 ## 1. One-time setup
-
 Install dependencies:
 
 ```bash
+source /home/antony/neurolearn/myenv/bin/activate
+pip install langgraph-checkpoint-sqlite
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 python3 -m pip install -r requirements.txt
 ```
 
@@ -21,6 +23,7 @@ Create the local database directory used by the web app:
 
 ```bash
 mkdir -p data
+python3 pipeline/build_vector_index.py
 ```
 
 If you want to use the repository's bundled data, no OCR rebuild is needed. If you want to regenerate the vector store, run the optional pipeline steps below.
