@@ -158,8 +158,12 @@ def _answer_question(
         check_question = None
     if check_question:
         print(f"\n  Check Question:\n\n{check_question}")
-    evaluation_result = state.get("evaluation_result")
-    if evaluation_result:
+    evaluation_result = state.get("evaluation_result") or {}
+    evaluation_status = evaluation_result.get("status")
+    if evaluation_status == "check_question_generated":
+        print("\n  Evaluation Result:\n")
+        print("  pending: answer the check question above")
+    elif evaluation_result:
         print("\n  Evaluation Result:\n")
         print(f"  is_correct: {evaluation_result.get('is_correct')}")
         print(f"  feedback: {evaluation_result.get('feedback')}")
@@ -199,8 +203,12 @@ def run_interactive(
     conversation_id = str(uuid4())
 
     while True:
+        prompt = "  Enter question (Malayalam/English): "
+        if pending_check_question:
+            prompt = "  Enter answer for the check question (or type a new question): "
+
         try:
-            question = input("  Enter question (Malayalam/English): ").strip()
+            question = input(prompt).strip()
         except (EOFError, KeyboardInterrupt):
             break
 

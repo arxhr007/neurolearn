@@ -70,6 +70,8 @@ def build_graph_app(
     checkpoint_path: str | None = None,
 ) -> Any:
     def route_by_intent_with_drift(state: RAGState) -> str:
+        if state.get("check_answer_hint"):
+            return "answer_retriever"
         intent = state.get("intent", "new_concept")
         if intent == "smalltalk":
             return "smalltalk_responder"
