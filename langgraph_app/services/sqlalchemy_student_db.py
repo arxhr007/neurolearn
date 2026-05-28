@@ -338,42 +338,45 @@ class SqlAlchemyStudentDB(StudentDBBase):
         up_threshold = 0.8
         down_threshold = 0.35
         reading_age_cooldown_events = 10
-
-        profile = self.get_student_profile(student_id)
-        if not profile:
-            return None
-
-        events = self.list_mastery_events(student_id, limit=recent_limit)
-        if not events:
-            return profile
-
-        correct_count = sum(1 for e in events if e["is_correct"])
-        total_count = len(events)
-        success_rate = correct_count / total_count if total_count > 0 else 0.0
-
-        topics_attempted: dict[str, dict[str, int]] = {}
-        for event in events:
-            concept_key = str(event.get("concept_key", ""))
-            topic = concept_key.split(".")[0].lower() if "." in concept_key else concept_key.lower()
-            if topic not in topics_attempted:
-                topics_attempted[topic] = {"correct": 0, "total": 0}
-            topics_attempted[topic]["total"] += 1
-            if event["is_correct"]:
-                topics_attempted[topic]["correct"] += 1
-
-        strong_topics = []
-        for topic, stats in topics_attempted.items():
-            if stats["total"] >= 2:
-                topic_rate = stats["correct"] / stats["total"]
-                if topic_rate >= 0.6:
-                    strong_topics.append(topic)
-
-        latest_event_id = int(events[0]["id"])
-
         with self._session() as db:
             student = self._student_by_student_id(db, student_id)
             if not student:
+                return None
+
+            profile = self._profile_dict(student)
+
+            events = (
+                db.query(MasteryEvent)
+                .filter(MasteryEvent.student_id == student.id)
+                .order_by(MasteryEvent.id.desc())
+                .limit(int(recent_limit))
+                .all()
+            )
+            if not events:
                 return profile
+
+            correct_count = sum(1 for e in events if e.is_correct)
+            total_count = len(events)
+            success_rate = correct_count / total_count if total_count > 0 else 0.0
+
+            topics_attempted: dict[str, dict[str, int]] = {}
+            for event in events:
+                concept_key = str(event.concept_key or "")
+                topic = concept_key.split(".")[0].lower() if "." in concept_key else concept_key.lower()
+                if topic not in topics_attempted:
+                    topics_attempted[topic] = {"correct": 0, "total": 0}
+                topics_attempted[topic]["total"] += 1
+                if event.is_correct:
+                    topics_attempted[topic]["correct"] += 1
+
+            strong_topics = []
+            for topic, stats in topics_attempted.items():
+                if stats["total"] >= 2:
+                    topic_rate = stats["correct"] / stats["total"]
+                    if topic_rate >= 0.6:
+                        strong_topics.append(topic)
+
+            latest_event_id = int(events[0].id)
             last_update_event_id = self._get_last_profile_update_event_id(db, student.id)
             events_since_last_update = latest_event_id - last_update_event_id
 

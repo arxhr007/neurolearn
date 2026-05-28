@@ -1,5 +1,6 @@
 """User lookup and bootstrap helpers."""
 
+from functools import lru_cache
 import logging
 
 from sqlalchemy.orm import Session
@@ -11,6 +12,11 @@ from langgraph_app.services.student_db import StudentDB
 
 
 logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=1)
+def _legacy_student_db() -> StudentDB:
+    return StudentDB(get_settings().legacy_student_db_path)
 
 
 def get_admin_by_username(db: Session, username: str) -> Admin | None:
@@ -181,16 +187,31 @@ def update_student(
 
 
 def sync_student_profile_to_legacy(student: Student) -> None:
-    settings = get_settings()
-    student_db = StudentDB(settings.legacy_student_db_path)
+    student_db = _legacy_student_db()
+    desired_name = student.full_name or student.username
+    desired_learning_style = student.learning_style
+    desired_reading_age = int(student.reading_age)
+    desired_interest_graph = list(student.interests or [])
+    desired_neuro_profile = list(student.neuro_profile or ["general"])
+
+    existing_profile = student_db.get_student_profile(student.student_id)
+    if existing_profile and (
+        existing_profile.get("name") == desired_name
+        and existing_profile.get("learning_style") == desired_learning_style
+        and int(existing_profile.get("reading_age") or 0) == desired_reading_age
+        and list(existing_profile.get("interest_graph") or []) == desired_interest_graph
+        and list(existing_profile.get("neuro_profile") or []) == desired_neuro_profile
+    ):
+        return
+
     try:
         student_db.upsert_student(
             student_id=student.student_id,
-            name=student.full_name or student.username,
-            learning_style=student.learning_style,
-            reading_age=int(student.reading_age),
-            interest_graph=list(student.interests or []),
-            neuro_profile=list(student.neuro_profile or ["general"]),
+            name=desired_name,
+            learning_style=desired_learning_style,
+            reading_age=desired_reading_age,
+            interest_graph=desired_interest_graph,
+            neuro_profile=desired_neuro_profile,
         )
     except Exception:
         logger.exception("Failed to sync student profile to legacy DB", extra={"student_id": student.student_id})

@@ -128,6 +128,16 @@ def build_index(
         metadata={"hnsw:space": "cosine"},
     )
 
+    existing_ids: set[str] = set()
+    if not rebuild:
+        try:
+            existing = collection.get(include=[])
+            existing_ids = set(existing.get("ids") or [])
+            if existing_ids:
+                print(f"Existing index entries detected: {len(existing_ids)}")
+        except Exception:
+            existing_ids = set()
+
     prepared_chunks, stats = _validate_and_prepare_chunks(chunks, min_chars=min_chars)
     print(
         "Chunk validation: "
@@ -139,6 +149,17 @@ def build_index(
     if not prepared_chunks:
         print("No valid chunks left to index after validation. Exiting.")
         return
+
+    if existing_ids:
+        before = len(prepared_chunks)
+        prepared_chunks = [chunk for chunk in prepared_chunks if chunk["id"] not in existing_ids]
+        skipped_existing = before - len(prepared_chunks)
+        if skipped_existing:
+            print(f"Skipped {skipped_existing} chunks that were already indexed")
+        if not prepared_chunks:
+            print("No new chunks to index. Existing collection is already up to date.")
+            print(f"Vector store saved to: {os.path.abspath(db_dir)}")
+            return
 
     # Batch insert (ChromaDB max batch = 41666 for safe operation)
     batch_size = 500

@@ -70,10 +70,15 @@ http://localhost:8000/api/redoc
 
 Start the web app with the Jinja pages and API together:
 
+has reload- for dev
 ```bash
 python3 -m uvicorn web_main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
+no reload-for production
+```bash
+python3 -m uvicorn web_main:app --host 0.0.0.0 --port 8000
+```
 If `uvicorn` is not on your PATH, always use the `python3 -m uvicorn ...` form.
 
 ## 5. Run with Docker

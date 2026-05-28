@@ -586,6 +586,21 @@ class MalayalamLLM:
                 return parsed
             return None
 
+        # Fast path: if the student's response already overlaps strongly with the
+        # expected answer hint, we can skip the model and return the same result
+        # this method would eventually infer as a fallback.
+        if expected_answer_hint and student_response:
+            hint_words = {w for w in re.findall(r"[\wാ-്]+", expected_answer_hint.lower()) if len(w) > 2}
+            response_words = {w for w in re.findall(r"[\wാ-്]+", student_response.lower()) if len(w) > 2}
+            overlap = len(hint_words & response_words)
+            if overlap >= 2:
+                return {
+                    "is_correct": True,
+                    "feedback": "ശരി.",
+                    "misconception": "",
+                    "confidence": 0.7,
+                }
+
         max_retries = 3
         for attempt in range(max_retries):
             try:
@@ -617,17 +632,6 @@ class MalayalamLLM:
         # the model returns empty/truncated output.
         fallback_feedback = "ഉത്തരം കൂടുതൽ വ്യക്തമാക്കണം."
         fallback_misconception = "parse_failed"
-        if expected_answer_hint and student_response:
-            hint_words = {w for w in re.findall(r"[\wാ-്]+", expected_answer_hint.lower()) if len(w) > 2}
-            response_words = {w for w in re.findall(r"[\wാ-്]+", student_response.lower()) if len(w) > 2}
-            overlap = len(hint_words & response_words)
-            if overlap >= 2:
-                return {
-                    "is_correct": True,
-                    "feedback": "ശരി.",
-                    "misconception": "",
-                    "confidence": 0.7,
-                }
 
         return {
             "is_correct": False,

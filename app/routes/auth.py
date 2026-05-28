@@ -13,7 +13,6 @@ from app.services.user_service import (
     authenticate_student,
     authenticate_teacher,
     sync_student_profile_to_legacy,
-    sync_student_profile_to_legacy_by_id,
 )
 
 
@@ -113,13 +112,6 @@ async def session_token(request: Request, db: Session = Depends(get_db)):
     user = get_session_user(request)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-
-    if user.get("role") == "student":
-        try:
-            sync_student_profile_to_legacy_by_id(db, int(user.get("user_id") or 0))
-        except Exception:
-            # Best-effort sync; don't block token issuance on sync errors.
-            pass
 
     token = create_access_token(
         username=str(user.get("username")),

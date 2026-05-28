@@ -1,9 +1,11 @@
 """Chroma-backed retriever service with a JSON fallback."""
 
 import asyncio
+import copy
 import json
 import logging
 import re
+import time
 from pathlib import Path
 from typing import Any
 
@@ -44,6 +46,9 @@ class RAGRetriever(RetrieverBase):
         self.hybrid_enabled = bool(hybrid_enabled)
         self._fallback_mode = False
         self._fallback_docs: list[dict[str, Any]] = []
+        self._query_cache: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
+        self._query_cache_order: list[tuple[Any, ...]] = []
+        self._query_cache_max_size = 64
 
         if not self.validate_config():
             raise ValueError("Invalid retriever configuration")
@@ -139,11 +144,48 @@ class RAGRetriever(RetrieverBase):
             return (0.8 * dense_similarity) + (0.2 * lexical_score)
         return dense_similarity
 
+    def _cache_key(self, question: str, top_k: int) -> tuple[Any, ...]:
+        return (
+            question.strip(),
+            int(top_k),
+            self._fallback_mode,
+            self.candidate_k,
+            self.min_similarity,
+            self.dedup_max_per_source_page,
+            self.rerank_enabled,
+            self.hybrid_enabled,
+        )
+
+    def _cache_get(self, key: tuple[Any, ...]) -> list[dict[str, Any]] | None:
+        cached = self._query_cache.get(key)
+        if cached is None:
+            return None
+        return copy.deepcopy(cached)
+
+    def _cache_set(self, key: tuple[Any, ...], docs: list[dict[str, Any]]) -> None:
+        self._query_cache[key] = copy.deepcopy(docs)
+        self._query_cache_order.append(key)
+        if len(self._query_cache_order) > self._query_cache_max_size:
+            oldest = self._query_cache_order.pop(0)
+            self._query_cache.pop(oldest, None)
+
+    def _clear_query_cache(self) -> None:
+        self._query_cache.clear()
+        self._query_cache_order.clear()
+
     def query(self, question: str, top_k: int = TOP_K) -> list[dict]:
         if not question or not question.strip():
             raise ValueError("question must be non-empty")
         if int(top_k) < 1:
             raise ValueError("top_k must be >= 1")
+
+        cache_key = self._cache_key(question, top_k)
+        cached_docs = self._cache_get(cache_key)
+        if cached_docs is not None:
+            logger.info("RAG query cache hit for top_k=%s", top_k)
+            return cached_docs
+
+        start = time.perf_counter()
 
         if self._fallback_mode:
             candidates: list[dict] = []
@@ -166,6 +208,9 @@ class RAGRetriever(RetrieverBase):
             docs = candidates[: int(top_k)]
             for item in docs:
                 item["low_confidence_retrieval"] = item.get("similarity_score", 0.0) < self.min_similarity
+            self._cache_set(cache_key, docs)
+            elapsed_ms = (time.perf_counter() - start) * 1000.0
+            logger.info("RAG fallback query took %.1f ms", elapsed_ms)
             return docs
 
         candidate_k = max(int(top_k), self.candidate_k)
@@ -232,6 +277,9 @@ class RAGRetriever(RetrieverBase):
         docs = kept[: int(top_k)]
         for item in docs:
             item["low_confidence_retrieval"] = low_confidence_retrieval
+        self._cache_set(cache_key, docs)
+        elapsed_ms = (time.perf_counter() - start) * 1000.0
+        logger.info("RAG query took %.1f ms (top_k=%s, candidates=%s)", elapsed_ms, top_k, len(candidates))
         return docs
 
     async def query_async(self, question: str, top_k: int = TOP_K) -> list[dict]:
@@ -252,9 +300,11 @@ class RAGRetriever(RetrieverBase):
                         "vector_id": doc_id,
                     }
                 )
+            self._clear_query_cache()
             return
         try:
             self.collection.add(documents=documents, metadatas=metadatas, ids=ids)
+            self._clear_query_cache()
         except Exception as exc:
             logger.exception("Failed to add documents to collection")
             raise RuntimeError(f"Failed to add documents: {exc}") from exc
@@ -265,9 +315,11 @@ class RAGRetriever(RetrieverBase):
                 return
             id_set = set(ids)
             self._fallback_docs = [doc for doc in self._fallback_docs if doc.get("vector_id") not in id_set]
+            self._clear_query_cache()
             return
         try:
             self.collection.delete(ids=ids)
+            self._clear_query_cache()
         except Exception as exc:
             logger.exception("Failed to delete documents from collection")
             raise RuntimeError(f"Failed to delete documents: {exc}") from exc
@@ -275,12 +327,14 @@ class RAGRetriever(RetrieverBase):
     def clear_collection(self) -> None:
         if self._fallback_mode:
             self._fallback_docs = []
+            self._clear_query_cache()
             return
         try:
             existing = self.collection.get(include=[])
             existing_ids = existing.get("ids") or []
             if existing_ids:
                 self.collection.delete(ids=existing_ids)
+            self._clear_query_cache()
         except Exception as exc:
             logger.exception("Failed to clear collection")
             raise RuntimeError(f"Failed to clear collection: {exc}") from exc
@@ -321,6 +375,7 @@ class RAGRetriever(RetrieverBase):
                 self.hybrid_enabled = bool(value)
         if not self.validate_config():
             raise ValueError("Invalid configuration update")
+        self._clear_query_cache()
         return self.get_config()
 
     def validate_config(self) -> bool:

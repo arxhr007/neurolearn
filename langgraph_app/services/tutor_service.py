@@ -6,11 +6,15 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 import re
+import time
 from threading import Lock
 from typing import Any, Optional
 from uuid import uuid4
 
 from langgraph_app.graph.builder import invoke_graph_safe
+import logging
+
+logger = logging.getLogger(__name__)
 from langgraph_app.models import (
     ConversationResponse,
     ConversationTurn,
@@ -26,9 +30,9 @@ class TutorServiceConfig:
     """Configuration for TutorService behavior."""
 
     default_top_k_retrieval: int = 5
-    default_response_timeout_seconds: int = 30
+    default_response_timeout_seconds: int = 60
     enable_conversation_history: bool = True
-    enable_smalltalk_heuristics: bool = False
+    enable_smalltalk_heuristics: bool = True
 
 
 @dataclass
@@ -112,13 +116,14 @@ class TutorService:
         """Run the graph for a student question turn."""
         conversation_id = conversation_id or str(uuid4())
         turn_id = str(uuid4())
+        active_learning_goal = self._extract_active_goal(student_id)
         smalltalk_kind = self._smalltalk_kind(question) if self.config.enable_smalltalk_heuristics else None
         if smalltalk_kind:
             response = self._build_smalltalk_response(conversation_id, turn_id, smalltalk_kind)
             self._store_turn(
                 conversation_id=conversation_id,
                 student_id=student_id,
-                learning_goal=self._extract_active_goal(student_id),
+                learning_goal=active_learning_goal,
                 turn=self._build_question_turn(turn_id, question, response),
             )
             return response
@@ -127,6 +132,7 @@ class TutorService:
             question=question,
             student_id=student_id,
             student_profile=profile,
+            active_learning_goal=active_learning_goal,
             top_k=top_k,
             conversation_id=conversation_id,
         )
@@ -135,7 +141,7 @@ class TutorService:
         self._store_turn(
             conversation_id=conversation_id,
             student_id=student_id,
-            learning_goal=self._extract_active_goal(student_id),
+            learning_goal=active_learning_goal,
             turn=self._build_question_turn(turn_id, question, response),
         )
         return response
@@ -171,11 +177,13 @@ class TutorService:
         """Run the graph for an answer-evaluation turn."""
         conversation_id = conversation_id or str(uuid4())
         turn_id = turn_id or str(uuid4())
+        active_learning_goal = self._extract_active_goal(student_id)
         profile = self._resolve_student_profile(student_id, student_profile)
         payload = self._build_payload(
             question=question,
             student_id=student_id,
             student_profile=profile,
+            active_learning_goal=active_learning_goal,
             top_k=top_k,
             conversation_id=conversation_id,
             student_response=student_answer,
@@ -186,7 +194,7 @@ class TutorService:
         self._store_turn(
             conversation_id=conversation_id,
             student_id=student_id,
-            learning_goal=self._extract_active_goal(student_id),
+            learning_goal=active_learning_goal,
             turn=self._build_answer_turn(turn_id, question, student_answer, response),
         )
         return response
@@ -216,6 +224,7 @@ class TutorService:
 
     def get_conversation_history(self, student_id: str, limit: int = 10) -> ConversationResponse:
         """Return the most recent in-memory conversation history for a student."""
+        active_learning_goal = self._extract_active_goal(student_id)
         with self._lock:
             recent: tuple[str, dict[str, Any]] | None = None
             for conversation_id, entry in self._history.items():
@@ -232,7 +241,7 @@ class TutorService:
                     created_at=now,
                     updated_at=now,
                     turns=[],
-                    learning_goal=self._extract_active_goal(student_id),
+                    learning_goal=active_learning_goal,
                 )
 
             conversation_id, entry = recent
@@ -248,6 +257,7 @@ class TutorService:
 
     def get_conversation_by_id(self, conversation_id: str, student_id: str) -> ConversationResponse:
         """Return a specific conversation history by conversation id."""
+        active_learning_goal = self._extract_active_goal(student_id)
         with self._lock:
             entry = self._history.get(conversation_id)
             if not entry:
@@ -258,7 +268,7 @@ class TutorService:
                     created_at=now,
                     updated_at=now,
                     turns=[],
-                    learning_goal=self._extract_active_goal(student_id),
+                    learning_goal=active_learning_goal,
                 )
             return ConversationResponse(
                 conversation_id=conversation_id,
@@ -300,11 +310,17 @@ class TutorService:
         }
 
     def _invoke(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return invoke_graph_safe(
-            self.graph,
-            payload,
-            timeout_seconds=self.config.default_response_timeout_seconds,
-        )
+        start = time.perf_counter()
+        try:
+            return invoke_graph_safe(
+                self.graph,
+                payload,
+                timeout_seconds=self.config.default_response_timeout_seconds,
+            )
+        finally:
+            elapsed_ms = (time.perf_counter() - start) * 1000.0
+            if elapsed_ms >= 1.0:
+                logger.info("Tutor graph invocation took %.1f ms", elapsed_ms)
 
     def _resolve_student_profile(
         self,
@@ -327,6 +343,7 @@ class TutorService:
         question: str,
         student_id: str,
         student_profile: dict[str, Any],
+        active_learning_goal: str | None,
         top_k: int | None,
         conversation_id: str,
         student_response: str | None = None,
@@ -340,6 +357,7 @@ class TutorService:
             "student_response": student_response if student_response is not None else question,
             "top_k": top_k or self.config.default_top_k_retrieval,
             "student_profile": student_profile,
+            "active_learning_goal": active_learning_goal or "",
             "conversation_id": conversation_id,
         }
         if check_answer_hint:
