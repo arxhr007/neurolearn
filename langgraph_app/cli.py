@@ -28,6 +28,42 @@ from langgraph_app.services.tutor_service import TutorService, TutorServiceConfi
 logger = logging.getLogger(__name__)
 
 
+def _looks_like_new_question(text: str) -> bool:
+    normalized = (text or "").strip().lower()
+    if not normalized:
+        return False
+
+    if normalized.endswith("?"):
+        return True
+
+    question_starts = (
+        "what",
+        "why",
+        "how",
+        "when",
+        "where",
+        "which",
+        "who",
+        "what's",
+        "why's",
+        "what is",
+        "why is",
+        "how is",
+        "how does",
+        "എന്ത്",
+        "എന്തുകൊണ്ട്",
+        "എങ്ങനെ",
+        "എപ്പോൾ",
+        "എവിടെ",
+        "ആരാണ്",
+        "ഏത്",
+    )
+    if normalized.startswith(question_starts):
+        return True
+
+    return any(word in normalized for word in (" എന്ത് ", " എന്തുകൊണ്ട് ", " എങ്ങനെ ", " എവിടെ ", " എപ്പോൾ "))
+
+
 def _load_env_file() -> None:
     """Load environment variables from .env when available."""
     try:
@@ -96,14 +132,7 @@ def _answer_question(
             dist_str = f" (distance: {doc['distance']:.3f})" if doc.get("distance") is not None else ""
             print(f"   [{i}] {doc['source']} p.{doc['page']}{dist_str}")
     else:
-        print("   No relevant passages found.")
-
-    if state.get("no_docs_found"):
-        msg = response.answer or "No relevant sources found; unable to provide an answer."
-        print(f"\n{'─' * 60}")
-        print(f"  Answer:\n\n{msg}")
-        print(f"{'─' * 60}\n")
-        return state
+        print("   No direct passages found; using a general answer fallback.")
 
     print("\n  Generating Malayalam answer...")
     answer = state.get("answer") or response.answer
@@ -123,7 +152,10 @@ def _answer_question(
             json_hint = f"output/rag_chunks/{source_base}.json"
             chunk_part = f"chunk_id={chunk_id}" if chunk_id is not None else f"vector_id={vector_id}"
             print(f"  [{i}] textbook={source}, page={page}, {chunk_part}, json={json_hint}")
+    answer_text = str(answer or "")
     check_question = state.get("check_question")
+    if getattr(service.llm, "looks_like_refusal", None) and service.llm.looks_like_refusal(answer_text):
+        check_question = None
     if check_question:
         print(f"\n  Check Question:\n\n{check_question}")
     evaluation_result = state.get("evaluation_result")
@@ -178,8 +210,8 @@ def run_interactive(
             print("\nExiting. Goodbye!")
             break
 
-        if pending_check_question:
-            # Treat next user turn as an answer to the last generated check question.
+        if pending_check_question and not _looks_like_new_question(question):
+            # Treat short follow-up text as an answer to the last generated check question.
             state = _answer_question(
                 pending_check_question,
                 service,
@@ -191,13 +223,18 @@ def run_interactive(
                 check_answer_hint=pending_check_answer_hint,
             )
         else:
+            if pending_check_question:
+                print("  Detected a new question; clearing the pending check question.")
+                pending_check_question = None
+                pending_check_answer_hint = None
             state = _answer_question(question, service, top_k, student_id, student_profile, conversation_id)
 
         evaluation_result = state.get("evaluation_result") or {}
         is_correct = evaluation_result.get("is_correct")
         check_question = state.get("check_question")
+        answer_text = str(state.get("answer") or "")
 
-        if check_question:
+        if check_question and not state.get("general_answer_fallback") and not (getattr(service.llm, "looks_like_refusal", None) and service.llm.looks_like_refusal(answer_text)):
             pending_check_question = check_question
             pending_check_answer_hint = state.get("check_answer_hint")
             print("  Next: answer the check question above.")

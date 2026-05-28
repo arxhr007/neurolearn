@@ -387,28 +387,16 @@ class TutorService:
         turn_id: str,
         state: dict[str, Any],
     ) -> TutorResponse:
-        # If the graph indicated no docs were found, surface a clear error message
-        if state.get("no_docs_found"):
-            msg = "No relevant sources found; unable to provide an answer."
-            return TutorResponse(
-                conversation_id=conversation_id,
-                turn_id=turn_id,
-                status="error",
-                answer=msg,
-                check_question=None,
-                check_answer_hint=None,
-                sources=[],
-                evaluation_result=state.get("evaluation_result") or {},
-                mastery_event=state.get("mastery_event"),
-                remediation_explanation=state.get("remediation_explanation"),
-                raw_state=state,
-            )
-
         answer = state.get("answer")
         if answer is None:
             evaluation_result = state.get("evaluation_result") or {}
             answer = evaluation_result.get("feedback") or ""
-        check_question = state.get("check_question")
+        looks_like_refusal = False
+        try:
+            looks_like_refusal = bool(self.llm.looks_like_refusal(str(answer)))
+        except Exception:
+            looks_like_refusal = False
+        check_question = state.get("check_question") if not (state.get("general_answer_fallback") or looks_like_refusal) else None
         check_answer_hint = state.get("check_answer_hint")
         sources = self._build_sources(state)
         status = "waiting_for_answer" if check_question else "answered"

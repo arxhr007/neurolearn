@@ -345,6 +345,86 @@ class MalayalamLLM:
                     raise
         raise RuntimeError("Groq API rate limit exceeded after all retries.")
 
+    def generate_general_answer(self, question: str, student_profile: dict | None = None) -> str:
+        """Generate a concise general answer when retrieval is thin or missing.
+
+        This is used as a UX fallback so the tutor can still respond helpfully
+        even when the KB does not contain a direct match.
+        """
+        profile = student_profile or {}
+        learning_style = profile.get("learning_style", "analogy-heavy")
+        reading_age = profile.get("reading_age", 12)
+        neuro_tags, neuro_guidelines = self._build_neuro_support_guidelines(student_profile)
+
+        user_prompt = (
+            f"Question: {question}\\n"
+            f"Learning style: {learning_style}\\n"
+            f"Reading age: {reading_age}\\n"
+            f"Neuro profile: {neuro_tags}\\n"
+            f"Neurodivergent support guidelines:\n{neuro_guidelines}\\n\\n"
+            "Task:\n"
+            "- Answer in Malayalam using general textbook-level knowledge.\n"
+            "- Keep it concise, clear, and student-friendly.\n"
+            "- If relevant, mention that this is a general explanation rather than a direct quote from the retrieved passages.\n"
+            "- Do not say you cannot answer just because context is thin.\n\n"
+            "General Answer in Malayalam:"
+        )
+
+        max_retries = 4
+        for attempt in range(max_retries):
+            try:
+                response = self.client.chat.completions.create(
+                    model=GROQ_MODEL,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.3,
+                    max_tokens=1024,
+                )
+                text = self._extract_response_text(response)
+                if text:
+                    return text
+                raise RuntimeError("Empty general answer content returned by LLM.")
+            except Exception as exc:
+                err_str = str(exc)
+                if "429" in err_str or "rate_limit" in err_str.lower():
+                    wait = 2 ** attempt * 10
+                    print(f"   Rate limited. Retrying in {wait}s... (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(wait)
+                else:
+                    raise
+        raise RuntimeError("Groq API rate limit exceeded after all retries.")
+
+    @staticmethod
+    def looks_like_refusal(text: str) -> bool:
+        lowered = (text or "").lower()
+        return any(
+            phrase in lowered
+            for phrase in (
+                "not enough information",
+                "unable to answer",
+                "cannot answer",
+                "could not find",
+                "no relevant sources",
+                "provided passages",
+                "no direct passages",
+                "not available in the retrieved",
+                "not enough direct",
+                "no evidence",
+                "വിവരമില്ല",
+                "മതിയായ വിവര",
+                "ലഭ്യമല്ല",
+                "ഉത്തരം നൽകാൻ കഴിയില്ല",
+                "ഉത്തരം നൽകാൻ സാധ്യമല്ല",
+                "പ്രദത്തപ്പെട്ട രേഖകളിൽ",
+                "കൊടുത്തിരിക്കുന്ന രേഖകളിൽ",
+                "ലഭ്യമായ ഉറവിടങ്ങളിൽ നിന്ന്",
+                "രേഖകളിൽ വിവരമില്ല",
+                "വിവരണം ഇല്ലാത്തതിനാൽ",
+            )
+        )
+
     def personalize(self, question: str, context_docs: list[dict], student_profile: dict | None = None) -> str:
         """Generate a personalized explanation using learner profile hints."""
         profile = student_profile or {}

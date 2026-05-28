@@ -18,6 +18,37 @@ _JUDGE_CACHE: OrderedDict[str, tuple[str, str]] = OrderedDict()
 _JUDGE_CACHE_MAX = 4096
 
 
+def _looks_like_insufficient_answer(text: str) -> bool:
+    lowered = (text or "").lower()
+    return any(
+        phrase in lowered
+        for phrase in (
+            "not enough information",
+            "unable to answer",
+            "cannot answer",
+            "could not find",
+            "no relevant sources",
+            "provided passages",
+            "motham info",
+            "no direct passages",
+            "not directly stated",
+            "not available in the retrieved",
+            "not enough direct",
+            "no evidence",
+            "വിവരമില്ല",
+            "മതിയായ വിവര",
+            "ലഭ്യമല്ല",
+            "ഉത്തരം നൽകാൻ കഴിയില്ല",
+            "ഉത്തരം നൽകാൻ സാധ്യമല്ല",
+            "പ്രദത്തപ്പെട്ട രേഖകളിൽ",
+            "കൊടുത്തിരിക്കുന്ന രേഖകളിൽ",
+            "ലഭ്യമായ ഉറവിടങ്ങളിൽ നിന്ന്",
+            "രേഖകളിൽ വിവരമില്ല",
+            "വിവരണം ഇല്ലാത്തതിനാൽ",
+        )
+    )
+
+
 def make_parent_orchestrator():
     def parent_orchestrator(state: RAGState) -> RAGState:
         return {"active_node": "parent_orchestrator"}
@@ -172,10 +203,14 @@ def make_personalizer(llm, node_name: str = "personalizer"):
         # Short-circuit if retriever found no documents
         if state.get("no_docs_found") or not (state.get("docs") or []):
             print(f"   Personalizer short-circuited for node: {node_name} (no docs)")
+            question = state.get("question", "")
+            profile = state.get("student_profile") or {}
+            explanation = llm.generate_general_answer(question, profile)
             return {
-                "personalized_explanation": "",
-                "answer": "",
+                "personalized_explanation": explanation,
+                "answer": explanation,
                 "no_docs_found": True,
+                "general_answer_fallback": True,
                 "active_node": node_name,
             }
 
@@ -204,6 +239,28 @@ def make_personalizer(llm, node_name: str = "personalizer"):
             docs,
             profile,
         )
+        if _looks_like_insufficient_answer(explanation):
+            print(f"   Personalizer fallback triggered for node: {node_name} (insufficient grounding)")
+            explanation = llm.generate_general_answer(question, profile)
+            return {
+                "personalized_explanation": explanation,
+                "answer": explanation,
+                "general_answer_fallback": True,
+                "active_node": node_name,
+            }
+
+        # If the general answer itself still looks like a refusal, force one more fallback.
+        if _looks_like_insufficient_answer(explanation):
+            explanation = (
+                "ഈ വിഷയം പൊതുവായി പറഞ്ഞാൽ, മനസ്സിലാക്കാൻ ലളിതമായ രീതിയിൽ മറുപടി നൽകാം. "
+                "കൂടുതൽ വിശദമായ explanation വേണമെങ്കിൽ ചോദ്യം അല്പം വ്യക്തമായി ചോദിക്കൂ."
+            )
+            return {
+                "personalized_explanation": explanation,
+                "answer": explanation,
+                "general_answer_fallback": True,
+                "active_node": node_name,
+            }
         print("   Personalizer produced explanation")
 
         # Store in cache with simple size cap
@@ -214,6 +271,7 @@ def make_personalizer(llm, node_name: str = "personalizer"):
         return {
             "personalized_explanation": explanation,
             "answer": explanation,
+            "general_answer_fallback": False,
             "active_node": node_name,
         }
 
@@ -299,6 +357,16 @@ def make_personalization_gate(llm, node_name: str = "personalization_gate"):
 
 def make_evaluator(llm, node_name: str = "evaluator"):
     def evaluator(state: RAGState) -> RAGState:
+        if state.get("general_answer_fallback"):
+            print(f"   Evaluator skipped for node: {node_name} (general answer fallback)")
+            return {
+                "evaluation_result": {
+                    "status": "general_answer_fallback",
+                    "is_correct": None,
+                },
+                "active_node": node_name,
+            }
+
         explanation = (state.get("personalized_explanation") or state.get("answer") or "").strip()
         question = state.get("question", "")
         student_profile = state.get("student_profile")
