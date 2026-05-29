@@ -134,3 +134,49 @@ cp .env.example .env
 mkdir -p data
 python3 -m uvicorn web_main:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+
+## 9. Story Mode (opt-in)
+
+Story Mode converts a generated answer into a short, learner-friendly Malayalam story. It is opt-in and does not change stored conversation history or the original answer.
+
+Interactive usage:
+
+- Start the interactive CLI as usual:
+
+```bash
+python3 main.py --student-id <STUDENT_ID>
+```
+
+- After asking a question and receiving an answer, type `story` at the prompt to get a storyified version of the last answer.
+
+Single-query (non-interactive) usage:
+
+```bash
+python3 main.py --text "Why wash hands?" --student-id <STUDENT_ID> --story
+```
+
+API endpoint:
+
+- A read-only endpoint was added to request a story for a previously saved conversation turn (requires auth):
+
+```
+GET /api/conversations/{student_id}/{conversation_id}/{turn_id}/story
+```
+
+Replace the placeholders and call with a valid bearer token. Example (curl):
+
+```bash
+curl -H "Authorization: Bearer <TOKEN>" \
+  "http://localhost:8000/api/conversations/s100/CONVO_ID/TURN_ID/story"
+```
+
+Testing:
+
+- Run the lightweight story-mode unit test:
+
+```bash
+pytest -q tests/test_story_mode.py
+```
+
+---

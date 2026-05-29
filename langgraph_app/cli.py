@@ -64,6 +64,65 @@ def _looks_like_new_question(text: str) -> bool:
     return any(word in normalized for word in (" എന്ത് ", " എന്തുകൊണ്ട് ", " എങ്ങനെ ", " എവിടെ ", " എപ്പോൾ "))
 
 
+def _is_smalltalk(text: str, service: TutorService | None = None) -> bool:
+    """Conservative smalltalk detector combining service heuristics and
+    additional lightweight rules to avoid misclassifying short conversational
+    replies as answers.
+    """
+    if not text or not text.strip():
+        return False
+    normalized = text.strip().lower()
+
+    # Fast accept common greeting/ack patterns (English + Malayalam)
+    greetings = (
+        "hi",
+        "hello",
+        "hiya",
+        "hey",
+        "how are you",
+        "how r u",
+        "hru",
+        "good morning",
+        "good afternoon",
+        "good evening",
+        "what's up",
+        "whats up",
+        "thanks",
+        "thank you",
+        "thankyou",
+        "bye",
+        "നമസ്",
+        "ഹായ്",
+        "ഹലോ",
+        "നമസ്കാരം",
+        "സുഖമാണോ",
+        "നന്ദി",
+        "ശരി",
+    )
+    if any(g in normalized for g in greetings):
+        return True
+
+    # If the service provides a smalltalk heuristic, use it as a signal.
+    if service is not None:
+        try:
+            kind = service._smalltalk_kind(normalized)
+            if kind:
+                return True
+        except Exception:
+            pass
+
+    # Short utterances (<= 4 tokens) that mostly contain stopwords/polite words
+    tokens = [t for t in normalized.split() if t]
+    if len(tokens) <= 4:
+        # If there are any punctuation markers that look like a genuine question
+        # (who/what/why/how keywords), do not treat as smalltalk here.
+        if any(tok in ("what", "why", "how", "where", "when", "who", "which") for tok in tokens):
+            return False
+        return True
+
+    return False
+
+
 def _load_env_file() -> None:
     """Load environment variables from .env when available."""
     try:
@@ -201,6 +260,8 @@ def run_interactive(
     pending_check_question: str | None = None
     pending_check_answer_hint: str | None = None
     conversation_id = str(uuid4())
+    last_state: dict | None = None
+    last_question_for_state: str | None = None
 
     while True:
         prompt = "  Enter question (Malayalam/English): "
@@ -214,14 +275,109 @@ def run_interactive(
 
         if not question:
             continue
+        # Handle the opt-in story command immediately and always use the saved
+        # last_state when available. This prevents re-running the graph when
+        # the user simply wants a storyified version of the most recent answer.
+        if question.lower().strip() == "story":
+            if not last_state:
+                print("  No previous answer available to convert. Ask a question first.")
+                continue
+            try:
+                # Use only the saved last_state; do NOT re-run the graph or retrieval.
+                story = service.generate_story_from_state(last_state, student_id, student_profile)
+                print(f"\n{'─' * 60}")
+                print("  Story Version (Malayalam):\n")
+                print(story)
+                print(f"{'─' * 60}\n")
+            except Exception as exc:
+                logger.exception("Story generation failed")
+                print(f"  ERROR generating story: {exc}")
+            continue
+
+        # If a check question is pending, prefer handling smalltalk first
+        # so brief conversational replies don't accidentally clear the pending
+        # check question even if they look like questions (e.g., "how are you?").
+        if pending_check_question:
+            if _is_smalltalk(question, service):
+                try:
+                    resp = service.ask_question(
+                        question=question,
+                        student_id=student_id,
+                        student_profile=student_profile,
+                        top_k=top_k,
+                        conversation_id=conversation_id,
+                    )
+                    if (resp.evaluation_result or {}).get("smalltalk"):
+                        print(f"\n{'─' * 60}")
+                        print(f"  Answer:\n\n{resp.answer}")
+                        print(f"{'─' * 60}\n")
+                        # Reminder to user to continue with the pending check question.
+                        if pending_check_question:
+                            print("  Reminder: please answer the pending check question below.")
+                            print(f"\n  Check Question:\n\n{pending_check_question}\n")
+                except Exception:
+                    logger.exception("Failed to handle smalltalk during pending check")
+                # Keep the pending check question active and re-prompt.
+                continue
+        # Opt-in story-mode command: convert last generated answer into a story.
+        if question.lower().strip() == "story":
+            if not last_state:
+                print("  No previous answer available to convert. Ask a question first.")
+                continue
+            try:
+                # Use only the saved last_state; do NOT re-run the graph or retrieval.
+                story = service.generate_story_from_state(last_state, student_id, student_profile)
+                print(f"\n{'─' * 60}")
+                print("  Story Version (Malayalam):\n")
+                print(story)
+                print(f"{'─' * 60}\n")
+            except Exception as exc:
+                logger.exception("Story generation failed")
+                print(f"  ERROR generating story: {exc}")
+            continue
         if question.lower() in ("exit", "quit", "stop", "bye"):
             print("\nExiting. Goodbye!")
             break
 
         if pending_check_question and not _looks_like_new_question(question):
+            # If the input looks like smalltalk (greeting/ack), handle it as
+            # smalltalk and do NOT treat it as an answer to the pending check
+            # question. The pending check remains active.
+            smalltalk_kind = None
+            try:
+                smalltalk_kind = service._smalltalk_kind(question) if hasattr(service, "_smalltalk_kind") else None
+            except Exception:
+                smalltalk_kind = None
+
+            if smalltalk_kind:
+                # Handle smalltalk via the normal ask_question path so the
+                # smalltalk heuristics and response rendering are used. Keep
+                # the pending check question unchanged.
+                try:
+                    resp = service.ask_question(
+                        question=question,
+                        student_id=student_id,
+                        student_profile=student_profile,
+                        top_k=top_k,
+                        conversation_id=conversation_id,
+                    )
+                    if (resp.evaluation_result or {}).get("smalltalk"):
+                        print(f"\n{'─' * 60}")
+                        print(f"  Answer:\n\n{resp.answer}")
+                        print(f"{'─' * 60}\n")
+                        # After responding, remind the user to answer the pending question.
+                        if pending_check_question:
+                            print("  Reminder: please answer the pending check question below.")
+                            print(f"\n  Check Question:\n\n{pending_check_question}\n")
+                except Exception:
+                    logger.exception("Failed to handle smalltalk during pending check")
+                # leave pending_check_question intact
+                continue
+
             # Treat short follow-up text as an answer to the last generated check question.
+            call_question = pending_check_question
             state = _answer_question(
-                pending_check_question,
+                call_question,
                 service,
                 top_k,
                 student_id,
@@ -235,7 +391,12 @@ def run_interactive(
                 print("  Detected a new question; clearing the pending check question.")
                 pending_check_question = None
                 pending_check_answer_hint = None
+            call_question = question
             state = _answer_question(question, service, top_k, student_id, student_profile, conversation_id)
+
+        # Save the last state/question so story mode can operate separately.
+        last_state = state
+        last_question_for_state = call_question
 
         evaluation_result = state.get("evaluation_result") or {}
         is_correct = evaluation_result.get("is_correct")
@@ -259,9 +420,19 @@ def run_single_query(
     top_k: int,
     student_id: str,
     student_profile: dict,
+    story: bool = False,
 ) -> None:
     print(f"\n  Query: {query}")
-    _answer_question(query, service, top_k, student_id, student_profile, str(uuid4()))
+    state = _answer_question(query, service, top_k, student_id, student_profile, str(uuid4()))
+    if story:
+        try:
+            story_text = service.generate_story_from_state(state, student_id, student_profile)
+            print(f"\n{'─' * 60}")
+            print("  Story Version (Malayalam):\n")
+            print(story_text)
+            print(f"{'─' * 60}\n")
+        except Exception:
+            logger.exception("Story generation failed for single-query mode")
 
 
 def main() -> None:
@@ -274,6 +445,13 @@ def main() -> None:
         type=str,
         default=None,
         help="Single question to answer (non-interactive mode)",
+    )
+    parser.add_argument(
+        "--story",
+        dest="story",
+        action="store_true",
+        default=False,
+        help="When used with --text, also print a storyified version of the answer",
     )
     parser.add_argument(
         "--db-dir",
@@ -383,6 +561,6 @@ def main() -> None:
     )
 
     if args.text:
-        run_single_query(args.text, service, args.top_k, args.student_id, student_profile)
+        run_single_query(args.text, service, args.top_k, args.student_id, student_profile, story=args.story)
     else:
         run_interactive(service, args.top_k, args.student_id, student_profile)

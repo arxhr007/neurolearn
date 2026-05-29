@@ -976,3 +976,73 @@ class MalayalamLLM:
             "redirect_message": "",
         }
 
+    def generate_story_from_answer(
+        self,
+        answer: str,
+        question: str | None = None,
+        context_docs: list[dict] | None = None,
+        student_profile: dict | None = None,
+        story_style: str = "child_friendly",
+    ) -> str:
+        """Convert an existing answer/explanation into a short story.
+
+        This is an opt-in post-processing helper used by the CLI or higher-level
+        services. It intentionally does not modify original answer content and
+        simply returns a storyified variant.
+        """
+        profile = student_profile or {}
+        reading_age = profile.get("reading_age", 12)
+        neuro_tags, neuro_guidelines = self._build_neuro_support_guidelines(student_profile)
+
+        context_parts = []
+        for i, doc in enumerate((context_docs or [])[:3], 1):
+            context_parts.append(f"[{i}] {doc.get('source')} p.{doc.get('page')}: {str(doc.get('text') or '')[:200]}")
+        context_block = "\n\n".join(context_parts)
+
+        system_prompt = (
+            "You are a creative Malayalam storyteller who can convert an explanation into a short, engaging story suitable for learners. "
+            "Keep it simple, concrete, and supportive. Use age-appropriate vocabulary."
+        )
+
+        user_prompt = (
+            f"Original answer/explanation:\n{answer}\n\n"
+            f"(Optional) Question: {question or ''}\n"
+            f"Context excerpts:\n{context_block}\n\n"
+            f"Reading age: {reading_age}\n"
+            f"Neuro profile: {neuro_tags}\n"
+            f"Neurodivergent support guidelines:\n{neuro_guidelines}\n\n"
+            "Task:\n"
+            "- Convert the explanation into a longer, engaging Malayalam story (3-6 short paragraphs or ~6-12 sentences).\n"
+            "- Keep the educational fact accurate and avoid inventing false details.\n"
+            "- Make the protagonist relatable to a child learner and include a small scene that shows the behaviour.\n"
+            "- Return only the story text (no JSON or metadata).\n\n"
+            "Story in Malayalam:" 
+        )
+
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = self.client.chat.completions.create(
+                    model=GROQ_MODEL,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.6,
+                    max_tokens=768,
+                )
+                text = self._extract_response_text(response)
+                if text:
+                    return text
+            except Exception as exc:
+                err_str = str(exc)
+                if "429" in err_str or "rate_limit" in err_str.lower():
+                    wait = 2 ** attempt * 5
+                    print(f"   Rate limited. Retrying in {wait}s... (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(wait)
+                    continue
+                else:
+                    raise
+
+        return "കഥ സൃഷ്ടിക്കാൻ തകരാറ്. മാപ്പ്, പിന്നീട് വീണ്ടും ശ്രമിക്കുക."  # fallback message
+

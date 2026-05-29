@@ -302,3 +302,150 @@ By the end of the chat, the repo had improvements in all the places that mattere
 The latest interactive behavior is now consistent: the tutor can ask a check question, accept a real answer on the next turn, and still let the user abandon that path by asking a new unrelated question.
 
 The main remaining work, if continued, would be more answer-path trimming and any further cleanup of duplicated tutor/web persistence paths.
+
+## 10. Story Mode (new feature)
+
+Summary:
+- Story Mode is an opt-in post-processing feature that converts a generated answer/explanation into a short, engaging Malayalam story suitable for learners. It does not change the original answer, the graph flow, or stored conversation history — it only returns an additional storyified text when requested.
+
+Files changed / new helpers:
+- `langgraph_app/services/llm.py` — added `generate_story_from_answer(answer, question=None, context_docs=None, student_profile=None, story_style='child_friendly')` which calls the Groq LLM to produce a story.
+- `langgraph_app/services/tutor_service.py` — added `generate_story_from_state(state, student_id=None, student_profile=None, story_style=None)` which wraps the LLM helper and accepts the graph `state` produced by `ask_question`/`evaluate_answer`.
+- `langgraph_app/cli.py` — interactive CLI accepts the special command `story` to request a storyified version of the last answer.
+
+How to use (interactive CLI):
+- Start the CLI (from repo root):
+
+```bash
+python main.py --student-id <STUDENT_ID>
+```
+
+- Ask a question as usual and wait for the tutor's answer. After the answer appears, type `story` at the prompt and press Enter. The CLI will print the storyified Malayalam text for the last generated answer.
+
+Notes:
+- If no prior answer exists in the current session, `story` will prompt that there's nothing to convert.
+- The `story` command is non-destructive — it does not modify conversation turns or masteries.
+
+Programmatic usage (example):
+- If you want to call story-mode from code (e.g., in the API or a script), you can use the `TutorService` methods directly. Example:
+
+```python
+from langgraph_app.services.tutor_service import TutorService
+
+# assume `service` is an initialized TutorService and `student_id` exists
+resp = service.ask_question(question="Why do we wash hands?", student_id="student-1")
+# `resp.raw_state` contains the graph state used to render the answer
+story_text = service.generate_story_from_state(resp.raw_state, student_id="student-1")
+print(story_text)
+```
+
+Suggested API endpoint (optional):
+- You can expose a simple endpoint that returns a story for an existing conversation/turn. Implementation idea:
+	- GET `/conversations/{conversation_id}/turns/{turn_id}/story`
+	- Look up the stored turn state (or call graph to re-run if ephemeral)
+	- Call `service.generate_story_from_state(state, student_id, student_profile)` and return the story string in the response.
+
+Configuration & behavior:
+- Story generation respects `student_profile` hints (e.g., `reading_age`, `neuro_profile`) to produce age-appropriate and supportive stories. Pass the profile when calling programmatically for the best output.
+- `story_style` parameter exists for future stylistic control (e.g., `child_friendly`, `comic`, `adventure`) but currently defaults to `child_friendly` and is passed through to the LLM prompt.
+- Network / LLM failures: story generation may fail with rate-limit or API errors. The CLI will print a helpful error message. The LLM helper includes limited retries and a fallback message when the model is unavailable.
+
+Testing & validation:
+- Manual test (CLI):
+	1. Run `python main.py --student-id <id>`.
+	2. Ask a question known to retrieve content (e.g., handwashing example used in previous tests).
+	3. After the answer, type `story` and verify the story output is coherent and preserves the core facts.
+- Unit test (suggested): add a small test that mocks the LLM client and asserts the `generate_story_from_state` returns the expected story string when provided a sample `state`.
+
+Developer notes / next steps:
+- Consider adding `--story` flag for single-query non-interactive mode to return both the canonical answer and story alongside it.
+- Consider exposing story-style options in the CLI and API for teachers to choose reading level / tone.
+- Add a web API endpoint as suggested above if you want story-mode available via the web UI.
+
+### Recent code additions (CLI flag, API endpoint, test)
+
+Quick summary of the follow-up changes added after initial Story Mode:
+
+- CLI flag: `--story` — when running a single-question non-interactive invocation, add `--story` to also print a storyified version of the answer.
+	- Implemented in: [langgraph_app/cli.py](langgraph_app/cli.py)
+	- Example:
+
+```bash
+python main.py --text "Why wash hands?" --student-id <STUDENT_ID> --story
+```
+
+- Interactive command: `story` — in interactive mode, type `story` after an answer to convert the last answer to a story.
+	- Implemented in: [langgraph_app/cli.py](langgraph_app/cli.py)
+
+- API endpoint: returns a story for a stored conversation turn.
+	- Endpoint: `GET /api/conversations/{student_id}/{conversation_id}/{turn_id}/story`
+	- Implemented in: [api_main.py](api_main.py)
+	- Auth: requires student/teacher/admin role (same protection as conversation endpoints).
+	- Example (curl):
+
+```bash
+curl -H "Authorization: Bearer <TOKEN>" \
+	"http://localhost:8000/api/conversations/s100/CONVO_ID/TURN_ID/story"
+```
+
+- Unit test: `tests/test_story_mode.py` — lightweight test that mocks the LLM and student DB to assert the `TutorService.generate_story_from_state` wrapper returns the expected story string.
+	- Implemented in: [tests/test_story_mode.py](tests/test_story_mode.py)
+	- Run with: `pytest -q tests/test_story_mode.py`
+
+These items are small, opt-in additions that preserve all existing behavior while making story-mode easily accessible from CLI, API, and tests.
+---
+
+End of additions.
+
+## 11. Topicality, Smalltalk, and Story Hardening (recent fixes)
+
+Summary:
+- After initial rollout we observed two UX problems: 1) the system sometimes generated irrelevant or hallucinated check questions when the retrieved KB passages were off-topic, and 2) the interactive CLI could clear a pending check-question when users typed short smalltalk replies or requested a story, causing confusing loops.
+
+What I implemented to fix these issues:
+
+- Embedding + lexical topicality guard (conservative):
+	- Before exposing a generated `check_question` to the user, the tutor now checks retrieval signals from the graph state: the maximum dense similarity reported by the retriever and a small lexical token overlap between the user's question and the top retrieved passages.
+	- Default conservative thresholds (tunable): `MIN_SIM_FOR_CHECK = 0.28` and `MIN_LEXICAL_OVERLAP = 2` tokens. Both must be low to avoid blocking legitimate questions; the guard suppresses the check question only when similarity AND overlap are both low.
+	- File: `langgraph_app/services/tutor_service.py` (topicality filter added in `_build_question_response`).
+
+- Post-filter for out-of-context tokens:
+	- After a `check_question` is generated, we verify that at least some tokens from the generated check question appear in the retrieved doc texts. If none are shared and overlap is low, we suppress the check question (this blocks questions inventing unrelated names/places).
+	- File: `langgraph_app/services/tutor_service.py` (post-filter block).
+
+- Suppression logging and safe defaults:
+	- Suppressed check questions are logged with a short reason and the involved doc IDs to help tuning. The guard is intentionally conservative and logged so thresholds can be tuned from real examples.
+	- File: `langgraph_app/services/tutor_service.py` (logger.info on suppression).
+
+- Regex fix and indentation repair:
+	- Fixed a runtime crash caused by an invalid character-range in a regex used to tokenize Malayalam text. The code now uses the Malayalam Unicode block range `\u0D00-\u0D7F` in regex patterns to safely capture tokens.
+	- Also corrected an indentation bug introduced during edits that produced an `IndentationError` at startup; both issues were fixed and validated.
+	- File: `langgraph_app/services/tutor_service.py` (regex and indentation fixes).
+
+- Stricter smalltalk detection + reminder UX:
+	- Implemented a conservative smalltalk detector `_is_smalltalk(...)` combining explicit greeting/ack lists, the service smalltalk heuristic, and a short-utterance rule. This reduces misclassification of short answers as new tutoring questions.
+	- When smalltalk occurs while a check question is pending, the CLI answers the smalltalk, then prints a short reminder and reprints the pending check question: "Reminder: please answer the pending check question below." This reduces confusion for learners.
+	- File: `langgraph_app/cli.py` (new `_is_smalltalk`, reminder text).
+
+- Story command hardened (no graph re-run):
+	- The `story` interactive command now runs before any other routing logic and always uses the saved `last_state` to generate the story. This prevents the CLI from re-running retrieval/personalization when the user only requested a story conversion.
+	- The `--story` CLI flag for single-query mode was also added earlier to return a story alongside a one-shot answer.
+	- File: `langgraph_app/cli.py`, `langgraph_app/services/tutor_service.py`.
+
+Validation & testing notes:
+- Start the interactive CLI and exercise these flows manually:
+	1. Ask a question that retrieves relevant docs and confirm a `check_question` is produced normally.
+	2. Ask a question without relevant docs (e.g., a topic not in the KB) and confirm the check question is suppressed and a general answer or fallback is returned.
+	3. Ask a question, then type short smalltalk ("hi", "how are you"). The CLI should reply to smalltalk, then reprint the pending check question with a reminder.
+	4. After getting an answer, type `story`. Confirm the CLI returns a story derived from the last answer without re-running retrieval (check logs for no extra RAG queries).
+
+Developer follow-ups (recommended):
+- Expose `MIN_SIM_FOR_CHECK` and `MIN_LEXICAL_OVERLAP` as `TutorServiceConfig` fields or environment-configurable values so they can be tuned per deployment.
+- Add a small admin endpoint to fetch recent suppressed check questions for manual review and threshold tuning.
+- Add unit tests that simulate low-overlap and out-of-context check-question cases so regressions are easier to catch.
+
+Files changed in this round (concise):
+- `langgraph_app/services/tutor_service.py` — embedding+lexical topicality guard, post-filter, regex/indent fix, suppression logging.
+- `langgraph_app/cli.py` — stricter smalltalk detector (`_is_smalltalk`), reminder UX, story immediate handling.
+
+End of recent fixes.

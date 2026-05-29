@@ -397,6 +397,50 @@ class TutorService:
         except Exception:
             looks_like_refusal = False
         check_question = state.get("check_question") if not (state.get("general_answer_fallback") or looks_like_refusal) else None
+        # Topicality guard: suppress generated check questions when retrieved
+        # documents don't appear to cover the asked topic. Use a blended set of
+        # signals: embedding/dense similarity reported by the retriever and a
+        # conservative lexical overlap check. This reduces hallucinated check
+        # questions when the KB lacks relevant material.
+        try:
+            docs = state.get("docs") or []
+            if check_question and docs:
+                # Use the highest similarity from retrieved docs as a primary signal.
+                max_sim = max(float(d.get("similarity_score") or 0.0) for d in docs)
+                # Lexical overlap between question and retrieved doc texts.
+                qtext = str(state.get("question") or "").lower()
+                doc_text = " ".join([str(d.get("text") or "") for d in docs[:5]]).lower()
+                # Use Unicode range for Malayalam block to safely capture tokens.
+                qtokens = {w for w in re.findall(r"[\w\u0D00-\u0D7F]+", qtext) if len(w) > 2}
+                dtokens = {w for w in re.findall(r"[\w\u0D00-\u0D7F]+", doc_text) if len(w) > 2}
+                overlap = len(qtokens & dtokens)
+
+                # Configurable thresholds (conservative defaults):
+                MIN_SIM_FOR_CHECK = 0.28
+                MIN_LEXICAL_OVERLAP = 2
+
+                suppress_reason = None
+                if max_sim < MIN_SIM_FOR_CHECK and overlap < MIN_LEXICAL_OVERLAP:
+                    suppress_reason = f"low_similarity_and_overlap sim={max_sim:.3f} overlap={overlap}"
+
+                # Post-filter: if the generated check question references tokens
+                # not present in the retrieved doc texts, it's likely out of
+                # context (e.g., mentions a person or place not in KB). If so,
+                # suppress it.
+                if not suppress_reason:
+                    cq_text = str(check_question or "").lower()
+                    cq_tokens = [w for w in re.findall(r"[\w\u0D00-\u0D7F]+", cq_text) if len(w) > 2]
+                    if cq_tokens:
+                        shared = sum(1 for t in cq_tokens if t in dtokens)
+                        if shared == 0 and overlap < MIN_LEXICAL_OVERLAP:
+                            suppress_reason = f"check_question_tokens_out_of_context shared={shared} overlap={overlap}"
+
+                if suppress_reason:
+                    logger.info("Suppressing check_question: %s; question=%s; docs=%s", suppress_reason, qtext[:120], [d.get("vector_id") for d in docs[:5]])
+                    check_question = None
+        except Exception:
+            # Keep original behavior on unexpected errors during topicality checks.
+            logger.exception("Error during topicality check for generated check_question")
         check_answer_hint = state.get("check_answer_hint")
         sources = self._build_sources(state)
         status = "waiting_for_answer" if check_question else "answered"
@@ -551,3 +595,38 @@ class TutorService:
             entry["updated_at"] = turn.generated_at
             if learning_goal and not entry.get("learning_goal"):
                 entry["learning_goal"] = learning_goal
+
+    def generate_story_from_state(
+        self,
+        state: dict[str, Any],
+        student_id: str | None = None,
+        student_profile: dict[str, Any] | None = None,
+        story_style: str | None = None,
+    ) -> str:
+        """Generate a storyified variant of the answer contained in `state`.
+
+        This is non-destructive: it does not modify stored history or the
+        original state. It is intended as an opt-in post-processing step.
+        """
+        if not state:
+            raise ValueError("No state provided for story generation")
+
+        profile = student_profile or (self.student_db.get_student_profile(student_id) if student_id else {})
+
+        # Prefer the explicit answer field, fall back to evaluator feedback.
+        answer_text = str(state.get("answer") or (state.get("evaluation_result") or {}).get("feedback") or "").strip()
+        question_text = str(state.get("question") or "").strip()
+        context_docs = state.get("docs") or []
+
+        if not answer_text:
+            raise ValueError("No answer text available in state to convert to a story")
+
+        # Delegate to LLM story helper; this may raise on API errors.
+        story = self.llm.generate_story_from_answer(
+            answer=answer_text,
+            question=question_text or None,
+            context_docs=context_docs,
+            student_profile=profile,
+            story_style=story_style or "child_friendly",
+        )
+        return story

@@ -912,6 +912,65 @@ def get_conversation_by_id(
     return service.get_conversation_by_id(conversation_id=conversation_id, student_id=student_id)
 
 
+@app.get(
+    "/api/conversations/{student_id}/{conversation_id}/{turn_id}/story",
+    tags=["Tutor"],
+)
+def get_conversation_turn_story(
+    student_id: str,
+    conversation_id: str,
+    turn_id: str,
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    service: TutorService = Depends(get_tutor_service),
+    student_db: SqlAlchemyStudentDB = Depends(get_student_db),
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    """Return a storyified variant of the answer for the requested conversation turn.
+
+    This endpoint reconstructs a minimal `state` from the stored conversation turn
+    and delegates to `TutorService.generate_story_from_state`. It is intentionally
+    a read-only, opt-in helper.
+    """
+    _require_student_access(db, current_user, student_id)
+    profile = student_db.get_student_profile(student_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail=f"Student not found: {student_id}")
+
+    conversation = service.get_conversation_by_id(conversation_id=conversation_id, student_id=student_id)
+    # Find the requested turn
+    target = None
+    for t in conversation.turns:
+        if t.turn_id == turn_id:
+            target = t
+            break
+    if target is None:
+        raise HTTPException(status_code=404, detail="Turn not found")
+
+    answer_text = target.answer or ""
+    question_text = target.question or ""
+    docs = []
+    for s in (target.sources or []):
+        # convert Source pydantic model to minimal doc dict
+        try:
+            docs.append({"source": s.source, "page": s.page, "text": s.excerpt})
+        except Exception:
+            # fallback for plain dict-like values
+            docs.append({"source": getattr(s, "source", ""), "page": getattr(s, "page", None), "text": getattr(s, "excerpt", "")})
+
+    if not answer_text:
+        raise HTTPException(status_code=400, detail="No answer text available for this turn")
+
+    state = {"answer": answer_text, "question": question_text, "docs": docs}
+
+    try:
+        story = service.generate_story_from_state(state, student_id=student_id, student_profile=profile)
+    except Exception as exc:
+        logger.exception("Failed to generate story for turn")
+        raise HTTPException(status_code=500, detail=f"Story generation failed: {exc}") from exc
+
+    return {"conversation_id": conversation_id, "turn_id": turn_id, "story": story}
+
+
 @app.delete("/api/conversations/{conversation_id}", tags=["Conversations"])
 def clear_conversation(
     conversation_id: str,
