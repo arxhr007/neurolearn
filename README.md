@@ -227,6 +227,9 @@ To understand the project and how to work with it, start with these docs:
 - **[EXAMPLES.md](docs/EXAMPLES.md)**: Example student flows and pipeline usage.
 - **[TESTING.md](docs/TESTING.md)**: Validation checklist and testing workflow.
 
+Manual module range CSV:
+- `chapter_modules.csv` — manually editable page ranges for each module (source, module, start_page, end_page). Overrides auto-detection when present. See [how_to.md](how_to.md) §10 for details.
+
 Internal notes and build history:
 - **[FLOW.md](docs/FLOW.md)**: Detailed mapping of the data flow and AI interactions.
 - **[plan.md](docs/plan.md)**: Roadmap, goals, and architectural plans.

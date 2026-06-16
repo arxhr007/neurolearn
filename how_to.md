@@ -180,3 +180,98 @@ pytest -q tests/test_story_mode.py
 ```
 
 ---
+
+## 10. Chapter Mode with Module Selection
+
+Chapter mode lets you enter a drill harness grounded in a specific chapter (PDF) and module.
+
+Interactive CLI:
+
+```bash
+python3 main.py --student-id s100
+```
+
+Then type `chapter` to enter chapter mode, pick a chapter, then pick a module by number.
+
+Direct chapter-mode start:
+
+```bash
+python3 main.py --student-id s100 --chapter-mode
+```
+
+### 10.1 Module page ranges — CSV override
+
+Module boundaries are auto-detected from the chunk files, but you can override them manually by editing `chapter_modules.csv` in the project root:
+
+```csv
+source,module,start_page,end_page
+Care group.pdf,1,12,13
+Care group.pdf,2,14,15
+```
+
+- Rows are inclusive: `start=5, end=10` includes pages 5 through 10.
+- When the CSV exists, the system uses your ranges instead of auto-detection.
+- When the CSV is absent (or a source/module is not listed), auto-detection kicks in automatically.
+- Regenerate the CSV from current auto-detected data by running:
+
+```bash
+python3 -c "
+from pathlib import Path; import csv, json
+from langgraph_app.services.chapter_mode import (
+    extract_modules, _safe_load_json, _MODULE_PATTERN, _DANDA_FIX,
+    _find_colophon_page, _compute_number_map
+)
+CHUNKS_DIR = Path('output/rag_chunks')
+rows = []
+for f in sorted(CHUNKS_DIR.glob('*.json')):
+    if f.name == '_manifest.json': continue
+    data = _safe_load_json(f)
+    if not data: continue
+    pdf = f.stem + '.pdf'
+    all_chunks = sorted([c for c in data if isinstance(c, dict)], key=lambda x: (int(x.get('page',0)), int(x.get('chunk_id',0))))
+    pp_refs, mod_pages = {}, {}
+    for c in all_chunks:
+        p = int(c.get('page',0))
+        t = _DANDA_FIX.sub(r'\1 1', str(c.get('text','')))
+        for m in _MODULE_PATTERN.finditer(t):
+            n = int(m.group(1))
+            pp_refs.setdefault(p, set()).add(n)
+            mod_pages.setdefault(n, []).append(p)
+    cp = _find_colophon_page(all_chunks)
+    nm = _compute_number_map(list(mod_pages.keys()))
+    n2r = {v:k for k,v in nm.items()}
+    for m in extract_modules(all_chunks):
+        num, raw = m['number'], m['_raw']
+        if raw not in mod_pages: continue
+        pf = sorted(set(mod_pages[raw]))
+        rc = [(p, len(pp_refs.get(p,set()))) for p in pf]
+        sp = min(p for p,c in rc if c==min(c for _,c in rc))
+        ns = []
+        for nr in sorted(mod_pages):
+            if nr <= raw: continue
+            np = sorted(set(mod_pages[nr]))
+            nc = [(p,len(pp_refs.get(p,set()))) for p in np]
+            ns.append(min(p for p,c in nc if c==min(c for _,c in nc)))
+        ep = (min(ns)-1) if ns else cp-1
+        rows.append({'source':pdf,'module':num,'start_page':sp,'end_page':ep})
+with open('chapter_modules.csv','w',newline='') as f:
+    w = csv.DictWriter(f, fieldnames=['source','module','start_page','end_page'])
+    w.writeheader(); w.writerows(rows)
+print(f'Written {len(rows)} rows')
+"
+```
+
+### 10.2 Supported module naming patterns
+
+The auto-detection handles these OCR variations:
+
+| Pattern | Example | How it's handled |
+|---------|---------|-----------------|
+| Sequential | 1, 2, 3, … | Kept as-is |
+| Roman-numeral OCR | 1, 11, 111, 1111 | Renumbered 1, 2, 3, 4 |
+| Mixed + noise | 1,2,3,4,5,17,111 | Prefix kept (1-5), noise dropped, Romans renumbered |
+| OCR spelling | `മൊഡ്യൂള്` / `മൊഡ്വ്യൂള്` | Both matched by regex |
+| Digit `1` as danda | `।` instead of `1` | Mapped back to `1` via `_DANDA_FIX` |
+| Colophon cutoff | `ശില്പശാലയില്‍ പങ്കെടുത്തവര്‍` | Content after credits page is discarded |
+
+---

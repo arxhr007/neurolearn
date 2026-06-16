@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 from dataclasses import dataclass
 from collections import Counter
 import json
@@ -242,6 +243,86 @@ _MODULE_PATTERN = re.compile(
     re.DOTALL | re.IGNORECASE,
 )
 
+# Colophon / credits marker that ends real content in every PDF
+_COLOPHON_KEYWORDS = ["ശില്പശാലയില്", "പങ്കെടുത്തവര്"]
+
+
+def _compute_number_map(raw_numbers: list[int]) -> dict[int, int]:
+    """Map OCR'd module numbers to clean sequential numbers.
+
+    Returns ``{raw_number: normalized_number}``.  Numbers not in the map
+    are treated as OCR noise and discarded.
+
+    * Sequential (1, 2, 3, …) — kept as-is.
+    * Roman-numeral OCR (1, 11, 111, 1111) — renumbered 1, 2, 3, 4.
+    * Mixed — longest contiguous prefix from 1 is kept; any remaining
+      all-1s numbers (Roman artifacts) are renumbered sequentially.
+    """
+    numbers = sorted(set(raw_numbers))
+    if not numbers:
+        return {}
+
+    if numbers == list(range(1, len(numbers) + 1)):
+        return {n: n for n in numbers}
+
+    if all(set(str(n)) <= {"1"} for n in numbers):
+        return {n: i + 1 for i, n in enumerate(numbers)}
+
+    mapping: dict[int, int] = {}
+    expected = 1
+    for n in numbers:
+        if n == expected:
+            mapping[n] = expected
+            expected += 1
+        else:
+            break
+
+    remaining = [n for n in numbers if n not in mapping]
+    for n in remaining:
+        if set(str(n)) <= {"1"} and n > 1:
+            mapping[n] = expected
+            expected += 1
+
+    return mapping
+
+
+def _find_colophon_page(chunks: list[dict[str, Any]]) -> int:
+    """Return the page number of the credits/colophon section, or 9999."""
+    for c in chunks:
+        text = str(c.get("text") or "")
+        if all(kw in text for kw in _COLOPHON_KEYWORDS):
+            return int(c.get("page") or 9999)
+    return 9999
+
+
+def _csv_path() -> Path:
+    """Locate the optional ``chapter_modules.csv`` file next to the chunks dir."""
+    return default_chunks_dir().parent.parent / "chapter_modules.csv"
+
+
+def _load_csv_ranges() -> dict[str, dict[int, tuple[int, int]]]:
+    """Load manual page ranges from ``chapter_modules.csv``.
+
+    Returns ``{source: {module: (start_page, end_page)}}``.
+    """
+    path = _csv_path()
+    if not path.exists():
+        return {}
+    result: dict[str, dict[int, tuple[int, int]]] = {}
+    with open(path, newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            source = row.get("source", "").strip()
+            if not source:
+                continue
+            try:
+                module = int(row["module"])
+                start = int(row["start_page"])
+                end = int(row["end_page"])
+            except (ValueError, KeyError):
+                continue
+            result.setdefault(source, {})[module] = (start, end)
+    return result
+
 
 def extract_modules(
     chunks: list[dict[str, Any]],
@@ -275,6 +356,35 @@ def extract_modules(
                 "page": c.get("page"),
                 "chunk_id": c.get("chunk_id"),
             })
+
+    colophon_page = _find_colophon_page(chunks)
+    found = [m for m in found if m["page"] is None or int(m["page"]) < colophon_page]
+
+    raw_numbers = [m["number"] for m in found]
+    number_map = _compute_number_map(raw_numbers)
+    for m in found:
+        m["_raw"] = m["number"]
+        m["number"] = number_map.get(m["number"], m["number"])
+
+    found = [m for m in found if m["_raw"] in number_map]
+
+    csv_ranges = _load_csv_ranges()
+    source = _normalize_source_name(str(chunks[0].get("source") or "")) if chunks else ""
+    if source and csv_ranges and source in csv_ranges:
+        csv_modules = csv_ranges[source]
+        result = []
+        for mod_num in sorted(csv_modules.keys()):
+            sp, ep = csv_modules[mod_num]
+            auto = next((m for m in found if m["number"] == mod_num), None)
+            result.append({
+                "number": mod_num,
+                "title": auto["title"] if auto else "",
+                "page": sp,
+                "chunk_id": auto.get("chunk_id") if auto else None,
+                "end_page": ep,
+                "_raw": mod_num,
+            })
+        return result
 
     found.sort(key=lambda m: (m["page"] or 0, m["number"]))
     return found
@@ -330,6 +440,22 @@ def load_module_docs(
     all_chunks = [item for item in _safe_load_json(chosen_path) if isinstance(item, dict)]
     all_chunks.sort(key=lambda item: (int(item.get("page") or 0), int(item.get("chunk_id") or 0)))
 
+    csv_ranges = _load_csv_ranges()
+    if chapter_source in csv_ranges and module_number in csv_ranges[chapter_source]:
+        sp, ep = csv_ranges[chapter_source][module_number]
+        filtered = [c for c in all_chunks if sp <= (int(c.get("page") or 0)) <= ep]
+        docs = filtered[:max_docs] if filtered else all_chunks[:max_docs]
+        return [
+            {
+                "text": str(item.get("text") or ""),
+                "source": _normalize_source_name(str(item.get("source") or chosen_path.stem)),
+                "page": item.get("page"),
+                "chunk_id": item.get("chunk_id"),
+                "vector_id": f"{chosen_path.stem}__p{item.get('page')}_c{item.get('chunk_id')}",
+            }
+            for item in docs
+        ]
+
     # Per page: how many distinct modules are referenced
     per_page_refs: dict[int, set[int]] = {}
     # Per module: pages where it appears
@@ -343,19 +469,29 @@ def load_module_docs(
             per_page_refs.setdefault(p, set()).add(num)
             module_pages.setdefault(num, []).append(p)
 
-    if not module_pages or module_number not in module_pages:
-        return [] if module_number > 1 else all_chunks[:max_docs]
+    # Resolve normalized → raw module number
+    raw_number_map = _compute_number_map(list(module_pages.keys()))
+    norm_to_raw = {v: k for k, v in raw_number_map.items()}
+    raw_module_number = norm_to_raw.get(module_number, module_number)
+
+    if not module_pages or raw_module_number not in module_pages:
+        return [] if raw_module_number > 1 else all_chunks[:max_docs]
+
+    colophon_page = _find_colophon_page(all_chunks)
 
     # For this module: pick the page with the FEWEST other module refs
-    pages_for_module = sorted(set(module_pages[module_number]))
+    pages_for_module = sorted(set(module_pages[raw_module_number]))
     page_ref_counts = [(p, len(per_page_refs.get(p, set()))) for p in pages_for_module]
     min_count = min(c for _, c in page_ref_counts)
     start_page = min(p for p, c in page_ref_counts if c == min_count)
 
+    if start_page >= colophon_page:
+        return [] if raw_module_number > 1 else all_chunks[:max_docs]
+
     # Find next higher module's start page as boundary
     next_starts: list[int] = []
     for num in sorted(module_pages.keys()):
-        if num <= module_number:
+        if num <= raw_module_number:
             continue
         np = sorted(set(module_pages[num]))
         np_counts = [(p, len(per_page_refs.get(p, set()))) for p in np]
@@ -363,7 +499,7 @@ def load_module_docs(
         ns = min(p for p, c in np_counts if c == nm)
         if ns > start_page:
             next_starts.append(ns)
-    end_page = min(next_starts) if next_starts else 9999
+    end_page = min(next_starts) if next_starts else colophon_page
 
     filtered = [
         c for c in all_chunks

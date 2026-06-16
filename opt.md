@@ -499,3 +499,67 @@ pytest -q tests/test_chapter_mode.py
 ```
 
 If you want a web/API entry point later, the same chapter helpers can be reused without changing the tutor graph.
+
+## 13. Module-Level Content Selection (within Chapter Mode)
+
+Summary:
+- Chapter mode was refined to let a student pick a specific module (മൊഡ്യൂള്) within a chapter/PDF instead of loading the entire document. The CLI now shows available modules after chapter selection, prompts for a module number, and loads only that module's content for drill questions.
+
+### 13.1 Module auto-detection from chunk files
+
+How it works:
+- The system scans each PDF's chunk JSON for patterns like `മൊഡ്യൂള് N` or `മൊഡ്വ്യൂള് N` (two OCR spellings) using a regex pattern. When found, it records the module number, title, and page.
+- Module numbers are normalized to sequential 1, 2, 3, … using `_compute_number_map()` which handles three cases:
+  - Already sequential (1, 2, 3, …) → kept as-is
+  - Roman-numeral OCR artifacts (1, 11, 111, 1111 = I, II, III, IV) → renumbered 1, 2, 3, 4
+  - Mixed (clean prefix + OCR noise) → prefix kept, noise discarded, remaining all-1s numbers renumbered
+- Modules whose content starts on or after the colophon/credits page (`ശില്പശാലയില് പങ്കെടുത്തവര്`) are discarded.
+
+Content-boundary detection:
+- For each module, the system finds all pages where `മൊഡ്യൂള് N` appears. It picks the page with the *fewest* other distinct module references as the content start page (this naturally selects the content header over the TOC or module-detail table).
+- The end boundary is the next module's content start page (or the colophon page for the last module).
+
+### 13.2 Edge cases handled
+
+- OCR danda fix: Digit `1` is sometimes OCR'd as Devanagari danda (`।`, U+0964). A `_DANDA_FIX` regex maps it back to `1` before module matching.
+- Two OCR spellings for "module": `മൊഡ്യൂള്` (correct) and `മൊഡ്വ്യൂള്` (OCR variant) — both matched via regex alternation.
+- Module detail pages / TOC pages have many module references (10+), so the "fewest refs per page" heuristic correctly identifies content headers (1 module) over TOC pages.
+
+### 13.3 Manual CSV override (`chapter_modules.csv`)
+
+- A `chapter_modules.csv` file in the project root lets you manually define page ranges for any module by editing `source,module,start_page,end_page`.
+- When the CSV exists, `extract_modules()` returns modules from the CSV (with auto-detected titles) and `load_module_docs()` uses the CSV page range directly, bypassing auto-detection.
+- When the CSV is absent, both functions fall back to the auto-detection logic described above — zero behavior change.
+- Initial CSV is generated from current auto-detected ranges (47 rows across 8 PDFs). Edit it to fix page ranges for poorly-detected modules.
+
+How to edit:
+```csv
+source,module,start_page,end_page
+Care group.pdf,1,12,13
+Care group.pdf,2,14,15
+```
+
+The entries are inclusive: `start_page=5, end_page=10` includes all chunks with page numbers 5 through 10.
+
+### 13.4 Files changed
+
+- `langgraph_app/services/chapter_mode.py`:
+  - `_DANDA_FIX` — OCR danda → digit 1 fix
+  - `_MODULE_PATTERN` — regex matching both OCR spellings
+  - `_compute_number_map()` — normalizes OCR'd module numbers to clean sequential
+  - `_find_colophon_page()` — detects credits page as content boundary
+  - `_load_csv_ranges()` — loads manual overrides from CSV
+  - `extract_modules()` — module extraction with colophon filter, number normalization, and CSV override
+  - `load_module_docs()` — content-boundary detection with CSV short-circuit
+  - `_find_source_json()` — shared helper for locating chunk JSON by source name
+- `langgraph_app/services/tutor_service.py`:
+  - `get_chapter_modules()` — delegates to `extract_modules()`
+  - `load_module_docs()` — delegates to chapter_mode version
+- `langgraph_app/cli.py` — updated `_run_chapter_mode()` with module selection flow
+- `chapter_modules.csv` — initial 47-row CSV generated from auto-detected ranges
+
+### 13.5 Validation
+
+- The module overview (`chapter_modules_overview.md`) was regenerated twice — before and after number normalization — to confirm all 8 PDFs produce clean sequential module numbers.
+- Load tests verified that every normalized module number (1..N per PDF) returns the correct content pages via `load_module_docs()`.
+- CSV/no-CSV fallback tested by temporarily removing the CSV file and confirming auto-detection still works correctly.
