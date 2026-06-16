@@ -1,6 +1,6 @@
 """Authentication helpers for password hashing and JWT issuance."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from jose import JWTError, jwt
@@ -34,7 +34,7 @@ def create_access_token(
     expires_minutes: int | None = None,
 ) -> str:
     settings = get_settings()
-    expire = datetime.utcnow() + timedelta(minutes=expires_minutes or settings.access_token_expire_minutes)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes or settings.access_token_expire_minutes)
     payload: dict[str, Any] = {
         "sub": username,
         "email": username,

@@ -21,6 +21,7 @@ from langgraph_app.models import (
     Source,
     TutorQuestionResponse,
 )
+from langgraph_app.services.chapter_mode import discover_chapters, extract_modules, load_chapter_docs, load_module_docs
 from langgraph_app.services.retriever_base import RetrieverBase
 from langgraph_app.services.student_db_base import StudentDBBase
 
@@ -288,6 +289,67 @@ class TutorService:
 
     def get_learning_goals(self, student_id: str) -> list[dict[str, Any]]:
         return self.student_db.get_learning_goals(student_id)
+
+    def list_available_chapters(self, chunks_dir: str | None = None) -> list[dict[str, Any]]:
+        return discover_chapters(chunks_dir=chunks_dir)
+
+    def load_chapter_docs(
+        self,
+        chapter_source: str,
+        chunks_dir: str | None = None,
+        max_docs: int = 8,
+    ) -> list[dict[str, Any]]:
+        return load_chapter_docs(chapter_source=chapter_source, chunks_dir=chunks_dir, max_docs=max_docs)
+
+    def get_chapter_modules(
+        self,
+        chapter_source: str,
+        chunks_dir: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return list of {number, title, page} modules for a chapter PDF."""
+        from langgraph_app.services.chapter_mode import _find_source_json, _safe_load_json
+
+        path = _find_source_json(chapter_source, chunks_dir)
+        if path is None:
+            return []
+        all_chunks = [c for c in _safe_load_json(path) if isinstance(c, dict)]
+        return extract_modules(all_chunks)
+
+    def load_module_docs(
+        self,
+        chapter_source: str,
+        module_number: int,
+        chunks_dir: str | None = None,
+        max_docs: int = 8,
+    ) -> list[dict[str, Any]]:
+        return load_module_docs(
+            chapter_source=chapter_source,
+            module_number=module_number,
+            chunks_dir=chunks_dir,
+            max_docs=max_docs,
+        )
+
+    def generate_chapter_drill_bundle(
+        self,
+        chapter_name: str,
+        topic: str,
+        chapter_docs: list[dict[str, Any]] | None = None,
+        student_profile: dict[str, Any] | None = None,
+        question_index: int = 1,
+        total_questions: int = 3,
+        previous_questions: list[str] | None = None,
+        review_focus: str | None = None,
+    ) -> dict[str, Any]:
+        return self.llm.generate_chapter_drill_bundle(
+            chapter_name=chapter_name,
+            topic=topic,
+            chapter_docs=chapter_docs,
+            student_profile=student_profile,
+            question_index=question_index,
+            total_questions=total_questions,
+            previous_questions=previous_questions,
+            review_focus=review_focus,
+        )
 
     def get_active_learning_goal(self, student_id: str) -> Any:
         return self.student_db.get_active_learning_goal(student_id)

@@ -18,6 +18,7 @@ class MalayalamLLM:
                 "GROQ_API_KEY is required. Set it in the environment or .env file."
             )
         self.client = Groq(api_key=api_key)
+
         print(f"[LLM] Using Groq model: {GROQ_MODEL}")
 
     @staticmethod
@@ -605,6 +606,105 @@ class MalayalamLLM:
             "expected_answer": "",
         }
 
+    def generate_chapter_drill_bundle(
+        self,
+        chapter_name: str,
+        topic: str,
+        chapter_docs: list[dict] | None = None,
+        student_profile: dict | None = None,
+        question_index: int = 1,
+        total_questions: int = 3,
+        previous_questions: list[str] | None = None,
+        review_focus: str | None = None,
+    ) -> dict:
+        """Generate one grounded chapter drill question and hidden answer hint."""
+
+        profile = student_profile or {}
+        reading_age = profile.get("reading_age", 12)
+        neuro_tags, neuro_guidelines = self._build_neuro_support_guidelines(student_profile)
+        previous_questions = previous_questions or []
+
+        def _clip(text: str, limit: int = 240) -> str:
+            cleaned = (text or "").strip().replace("\n", " ")
+            if len(cleaned) <= limit:
+                return cleaned
+            return cleaned[: limit - 3].rstrip() + "..."
+
+        def _extract_json(text: str) -> dict | None:
+            raw = (text or "").strip()
+            if not raw:
+                return None
+            match = re.search(r"\{.*\}", raw, re.DOTALL)
+            candidate = match.group(0) if match else raw
+            candidate = candidate.replace("```json", "").replace("```", "").strip()
+            try:
+                parsed = json.loads(candidate)
+            except Exception:
+                return None
+            return parsed if isinstance(parsed, dict) else None
+
+        context_parts = []
+        for i, doc in enumerate((chapter_docs or [])[:4], 1):
+            context_parts.append(
+                f"[{i}] {doc.get('source')} p.{doc.get('page')}: {_clip(str(doc.get('text') or ''), 320)}"
+            )
+        context_block = "\n\n".join(context_parts) if context_parts else "[]"
+
+        system_prompt = (
+            "You are a Malayalam educational drill generator. "
+            "Return exactly one compact JSON object with keys: question, expected_answer. "
+            "Keep both fields short and age-appropriate. "
+            "Do not include markdown, bullets, numbering, or extra text."
+        )
+        user_prompt = (
+            f"Chapter: {chapter_name}\n"
+            f"Topic: {topic}\n"
+            f"Question number: {question_index}/{total_questions}\n"
+            f"Reading age: {reading_age}\n"
+            f"Previous questions: {previous_questions}\n"
+            f"Review focus: {review_focus or ''}\n\n"
+            f"Neuro profile: {neuro_tags}\n"
+            f"Neurodivergent support guidelines:\n{neuro_guidelines}\n\n"
+            f"Chapter context:\n{context_block}\n\n"
+            "Task:\n"
+            "- Write one short Malayalam drill question grounded in the chapter context.\n"
+            "- Prefer simple, real-life or story-like wording when possible.\n"
+            "- Avoid copying long sentences from the source text.\n"
+            "- Provide a short hidden expected_answer hint that captures the intended idea.\n"
+            "- If review_focus is provided, make the question simpler and closer to that focus.\n"
+            "Return only the JSON object."
+        )
+
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = self.client.chat.completions.create(
+                    model=GROQ_MODEL,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.25,
+                    max_tokens=256,
+                )
+                content = self._extract_response_text(response)
+                parsed = _extract_json(content)
+                if parsed:
+                    parsed.setdefault("question", "")
+                    parsed.setdefault("expected_answer", "")
+                    return parsed
+            except Exception as exc:
+                if "429" in str(exc) or "rate_limit" in str(exc).lower():
+                    time.sleep(2 ** attempt * 5)
+                else:
+                    break
+
+        fallback_topic = topic or chapter_name or "വിഷയം"
+        return {
+            "question": f"{fallback_topic} കുറിച്ച് ഒരു ചെറിയ ചോദ്യം പറയാമോ?",
+            "expected_answer": fallback_topic,
+        }
+
     def evaluate_student_answer(
         self,
         question: str,
@@ -1012,7 +1112,8 @@ class MalayalamLLM:
             f"Neuro profile: {neuro_tags}\n"
             f"Neurodivergent support guidelines:\n{neuro_guidelines}\n\n"
             "Task:\n"
-            "- Convert the explanation into a longer, engaging Malayalam story (3-6 short paragraphs or ~6-12 sentences).\n"
+            "- Convert the explanation into a longer, engaging Malayalam story.\n"
+            "- Use at least 3 short paragraphs, and expand to more paragraphs if the topic is hard or broad.\n"
             "- Keep the educational fact accurate and avoid inventing false details.\n"
             "- Make the protagonist relatable to a child learner and include a small scene that shows the behaviour.\n"
             "- Return only the story text (no JSON or metadata).\n\n"

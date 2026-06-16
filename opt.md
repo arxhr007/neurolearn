@@ -449,3 +449,53 @@ Files changed in this round (concise):
 - `langgraph_app/cli.py` — stricter smalltalk detector (`_is_smalltalk`), reminder UX, story immediate handling.
 
 End of recent fixes.
+
+## 12. Chapter Mode (new opt-in layer)
+
+Summary:
+- Added a new opt-in chapter mode on top of the current tutor flow. The existing question/answer flow remains unchanged. Chapter mode is a separate drill layer that lets a student choose a chapter, pick a topic, and then run a short practice harness of 3 or more questions.
+
+How it works:
+- Chapter mode scans the current `output/rag_chunks/*.json` files and treats each source PDF as a selectable chapter. This means the available chapters adapt automatically when PDFs change over time.
+- After the student chooses a chapter and types a topic in free text, the system stores a learning goal like `Chapter: <source> | Topic: <topic>` using the existing learning-goal storage. That means the existing mastery and progress tracking stack keeps working.
+- A small chapter drill generator creates 3 or more practice questions grounded in the selected chapter excerpts. The questions are story-based / real-life style when possible, and each practice item also includes a hidden expected-answer hint for evaluation.
+- The student answers each question, and the existing answer-evaluation + mastery recording path is used. Wrong answers trigger review priority, so the next question generation can focus more simply on the same concept.
+
+Files added/changed:
+- `langgraph_app/services/chapter_mode.py` — new helper module that discovers chapter-like groups from the chunk JSON files and loads chapter excerpts.
+- `langgraph_app/services/llm.py` — added `generate_chapter_drill_bundle(...)` for producing one grounded practice question + answer hint.
+- `langgraph_app/services/tutor_service.py` — added wrappers to list chapters, load chapter docs, and generate chapter drill bundles without changing existing tutoring behavior.
+- `langgraph_app/cli.py` — added an interactive `chapter` command and a `--chapter-mode` flag to start a chapter drill session.
+- `api_main.py` — added `GET /api/chapters` so the web/API layer can list the same chapter sources.
+- `tests/test_chapter_mode.py` — focused test coverage for chapter discovery/loading and the TutorService delegation wrapper.
+
+How to use:
+- Interactive CLI:
+
+```bash
+python3 main.py --student-id s100
+```
+
+- Then type `chapter` when you want to enter chapter mode.
+- Choose a chapter from the list, type any topic you want, and answer the 3-question drill harness.
+
+Direct chapter-mode start:
+
+```bash
+python3 main.py --student-id s100 --chapter-mode
+```
+
+Notes:
+- Chapter mode is extra and opt-in; it does not replace the normal tutor flow.
+- The drill is grounded in the current PDF chunk files, so chapter availability can change when PDFs are updated.
+- The existing mastery/progress tracking remains the same, but chapter mode gives it a more structured learning path.
+
+Validation:
+- Syntax checks on the edited files passed.
+- Run the chapter mode test with:
+
+```bash
+pytest -q tests/test_chapter_mode.py
+```
+
+If you want a web/API entry point later, the same chapter helpers can be reused without changing the tutor graph.

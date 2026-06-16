@@ -9,6 +9,7 @@ from functools import lru_cache
 from hmac import compare_digest
 from pathlib import Path
 from typing import Any
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -74,6 +75,17 @@ logger = logging.getLogger(__name__)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
+@asynccontextmanager
+async def _lifespan(_: FastAPI):
+    from app.database import init_db
+
+    init_db()
+    with SessionLocal() as db:
+        ensure_default_admin(db)
+        ensure_single_admin(db)
+    yield
+
+
 class Settings(BaseSettings):
     """App settings loaded from environment variables."""
 
@@ -133,7 +145,6 @@ class TeacherResponse(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
-
 
 class TeacherListResponse(BaseModel):
     total: int
@@ -691,6 +702,7 @@ app = FastAPI(
     title=settings.api_title,
     version=settings.api_version,
     description=settings.api_description,
+    lifespan=_lifespan,
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
@@ -702,16 +714,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-def _startup() -> None:
-    from app.database import init_db
-
-    init_db()
-    with SessionLocal() as db:
-        ensure_default_admin(db)
-        ensure_single_admin(db)
 
 
 @app.get("/", tags=["Meta"])
@@ -969,6 +971,15 @@ def get_conversation_turn_story(
         raise HTTPException(status_code=500, detail=f"Story generation failed: {exc}") from exc
 
     return {"conversation_id": conversation_id, "turn_id": turn_id, "story": story}
+
+
+@app.get("/api/chapters", tags=["Tutor"])
+def list_chapters(
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    service: TutorService = Depends(get_tutor_service),
+) -> dict[str, Any]:
+    del current_user
+    return {"chapters": service.list_available_chapters()}
 
 
 @app.delete("/api/conversations/{conversation_id}", tags=["Conversations"])

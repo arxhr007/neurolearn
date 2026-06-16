@@ -21,6 +21,7 @@ from langgraph_app.graph.builder import build_graph_app
 from langgraph_app.services.intent_classifier import IntentClassifier
 from langgraph_app.services.llm import MalayalamLLM
 from langgraph_app.services.retriever import RAGRetriever
+from langgraph_app.services.chapter_mode import plan_chapter_session, split_docs_into_segments
 from langgraph_app.services.student_db import StudentDB
 from langgraph_app.services.tutor_service import TutorService, TutorServiceConfig
 
@@ -87,7 +88,6 @@ def _is_smalltalk(text: str, service: TutorService | None = None) -> bool:
         "good evening",
         "what's up",
         "whats up",
-        "thanks",
         "thank you",
         "thankyou",
         "bye",
@@ -246,6 +246,230 @@ def _answer_question(
     return state
 
 
+def _format_chapter_label(chapter: dict) -> str:
+    source = str(chapter.get("source") or "unknown")
+    first_page = chapter.get("first_page")
+    last_page = chapter.get("last_page")
+    page_label = ""
+    if first_page is not None and last_page is not None:
+        page_label = f" (pages {first_page}-{last_page})"
+    elif first_page is not None:
+        page_label = f" (page {first_page})"
+    return f"{source}{page_label}"
+
+
+def _run_chapter_mode(
+    service: TutorService,
+    top_k: int,
+    student_id: str,
+    student_profile: dict,
+) -> None:
+    print("\n" + "=" * 60)
+    print("  Chapter Mode")
+    print("  Choose a chapter and topic. The tutor will then run a short drill harness.")
+    print("=" * 60 + "\n")
+
+    chapters = service.list_available_chapters()
+    if not chapters:
+        print("  No chapter sources found in output/rag_chunks.")
+        return
+
+    for idx, chapter in enumerate(chapters, 1):
+        print(f"  [{idx}] {_format_chapter_label(chapter)}  ({chapter.get('chunk_count', 0)} chunks)")
+
+    while True:
+        choice = input("\n  Choose a chapter number (or type 'back'): ").strip()
+        if not choice:
+            continue
+        if choice.lower() in ("back", "exit", "quit"):
+            return
+        selected = None
+        if choice.isdigit():
+            index = int(choice) - 1
+            if 0 <= index < len(chapters):
+                selected = chapters[index]
+        else:
+            lowered = choice.lower()
+            for chapter in chapters:
+                if lowered in str(chapter.get("source") or "").lower():
+                    selected = chapter
+                    break
+        if selected is None:
+            print("  Invalid chapter selection.")
+            continue
+        break
+
+    chapter_source = str(selected.get("source") or "")
+
+    # ── Module selection (opt-in sub-chapter) ─────────────────────────
+    modules = service.get_chapter_modules(chapter_source)
+    selected_module = None
+    if modules:
+        print(f"\n  Modules found in this PDF ({len(modules)}):")
+        for mod in modules:
+            title_part = f" – {mod['title']}" if mod.get("title") else ""
+            print(f"    [{mod['number']}] മൊഡ്യൂള്\u200d {mod['number']}{title_part}")
+        mod_choice = input("\n  Choose a module number (or press Enter to skip): ").strip()
+        if mod_choice.isdigit():
+            num = int(mod_choice)
+            for mod in modules:
+                if mod["number"] == num:
+                    selected_module = mod
+                    break
+        if selected_module:
+            print(f"  Selected: മൊഡ്യൂള്\u200d {selected_module['number']} – {selected_module.get('title') or ''}")
+            chapter_docs = service.load_module_docs(chapter_source, selected_module["number"])
+        else:
+            chapter_docs = service.load_chapter_docs(chapter_source)
+    else:
+        print("  No module structure found; using whole PDF as chapter.")
+        chapter_docs = service.load_chapter_docs(chapter_source)
+
+    if not chapter_docs:
+        print("  No chapter excerpts found for the selected chapter; using general grounding.")
+
+    topic = input("  Choose a topic for this chapter (free text): ").strip()
+    if not topic:
+        if selected_module and selected_module.get("title"):
+            topic = selected_module["title"]
+        else:
+            topic = chapter_source
+
+    session_plan = plan_chapter_session(topic, chapter_docs)
+    story_segment_count = session_plan.get("story_segments", 3)
+    total_questions = session_plan.get("question_count", 3)
+
+    print(
+        f"  Session depth: difficulty={session_plan.get('difficulty', 1)}, "
+        f"story segments={story_segment_count}, questions={total_questions}"
+    )
+
+    try:
+        module_label = f" | Module {selected_module['number']}" if selected_module else ""
+        chapter_goal = f"Chapter: {chapter_source}{module_label} | Topic: {topic}"
+        service.student_db.create_learning_goal(student_id, chapter_goal)
+        print(f"  Active chapter set: {chapter_goal}")
+    except Exception:
+        logger.exception("Failed to persist chapter goal; continuing without saving it")
+
+    chapter_mode = "learn"
+    while True:
+        mode_choice = input("  Do you want to learn or revise? (learn/revise): ").strip().lower()
+        if not mode_choice:
+            chapter_mode = "learn"
+            break
+        if mode_choice in ("learn", "l", "1"):
+            chapter_mode = "learn"
+            break
+        if mode_choice in ("revise", "r", "2"):
+            chapter_mode = "revise"
+            break
+        print("  Please type learn or revise.")
+
+    if chapter_mode == "learn":
+        print("\n  Learning mode: we will explain the topic using story segments first.")
+        story_docs_groups = split_docs_into_segments(chapter_docs, story_segment_count)
+        if story_docs_groups:
+            for idx, docs_group in enumerate(story_docs_groups, 1):
+                combined_text = "\n\n".join(str(doc.get("text") or "") for doc in docs_group if doc)
+                combined_context = list(docs_group[:3])
+                try:
+                    story_text = service.llm.generate_story_from_answer(
+                        answer=combined_text or topic,
+                        question=f"{chapter_source} | Module {selected_module['number'] if selected_module else ''} | {topic}",
+                        context_docs=combined_context,
+                        student_profile=student_profile,
+                    )
+                except Exception:
+                    logger.exception("Failed to generate learning story segment")
+                    continue
+                print(f"\n  Story segment {idx}/{len(story_docs_groups)}:")
+                print(f"  {story_text}")
+        else:
+            try:
+                story_text = service.llm.generate_story_from_answer(
+                    answer=topic,
+                    question=f"{selected.get('source')} | {topic}",
+                    context_docs=None,
+                    student_profile=student_profile,
+                )
+                print("\n  Story explanation:")
+                print(f"  {story_text}")
+            except Exception:
+                logger.exception("Failed to generate fallback learning story")
+    else:
+        print("\n  Revision mode: we will check mastery and focus on simpler review questions.")
+        try:
+            stats = service.get_mastery_stats(student_id)
+            print(f"  Current mastery stats: {stats}")
+        except Exception:
+            logger.exception("Failed to load mastery stats for revision mode")
+
+    correct_count = 0
+    previous_questions: list[str] = []
+    chapter_conversation_id = str(uuid4())
+
+    for question_index in range(1, total_questions + 1):
+        review_focus = None
+        if chapter_mode == "revise":
+            review_focus = "Review the same concept more simply."
+        elif previous_questions and correct_count < question_index - 1:
+            review_focus = "Review the same concept more simply."
+
+        module_label = f" – മൊഡ്യൂള്‍ {selected_module['number']}" if selected_module else ""
+        bundle = service.generate_chapter_drill_bundle(
+            chapter_name=f"{chapter_source}{module_label}",
+            topic=topic,
+            chapter_docs=chapter_docs,
+            student_profile=student_profile,
+            question_index=question_index,
+            total_questions=total_questions,
+            previous_questions=previous_questions,
+            review_focus=review_focus,
+        )
+        practice_question = str(bundle.get("question") or f"{topic} എന്താണ്?".strip())
+        expected_answer = str(bundle.get("expected_answer") or topic)
+
+        print(f"\n  Chapter Question {question_index}/{total_questions}:")
+        print(f"  {practice_question}")
+        try:
+            student_answer = input("  Your answer: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\n  Leaving chapter mode.")
+            return
+
+        if student_answer.lower() in ("exit", "quit", "stop", "back"):
+            print("  Leaving chapter mode.")
+            return
+
+        state = _answer_question(
+            practice_question,
+            service,
+            top_k,
+            student_id,
+            student_profile,
+            chapter_conversation_id,
+            student_response=student_answer,
+            check_answer_hint=expected_answer,
+        )
+        evaluation_result = state.get("evaluation_result") or {}
+        is_correct = bool(evaluation_result.get("is_correct"))
+        if is_correct:
+            correct_count += 1
+        previous_questions.append(practice_question)
+
+        print(f"  Chapter progress: {correct_count}/{question_index} correct")
+        if not is_correct:
+            print("  Review priority: we will focus on this concept again next.")
+        mastery_event = state.get("mastery_event")
+        if mastery_event:
+            print(f"  Mastery event: {mastery_event.get('concept_key')} | correct={mastery_event.get('is_correct')}")
+
+    print("\n  Chapter drill complete.")
+    stats = service.get_mastery_stats(student_id)
+    print(f"  Current mastery stats: {stats}")
+
+
 def run_interactive(
     service: TutorService,
     top_k: int,
@@ -294,6 +518,10 @@ def run_interactive(
                 print(f"  ERROR generating story: {exc}")
             continue
 
+        if question.lower().strip() == "chapter":
+            _run_chapter_mode(service, top_k, student_id, student_profile)
+            continue
+
         # If a check question is pending, prefer handling smalltalk first
         # so brief conversational replies don't accidentally clear the pending
         # check question even if they look like questions (e.g., "how are you?").
@@ -319,22 +547,6 @@ def run_interactive(
                     logger.exception("Failed to handle smalltalk during pending check")
                 # Keep the pending check question active and re-prompt.
                 continue
-        # Opt-in story-mode command: convert last generated answer into a story.
-        if question.lower().strip() == "story":
-            if not last_state:
-                print("  No previous answer available to convert. Ask a question first.")
-                continue
-            try:
-                # Use only the saved last_state; do NOT re-run the graph or retrieval.
-                story = service.generate_story_from_state(last_state, student_id, student_profile)
-                print(f"\n{'─' * 60}")
-                print("  Story Version (Malayalam):\n")
-                print(story)
-                print(f"{'─' * 60}\n")
-            except Exception as exc:
-                logger.exception("Story generation failed")
-                print(f"  ERROR generating story: {exc}")
-            continue
         if question.lower() in ("exit", "quit", "stop", "bye"):
             print("\nExiting. Goodbye!")
             break
@@ -454,6 +666,13 @@ def main() -> None:
         help="When used with --text, also print a storyified version of the answer",
     )
     parser.add_argument(
+        "--chapter-mode",
+        dest="chapter_mode",
+        action="store_true",
+        default=False,
+        help="Start an opt-in chapter drill session instead of a regular one-shot query",
+    )
+    parser.add_argument(
         "--db-dir",
         default=DEFAULT_DB_DIR,
         help=f"ChromaDB directory (default: {DEFAULT_DB_DIR})",
@@ -560,7 +779,9 @@ def main() -> None:
         config=TutorServiceConfig(default_top_k_retrieval=args.top_k),
     )
 
-    if args.text:
+    if args.chapter_mode:
+        _run_chapter_mode(service, args.top_k, args.student_id, student_profile)
+    elif args.text:
         run_single_query(args.text, service, args.top_k, args.student_id, student_profile, story=args.story)
     else:
         run_interactive(service, args.top_k, args.student_id, student_profile)
