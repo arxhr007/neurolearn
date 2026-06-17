@@ -453,11 +453,11 @@ End of recent fixes.
 ## 12. Chapter Mode (new opt-in layer)
 
 Summary:
-- Added a new opt-in chapter mode on top of the current tutor flow. The existing question/answer flow remains unchanged. Chapter mode is a separate drill layer that lets a student choose a chapter, pick a topic, and then run a short practice harness of 3 or more questions.
+- Added a new opt-in chapter mode on top of the current tutor flow. The existing question/answer flow remains unchanged. Chapter mode is a separate drill layer that lets a student choose a chapter and then run a short practice harness of 3 or more questions.
 
 How it works:
 - Chapter mode scans the current `output/rag_chunks/*.json` files and treats each source PDF as a selectable chapter. This means the available chapters adapt automatically when PDFs change over time.
-- After the student chooses a chapter and types a topic in free text, the system stores a learning goal like `Chapter: <source> | Topic: <topic>` using the existing learning-goal storage. That means the existing mastery and progress tracking stack keeps working.
+- After the student chooses a chapter, the system stores a learning goal like `Chapter: <source>` using the existing learning-goal storage. That means the existing mastery and progress tracking stack keeps working.
 - A small chapter drill generator creates 3 or more practice questions grounded in the selected chapter excerpts. The questions are story-based / real-life style when possible, and each practice item also includes a hidden expected-answer hint for evaluation.
 - The student answers each question, and the existing answer-evaluation + mastery recording path is used. Wrong answers trigger review priority, so the next question generation can focus more simply on the same concept.
 
@@ -477,7 +477,7 @@ python3 main.py --student-id s100
 ```
 
 - Then type `chapter` when you want to enter chapter mode.
-- Choose a chapter from the list, type any topic you want, and answer the 3-question drill harness.
+- Choose a chapter from the list and answer the 3-question drill harness.
 
 Direct chapter-mode start:
 
@@ -503,7 +503,9 @@ If you want a web/API entry point later, the same chapter helpers can be reused 
 ## 13. Module-Level Content Selection (within Chapter Mode)
 
 Summary:
-- Chapter mode was refined to let a student pick a specific module (മൊഡ്യൂള്) within a chapter/PDF instead of loading the entire document. The CLI now shows available modules after chapter selection, prompts for a module number, and loads only that module's content for drill questions.
+- Chapter mode was refined to let a student pick a specific module (മൊഡ്യൂള്) within a chapter/PDF instead of loading the entire document. The CLI shows available modules after chapter selection (numbers only, no titles), prompts for a module number, and loads only that module's content for drill questions.
+- The free-text topic prompt was removed entirely. When a module is selected, its title is used as the topic; otherwise the chapter source name is used.
+- When a module is selected in learn mode, ALL of its chunks are passed to a single LLM call to generate one continuous story (not per-segment calls). The story is displayed as-is (no splitting into parts). Story generation uses `max_tokens=5000` and requires the LLM to include a moral paragraph ending with `**കഥയുടെ പാഠം:**`.
 
 ### 13.1 Module auto-detection from chunk files
 
@@ -555,7 +557,8 @@ The entries are inclusive: `start_page=5, end_page=10` includes all chunks with 
 - `langgraph_app/services/tutor_service.py`:
   - `get_chapter_modules()` — delegates to `extract_modules()`
   - `load_module_docs()` — delegates to chapter_mode version
-- `langgraph_app/cli.py` — updated `_run_chapter_mode()` with module selection flow
+- `langgraph_app/cli.py` — updated `_run_chapter_mode()` with module selection flow; removed free-text topic prompt; replaced per-segment story calls with single LLM call; story displayed as-is without splitting
+- `langgraph_app/services/llm.py` — story prompt updated to forbid lists/headings, require 8–10 paragraphs, and end with a `**കഥയുടെ പാഠം:**` moral paragraph; added `max_tokens` parameter (default 768)
 - `chapter_modules.csv` — initial 47-row CSV generated from auto-detected ranges
 
 ### 13.5 Validation
