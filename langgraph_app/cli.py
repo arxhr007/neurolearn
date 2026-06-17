@@ -21,7 +21,7 @@ from langgraph_app.graph.builder import build_graph_app
 from langgraph_app.services.intent_classifier import IntentClassifier
 from langgraph_app.services.llm import MalayalamLLM
 from langgraph_app.services.retriever import RAGRetriever
-from langgraph_app.services.chapter_mode import plan_chapter_session, split_docs_into_segments
+from langgraph_app.services.chapter_mode import plan_chapter_session
 from langgraph_app.services.student_db import StudentDB
 from langgraph_app.services.tutor_service import TutorService, TutorServiceConfig
 
@@ -266,7 +266,7 @@ def _run_chapter_mode(
 ) -> None:
     print("\n" + "=" * 60)
     print("  Chapter Mode")
-    print("  Choose a chapter and topic. The tutor will then run a short drill harness.")
+    print("  Choose a chapter. The tutor will then run a short drill harness.")
     print("=" * 60 + "\n")
 
     chapters = service.list_available_chapters()
@@ -307,8 +307,7 @@ def _run_chapter_mode(
     if modules:
         print(f"\n  Modules found in this PDF ({len(modules)}):")
         for mod in modules:
-            title_part = f" – {mod['title']}" if mod.get("title") else ""
-            print(f"    [{mod['number']}] മൊഡ്യൂള്\u200d {mod['number']}{title_part}")
+            print(f"    [{mod['number']}] മൊഡ്യൂള്\u200d {mod['number']}")
         mod_choice = input("\n  Choose a module number (or press Enter to skip): ").strip()
         if mod_choice.isdigit():
             num = int(mod_choice)
@@ -328,25 +327,17 @@ def _run_chapter_mode(
     if not chapter_docs:
         print("  No chapter excerpts found for the selected chapter; using general grounding.")
 
-    topic = input("  Choose a topic for this chapter (free text): ").strip()
-    if not topic:
-        if selected_module and selected_module.get("title"):
-            topic = selected_module["title"]
-        else:
-            topic = chapter_source
-
-    session_plan = plan_chapter_session(topic, chapter_docs)
+    session_plan = plan_chapter_session(chapter_source, chapter_docs)
     story_segment_count = session_plan.get("story_segments", 3)
     total_questions = session_plan.get("question_count", 3)
 
     print(
-        f"  Session depth: difficulty={session_plan.get('difficulty', 1)}, "
-        f"story segments={story_segment_count}, questions={total_questions}"
+        f"  Session depth: difficulty={session_plan.get('difficulty', 1)}, questions={total_questions}"
     )
 
     try:
         module_label = f" | Module {selected_module['number']}" if selected_module else ""
-        chapter_goal = f"Chapter: {chapter_source}{module_label} | Topic: {topic}"
+        chapter_goal = f"Chapter: {chapter_source}{module_label}"
         service.student_db.create_learning_goal(student_id, chapter_goal)
         print(f"  Active chapter set: {chapter_goal}")
     except Exception:
@@ -367,36 +358,27 @@ def _run_chapter_mode(
         print("  Please type learn or revise.")
 
     if chapter_mode == "learn":
-        print("\n  Learning mode: we will explain the topic using story segments first.")
-        story_docs_groups = split_docs_into_segments(chapter_docs, story_segment_count)
-        if story_docs_groups:
-            for idx, docs_group in enumerate(story_docs_groups, 1):
-                combined_text = "\n\n".join(str(doc.get("text") or "") for doc in docs_group if doc)
-                combined_context = list(docs_group[:3])
-                try:
-                    story_text = service.llm.generate_story_from_answer(
-                        answer=combined_text or topic,
-                        question=f"{chapter_source} | Module {selected_module['number'] if selected_module else ''} | {topic}",
-                        context_docs=combined_context,
-                        student_profile=student_profile,
-                    )
-                except Exception:
-                    logger.exception("Failed to generate learning story segment")
-                    continue
-                print(f"\n  Story segment {idx}/{len(story_docs_groups)}:")
-                print(f"  {story_text}")
+        print("\n  Learning mode: we will explain using a story first.")
+        combined_text = "\n\n".join(
+            str(doc.get("text") or "") for doc in chapter_docs if doc
+        )
+        try:
+            story_text = service.llm.generate_story_from_answer(
+                answer=combined_text or chapter_source,
+                question=f"{chapter_source} | Module {selected_module['number'] if selected_module else ''}",
+                context_docs=chapter_docs[:3],
+                student_profile=student_profile,
+                max_tokens=5000,
+            )
+        except Exception:
+            logger.exception("Failed to generate learning story")
+            story_text = ""
+
+        if story_text:
+            print(f"\n  Story:")
+            print(f"  {story_text}")
         else:
-            try:
-                story_text = service.llm.generate_story_from_answer(
-                    answer=topic,
-                    question=f"{selected.get('source')} | {topic}",
-                    context_docs=None,
-                    student_profile=student_profile,
-                )
-                print("\n  Story explanation:")
-                print(f"  {story_text}")
-            except Exception:
-                logger.exception("Failed to generate fallback learning story")
+            print("  Could not generate a story.")
     else:
         print("\n  Revision mode: we will check mastery and focus on simpler review questions.")
         try:
@@ -419,7 +401,7 @@ def _run_chapter_mode(
         module_label = f" – മൊഡ്യൂള്‍ {selected_module['number']}" if selected_module else ""
         bundle = service.generate_chapter_drill_bundle(
             chapter_name=f"{chapter_source}{module_label}",
-            topic=topic,
+            topic=chapter_source,
             chapter_docs=chapter_docs,
             student_profile=student_profile,
             question_index=question_index,
@@ -427,8 +409,8 @@ def _run_chapter_mode(
             previous_questions=previous_questions,
             review_focus=review_focus,
         )
-        practice_question = str(bundle.get("question") or f"{topic} എന്താണ്?".strip())
-        expected_answer = str(bundle.get("expected_answer") or topic)
+        practice_question = str(bundle.get("question") or f"{chapter_source} എന്താണ്?".strip())
+        expected_answer = str(bundle.get("expected_answer") or chapter_source)
 
         print(f"\n  Chapter Question {question_index}/{total_questions}:")
         print(f"  {practice_question}")

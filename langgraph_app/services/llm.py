@@ -1083,6 +1083,7 @@ class MalayalamLLM:
         context_docs: list[dict] | None = None,
         student_profile: dict | None = None,
         story_style: str = "child_friendly",
+        max_tokens: int = 768,
     ) -> str:
         """Convert an existing answer/explanation into a short story.
 
@@ -1100,23 +1101,27 @@ class MalayalamLLM:
         context_block = "\n\n".join(context_parts)
 
         system_prompt = (
-            "You are a creative Malayalam storyteller who can convert an explanation into a short, engaging story suitable for learners. "
-            "Keep it simple, concrete, and supportive. Use age-appropriate vocabulary."
+            "You are a creative Malayalam storyteller. Your ONLY output is a pure narrative story with a beginning, "
+            "middle, and end. Never use headings, bullet points, numbered lists, bold text, or section dividers. "
+            "Never enumerate steps or instructions. Weave the educational content into the actions and dialogue of the characters. "
+            "Use simple, concrete, age-appropriate Malayalam."
         )
 
         user_prompt = (
-            f"Original answer/explanation:\n{answer}\n\n"
+            f"Background material:\n{answer}\n\n"
             f"(Optional) Question: {question or ''}\n"
             f"Context excerpts:\n{context_block}\n\n"
             f"Reading age: {reading_age}\n"
             f"Neuro profile: {neuro_tags}\n"
             f"Neurodivergent support guidelines:\n{neuro_guidelines}\n\n"
             "Task:\n"
-            "- Convert the explanation into a longer, engaging Malayalam story.\n"
-            "- Use at least 3 short paragraphs, and expand to more paragraphs if the topic is hard or broad.\n"
-            "- Keep the educational fact accurate and avoid inventing false details.\n"
-            "- Make the protagonist relatable to a child learner and include a small scene that shows the behaviour.\n"
-            "- Return only the story text (no JSON or metadata).\n\n"
+            "- Write a long, detailed Malayalam story (at least 8–10 paragraphs).\n"
+            "- The protagonist should be a child who learns or discovers something from the background material.\n"
+            "- Show the learning through scenes — what the child does, says, or feels.\n"
+            "- Keep educational facts accurate.\n"
+            "- End the story with a final paragraph that starts with '**കഥയുടെ പാഠം:**' and states the moral lesson clearly.\n"
+            "- NO headings, NO bullet points, NO numbered lists, NO bold text except for the moral paragraph marker, NO section markers like '---'.\n"
+            "- Return ONLY the story text, nothing else.\n\n"
             "Story in Malayalam:" 
         )
 
@@ -1130,7 +1135,7 @@ class MalayalamLLM:
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=0.6,
-                    max_tokens=768,
+                    max_tokens=max_tokens,
                 )
                 text = self._extract_response_text(response)
                 if text:
