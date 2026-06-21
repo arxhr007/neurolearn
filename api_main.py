@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from datetime import datetime, timedelta
@@ -346,6 +347,8 @@ def _service_bundle() -> tuple[TutorService, SqlAlchemyStudentDB, RAGRetriever]:
     settings = get_settings()
     if not os.getenv("GROQ_API_KEY") and settings.groq_api_key:
         os.environ["GROQ_API_KEY"] = settings.groq_api_key
+    if not os.getenv("gemini_api_key") and settings.gemini_api_key:
+        os.environ["gemini_api_key"] = settings.gemini_api_key
 
     student_db = SqlAlchemyStudentDB(SessionLocal)
     retriever = RAGRetriever(settings.retriever_db_dir, settings.retriever_model_name)
@@ -982,6 +985,97 @@ def list_chapters(
     return {"chapters": service.list_available_chapters()}
 
 
+class ChapterLearnRequest(BaseModel):
+    source: str
+    module_number: int | None = None
+
+
+@app.get("/api/chapters/{source}/modules", tags=["Tutor"])
+def list_chapter_modules(
+    source: str,
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    service: TutorService = Depends(get_tutor_service),
+) -> dict[str, Any]:
+    del current_user
+    modules = service.get_chapter_modules(source)
+    return {"modules": modules, "source": source}
+
+
+@app.post("/api/chapters/learn", tags=["Tutor"])
+def chapter_learn(
+    req: ChapterLearnRequest,
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    service: TutorService = Depends(get_tutor_service),
+) -> dict[str, Any]:
+    student_id = current_user.student_id
+    module = None
+    if req.module_number:
+        modules = service.get_chapter_modules(req.source)
+        for m in modules:
+            if m["number"] == req.module_number:
+                module = m
+                break
+        chapter_docs = service.load_module_docs(req.source, req.module_number)
+    else:
+        chapter_docs = service.load_chapter_docs(req.source)
+
+    if not chapter_docs:
+        raise HTTPException(status_code=404, detail="No content found for this chapter/module")
+
+    topic = module["title"] if module else req.source
+
+    from langgraph_app.services.chapter_mode import plan_chapter_session
+    session_plan = plan_chapter_session(topic, chapter_docs)
+    question_count = session_plan.get("question_count", 3)
+
+    combined_text = "\n\n".join(str(d.get("text") or "") for d in chapter_docs if d)
+    student_profile = None
+    try:
+        student_profile = service.student_db.get_student_profile(student_id)
+    except Exception:
+        pass
+
+    story = ""
+    try:
+        story = service.llm.generate_story_from_answer(
+            answer=combined_text or topic,
+            question=f"{req.source} | Module {req.module_number}" if req.module_number else req.source,
+            context_docs=chapter_docs[:3],
+            student_profile=student_profile,
+            max_tokens=4096,
+        )
+    except Exception:
+        logger.exception("Failed to generate story for chapter learn")
+
+    questions = []
+    for qi in range(1, question_count + 1):
+        try:
+            bundle = service.generate_chapter_drill_bundle(
+                chapter_name=req.source,
+                topic=topic,
+                chapter_docs=chapter_docs,
+                student_profile=student_profile,
+                question_index=qi,
+                total_questions=question_count,
+                previous_questions=[q["question"] for q in questions],
+            )
+            questions.append({
+                "question": bundle.get("question", ""),
+                "expected_answer": bundle.get("expected_answer", ""),
+            })
+        except Exception:
+            logger.exception(f"Failed to generate drill question {qi}")
+            break
+
+    return {
+        "story": story,
+        "questions": questions,
+        "session_plan": session_plan,
+        "module": module,
+        "topic": topic,
+    }
+
+
 @app.delete("/api/conversations/{conversation_id}", tags=["Conversations"])
 def clear_conversation(
     conversation_id: str,
@@ -1460,6 +1554,163 @@ def system_stats(
     service: TutorService = Depends(get_tutor_service),
 ) -> dict[str, Any]:
     return service.get_stats()
+
+
+STORY_JSON_DIR = Path(__file__).parent / "input" / "story"
+
+
+@app.get("/api/story/curricula", tags=["Story"])
+def list_story_curricula(
+    _: TokenData = Depends(require_roles("student", "teacher", "admin")),
+) -> dict[str, Any]:
+    """List available story curriculum JSON files."""
+    curricula = []
+    for f in sorted(STORY_JSON_DIR.glob("*.json")):
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            curricula.append({
+                "name": f.stem,
+                "title": data.get("curriculum_title", f.stem),
+                "module_count": len(data.get("modules", [])),
+            })
+        except Exception:
+            logger.warning("Failed to parse story curriculum %s", f.name)
+    return {"curricula": curricula}
+
+
+@app.get("/api/story/curricula/{name}", tags=["Story"])
+def get_story_curriculum(
+    name: str,
+    _: TokenData = Depends(require_roles("student", "teacher", "admin")),
+) -> dict[str, Any]:
+    """Get full curriculum data with modules and activities."""
+    path = STORY_JSON_DIR / f"{name}.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"Curriculum '{name}' not found")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to parse curriculum: {exc}")
+
+
+class StoryGenerateRequest(BaseModel):
+    curriculum: str
+    module_number: int
+    activity_id: str
+    placeholder_values: dict[str, str] = {}
+
+
+class TTSRequest(BaseModel):
+    text: str
+    voice: str = "ml-IN-SobhanaNeural"
+    speaking_rate: float = 0.9
+
+
+@app.post("/api/story/tts", tags=["Story"])
+def story_tts(req: TTSRequest):
+    """Generate TTS audio using edge-tts (free, no API key needed)."""
+    try:
+        import edge_tts
+        import base64
+        import io
+        import asyncio
+
+        voice = req.voice if req.voice and req.voice.startswith("ml") else "ml-IN-SobhanaNeural"
+        async def _gen():
+            communicate = edge_tts.Communicate(req.text, voice)
+            buf = io.BytesIO()
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    buf.write(chunk["data"])
+            buf.seek(0)
+            return base64.b64encode(buf.read()).decode("utf-8")
+
+        audio_b64 = asyncio.run(_gen())
+        return {"audioContent": audio_b64}
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"TTS failed: {exc}")
+
+
+@app.post("/api/story/generate", tags=["Story"])
+def generate_story_from_template(
+    req: StoryGenerateRequest,
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    service: TutorService = Depends(get_tutor_service),
+) -> dict[str, Any]:
+    """Generate a story from a curriculum template with filled placeholders."""
+    path = STORY_JSON_DIR / f"{req.curriculum}.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"Curriculum '{req.curriculum}' not found")
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to parse curriculum: {exc}")
+
+    module = None
+    activity = None
+    for m in data.get("modules", []):
+        if m.get("module_number") == req.module_number:
+            module = m
+            for a in m.get("activities", []):
+                if a.get("activity_id") == req.activity_id:
+                    activity = a
+                    break
+            break
+
+    if not activity:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Activity '{req.activity_id}' not found in module {req.module_number}",
+        )
+
+    template = activity.get("story_template_malayalam", "")
+    if not template:
+        raise HTTPException(status_code=400, detail="Activity has no story template")
+
+    # Fill placeholders
+    filled_template = template
+    for key, value in req.placeholder_values.items():
+        filled_template = filled_template.replace("{" + key + "}", value)
+
+    # Build context from activity metadata
+    context_docs = [
+        {"source": data.get("curriculum_title", ""), "page": 0, "text": f"Theme: {activity.get('story_theme', '')}"},
+        {"source": data.get("curriculum_title", ""), "page": 0, "text": f"Concept: {activity.get('main_concept', '')}"},
+        {"source": data.get("curriculum_title", ""), "page": 0, "text": f"Challenge: {'; '.join(activity.get('possible_challenges', [])[:3])}"},
+    ]
+
+    student_id = current_user.student_id
+    student_profile = None
+    try:
+        student_profile = service.student_db.get_student_profile(student_id)
+    except Exception:
+        pass
+
+    story = ""
+    try:
+        story = service.llm.generate_story_from_answer(
+            answer=filled_template,
+            question=f"{activity.get('activity_name', '')} – {module.get('module_title', '')}",
+            context_docs=context_docs,
+            student_profile=student_profile,
+            max_tokens=16384,
+        )
+    except Exception:
+        logger.exception("Failed to generate story from template")
+
+    return {
+        "story": story,
+        "activity": {
+            "id": activity.get("activity_id"),
+            "name": activity.get("activity_name"),
+            "theme": activity.get("story_theme"),
+            "moral": activity.get("moral"),
+        },
+        "module_title": module.get("module_title") if module else "",
+        "curriculum_title": data.get("curriculum_title", ""),
+    }
 
 
 if __name__ == "__main__":

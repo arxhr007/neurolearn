@@ -1,0 +1,610 @@
+{
+  "curriculum_title": "ഞാനും എന്റെ വിദ്യാലയവും (Me and My School) - Special School Secondary Activity Package",
+  "modules": [
+    {
+      "module_number": 1,
+      "module_title": "എന്റെ വിദ്യാലയം (My School)",
+      "activities": [
+        {
+          "activity_id": "M1_A1",
+          "activity_name": "സ്കൂൾ പരിചയം (Knowing the School)",
+          "learning_goal": "To identify and navigate different areas of the school campus independently.",
+          "story_theme": "A morning walk to locate important rooms in the school.",
+          "main_concept": "Spatial orientation and identifying school infrastructure landmarks.",
+          "materials": [
+            "School building map",
+            "Color-coded door signs",
+            "Photo flashcards of rooms"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "friend"
+          ],
+          "story_template_malayalam": "ഒരു ദിവസം രാവിലെ {child_name} സ്കൂളിൽ എത്തിയപ്പോൾ വലിയൊരു ലക്ഷ്യമുണ്ടായിരുന്നു. സ്വന്തം ക്ലാസ് മുറിയും പ്രധാനാധ്യാപകന്റെ മുറിയും എവിടെയാണെന്ന് കണ്ടെത്തണമായിരുന്നു. {teacher_name} തന്ന കളർ കാർഡുമായി {child_name} ഇടനാഴിയിലൂടെ നടന്നു. പെട്ടെന്ന് ഒരു വലിയ തിരിവ് കണ്ടപ്പോൾ ഏതു വശത്തേക്കാണ് പോകേണ്ടതെന്ന് അറിയാതെ {child_name} ആശയക്കുഴപ്പത്തിലായി. കുറച്ചു നേരം അവിടെ വിഷമിച്ചു നിന്നുപോയി. അപ്പോൾ അങ്ങോട്ട് ഓടിവന്ന കൂട്ടുകാരൻ {friend_name} പതുക്കെ കൈപിടിച്ച് ചുമരിലെ വലിയ {favorite_color} അടയാളത്തിലേക്ക് ചൂണ്ടിക്കാണിച്ചു തന്നു. ശരിയായ വഴി മനസ്സിലായപ്പോൾ {child_name}ന് ഒത്തിരി സന്തോഷമായി. അവർ രണ്ടുപേരും ഒരുമിച്ച് ക്ലാസ് മുറി കണ്ടെത്തി ഉള്ളിലേക്ക് കയറി സന്തോഷത്തോടെ കൈയടിച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "teacher_name",
+            "friend_name",
+            "favorite_color"
+          ],
+          "possible_challenges": [
+            "Confuses the principal's room with the staff room",
+            "Gets disoriented at the main corridor intersection",
+            "Cannot match the room photo with the actual door",
+            "Forgets where the playground entrance is situated",
+            "Stops walking due to the loud sound of the school bell"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Insert a favorite vehicle or toy station concept as a landmark analogy."
+            ],
+            "analogies": [
+              "Finding the classroom is like a train arriving at its correct station platform."
+            ],
+            "sensory_extensions": [
+              "Describe the smooth cold touch of the corridor handrails and the smell of clean classrooms."
+            ],
+            "attention_support": [
+              "Keep visual descriptions limited to one landmark at a time to reduce overload."
+            ],
+            "reading_support": [
+              "Use high-contrast large font markings for direction words like 'ഇടത്തോട്ട്' and 'വലത്തോട്ട്'."
+            ]
+          },
+          "moral": "Following simple signs makes finding our way easy and fun."
+        },
+        {
+          "activity_id": "M1_A2",
+          "activity_name": "ആളുകളെ അറിയാം (Meeting School Staff)",
+          "learning_goal": "To recognize and appropriately interact with various school staff members like teachers, helpers, and drivers.",
+          "story_theme": "Delivering a morning invitation card to school helpers.",
+          "main_concept": "Social recognition, role identification, and polite communication.",
+          "materials": [
+            "Staff designation cards",
+            "Greeting badges"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "friend"
+          ],
+          "story_template_malayalam": "സ്കൂളിലെ പ്രത്യേക ആഘോഷത്തിന് എല്ലാവരെയും ക്ഷണിക്കാൻ {child_name} ആഗ്രഹിച്ചു. {teacher_name} കുറേ വലിയ ക്ഷണക്കത്തുകൾ {child_name}ന്റെ കയ്യിൽ ഏൽപ്പിച്ചു. ആയാമ്മയെയും ബസ് ഡ്രൈവറെയും കണ്ട് ഇത് കൊടുക്കണമായിരുന്നു. ഓഫീസ് മുറിക്ക് മുന്നിൽ എത്തിയപ്പോൾ അവിടെ നിൽക്കുന്ന ആളുകളിൽ ആരാണ് ആയാമ്മ എന്ന് തിരിച്ചറിയാൻ {child_name}ന് പെട്ടെന്ന് സാധിച്ചില്ല. കത്ത് ആർക്കാണ് കൊടുക്കേണ്ടത് എന്ന് ഓർത്ത് {child_name} അവിടെ മടിച്ചു നിന്നു. അപ്പോൾ അടുത്തുനിന്ന {friend_name} വന്ന് നീല യൂണിഫോം ധരിച്ച ആളെ കാണിച്ചു തന്നു. {child_name} ആശ്വാസത്തോടെ മുന്നോട്ട് നടന്ന് 'നമസ്കാരം' എന്ന് പറഞ്ഞു കത്ത് കൈമാറി. അവർ സ്നേഹത്തോടെ ചിരിച്ചപ്പോൾ {child_name} ഒത്തിരി സന്തോഷം തോന്നി.",
+          "placeholder_variables": [
+            "child_name",
+            "teacher_name",
+            "friend_name"
+          ],
+          "possible_challenges": [
+            "Confuses the identity of two different female helpers",
+            "Becomes too shy to speak or say 'Namaskaram' aloud",
+            "Drops the greeting cards on the floor in nervousness",
+            "Points at the person instead of greeting them politely",
+            "Gets distracted by a decorative notice board halfway through the task"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Incorporate the child's favorite hobby or festival into the celebration theme."
+            ],
+            "analogies": [
+              "Identifying helpers by uniform is like recognizing team players by their jersey colors."
+            ],
+            "sensory_extensions": [
+              "Describe the crisp texture of the invitation cards and the warm smile of the helper."
+            ],
+            "attention_support": [
+              "Focus the task on interacting with just one single person before adding more characters."
+            ],
+            "reading_support": [
+              "Break long greetings into easy-to-read phonic blocks like ന-മ-സ്കാ-രം."
+            ]
+          },
+          "moral": "Greeting the people who help us makes everyone happy."
+        },
+        {
+          "activity_id": "M1_A3",
+          "activity_name": "ഉപകരണങ്ങൾ സൂക്ഷിക്കാം (Caring for Belongings)",
+          "learning_goal": "To identify, sort, and organize personal and classroom learning tools properly.",
+          "story_theme": "Packing the school bag neatly before going home.",
+          "main_concept": "Object sorting, categorization, and neatness routines.",
+          "materials": [
+            "School bag",
+            "Books, crayons, umbrella",
+            "Storage boxes"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "friend"
+          ],
+          "story_template_malayalam": "വൈകുന്നേരം സ്കൂൾ വിടാൻ സമയമായപ്പോൾ {child_name} തന്റെ മേശപ്പുറത്തേക്ക് നോക്കി. അവിടെ പുസ്തകങ്ങളും വലിയ പെൻസിൽ ബോക്സും {favorite_toy_color} നിറമുള്ള കുടയും ചിതറിക്കിടക്കുകയായിരുന്നു. അവയെല്ലാം ബാഗിൽ ഭംഗിയായി ഒതുക്കി വെക്കുക എന്നതായിരുന്നു ഇന്നത്തെ പ്രധാന ജോലി. {child_name} സാധനങ്ങൾ ഓരോന്നായി എടുക്കാൻ തുടങ്ങിയപ്പോൾ വലിയ പുസ്തകം കുഞ്ഞു ബാഗിന്റെ ഉള്ളിലേക്ക് പെട്ടെന്ന് കയറുന്നില്ലായിരുന്നു. ബാഗ് അടയ്ക്കാൻ പറ്റാതെ വന്നപ്പോൾ {child_name}ന് ദേഷ്യവും വിഷമവും വന്നു. അപ്പോൾ അങ്ങോട്ട് വന്ന {teacher_name} വലിയ പുസ്തകങ്ങൾ ആദ്യം അടിയിൽ വെക്കാൻ കാണിച്ചുതന്നു. {child_name} പതുക്കെ സാധനങ്ങൾ മാറ്റി അടുക്കി വെച്ചപ്പോൾ ബാഗ് എളുപ്പത്തിൽ സിബ്ബ് ഇടാൻ കഴിഞ്ഞു. {child_name} ബാഗും തൂക്കി സന്തോഷത്തോടെ വീട്ടിലേക്ക് നടന്നു.",
+          "placeholder_variables": [
+            "child_name",
+            "favorite_toy_color",
+            "teacher_name"
+          ],
+          "possible_challenges": [
+            "Packs a classmate's book into their own bag by mistake",
+            "Cannot operate the zipper mechanism smoothly",
+            "Pushes objects into the bag forcefully, wrinkling the papers",
+            "Confuses the order of packing big and small objects",
+            "Leaves a wet umbrella open inside the classroom floor"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "The school bag can feature a cartoon sticker of their favorite animal character."
+            ],
+            "analogies": [
+              "Arranging books by size is like putting blocks together to build a neat tower."
+            ],
+            "sensory_extensions": [
+              "Emphasize the smooth zipping sound of the bag and the soft rustle of book pages."
+            ],
+            "attention_support": [
+              "Provide a simple 3-item visual checklist pasted inside the lid of the desk."
+            ],
+            "reading_support": [
+              "Use highly directional action words like 'അടിയിൽ' (bottom) and 'മുകളിൽ' (top) clearly."
+            ]
+          },
+          "moral": "Keeping our things in order saves time and protects our tools."
+        }
+      ]
+    },
+    {
+      "module_number": 2,
+      "module_title": "ക്ലാസ് മുറിയിലെ കാര്യങ്ങൾ (Classroom Routines)",
+      "activities": [
+        {
+          "activity_id": "M2_A1",
+          "activity_name": "ഹാജർ രേഖപ്പെടുത്താം (Marking Attendance)",
+          "learning_goal": "To respond clearly to one's name during roll call and identify own photo card.",
+          "story_theme": "A morning interactive circle to check attendance.",
+          "main_concept": "Self-identity, group communication, and auditory tracking.",
+          "materials": [
+            "Attendance display board",
+            "Name slips with photo cards",
+            "Velcro dots"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "friend"
+          ],
+          "story_template_malayalam": "രാവിലെ ക്ലാസ് തുടങ്ങിയപ്പോൾ {teacher_name} ഓരോ കുട്ടികളുടെയും പേര് വിളിക്കാൻ തുടങ്ങി. {child_name} തന്റെ പേര് വിളിക്കുന്നത് കേൾക്കാൻ കാതോർത്തു നിന്നു. പെട്ടെന്ന് പുറത്തുനിന്നും ഒരു കുഞ്ഞു {favorite_bird} കിലുകിലി ശബ്ദമുണ്ടാക്കിയപ്പോൾ {child_name}ന്റെ ശ്രദ്ധ അങ്ങോട്ട് മാറിപ്പോയി. തന്റെ പേര് വിളിച്ചത് {child_name} കേട്ടില്ല. അരികിലിരുന്ന കൂട്ടുകാരൻ {friend_name} പതുക്കെ തോളിൽ തട്ടി ഓർമ്മിപ്പിച്ചു. {child_name} പെട്ടെന്ന് എഴുന്നേറ്റ് നിന്ന് 'ഉണ്ട് മാഷേ' എന്ന് ഉറക്കെ പറഞ്ഞു. പിന്നീട് ഓടിച്ചെന്ന് ബോർഡിലിരുന്ന കുറെ കാർഡുകൾക്കിടയിൽ നിന്നും തന്റെ ഭംഗിയുള്ള ചിത്രമുള്ള കാർഡ് കൃത്യമായി കണ്ടെത്തി ബോർഡിൽ ഒട്ടിച്ചു. അത് കണ്ട് എല്ലാവരും കൈയടിച്ചപ്പോൾ {child_name}ന് ഒത്തിരി അഭിമാനം തോന്നി.",
+          "placeholder_variables": [
+            "child_name",
+            "teacher_name",
+            "favorite_bird",
+            "friend_name"
+          ],
+          "possible_challenges": [
+            "Loses focus during roll call due to external background sounds",
+            "Cannot locate their own photo card from a group selection grid",
+            "Responds in a voice that is too low to be heard by the group",
+            "Accidentally pulls down a classmate's photo card from the board",
+            "Stands up late after the next name has already been read out"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Include a favorite color background border design around the child's identity badge."
+            ],
+            "analogies": [
+              "Answering the roll call is like a little soldier showing they are ready for action."
+            ],
+            "sensory_extensions": [
+              "Describe the rhythmic sound of the teacher's pen and the scratching feel of Velcro strips."
+            ],
+            "attention_support": [
+              "Provide a physical touch prompt before calling out the student's name audibly."
+            ],
+            "reading_support": [
+              "Print the name in bold text using high-contrast colors directly next to the photo card."
+            ]
+          },
+          "moral": "Being alert helps us participate actively in our group."
+        },
+        {
+          "activity_id": "M2_A2",
+          "activity_name": "ക്ലാസ് മുറി നിയമങ്ങൾ (Classroom Rules)",
+          "learning_goal": "To follow safety and social guidelines like waiting for turn and raising hands.",
+          "story_theme": "A classroom storytelling game where everyone wants to answer.",
+          "main_concept": "Turn-taking, impulse control, and mutual respect.",
+          "materials": [
+            "Rule charts with emojis",
+            "Speaking token ball"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "friend"
+          ],
+          "story_template_malayalam": "ക്ലാസിൽ {teacher_name} ഒരു മനോഹരമായ മൃഗത്തിന്റെ കഥ പറയുകയായിരുന്നു. കഥയുടെ നടുവിൽ വെച്ച് മാഷ് ഒരു ചോദ്യം ചോദിച്ചു. ഉത്തരം നന്നായി അറിയാമായിരുന്ന {child_name} പെട്ടെന്ന് ആവേശത്തോടെ സീറ്റിൽ നിന്നും എഴുന്നേറ്റ് ഉറക്കെ വിളിച്ചു പറയാൻ തുടങ്ങി. എന്നാൽ മറ്റുള്ള കുട്ടികൾക്ക് അത് കേൾക്കാൻ പറ്റിയില്ല. {teacher_name} കൈകൊണ്ട് പതുക്കെ ഇരിക്കാൻ ആംഗ്യം കാണിച്ചു. കൈ ഉയർത്തി കാണിച്ച ശേഷം മാത്രം സംസാരിക്കുക എന്ന നിയമം {child_name} ഓർത്തു. തന്റെ തിടുക്കം കാരണം നിയമം മറന്നതിൽ {child_name}ന് ചെറിയ സങ്കടം തോന്നി. ഉടനെ {child_name} സീറ്റിലിരുന്ന് പതുക്കെ വലതുകൈ മുകളിലേക്ക് ഉയർത്തിപ്പിടിച്ചു. മാഷ് പുഞ്ചിരിയോടെ {child_name}നെ വിളിച്ച് സംസാരിക്കാൻ അവസരം നൽകിയപ്പോൾ വളരെ ഭംഗിയായി ഉത്തരം പറഞ്ഞു തീർത്തു.",
+          "placeholder_variables": [
+            "child_name",
+            "teacher_name"
+          ],
+          "possible_challenges": [
+            "Shouts out answers impulsively due to high excitement levels",
+            "Becomes upset and cries when a peer is selected to speak first",
+            "Leaves the designated seating area during discussion times",
+            "Forgets to lower the raised hand after the turn is fully finished",
+            "Interrupts a classmate's sentence right in the middle space"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "The storytelling topic can feature their most liked jungle animal character."
+            ],
+            "analogies": [
+              "Waiting for your turn is like cars waiting patiently for the green traffic light signal."
+            ],
+            "sensory_extensions": [
+              "Emphasize the deep, calming breath taken while waiting and the bright look of the rule board."
+            ],
+            "attention_support": [
+              "Use a soft, squeeze plush ball as a physical token object to establish who holds the speech turn."
+            ],
+            "reading_support": [
+              "Keep the rule phrasings brief and directly action-focused like 'കൈ ഉയർത്താം, സംസാരിക്കാം'."
+            ]
+          },
+          "moral": "Waiting for our turn makes classroom learning happy for everyone."
+        }
+      ]
+    },
+    {
+      "module_number": 3,
+      "module_title": "ഗണിതം വിദ്യാലയത്തിൽ (Maths at School)",
+      "activities": [
+        {
+          "activity_id": "M3_A1",
+          "activity_name": "എണ്ണാം കൂട്ടാം (Count and Combine)",
+          "learning_goal": "To count concrete objects up to 10 and perform simple arithmetic combinations using real classroom items.",
+          "story_theme": "Distributing slate pencils and chalk pieces to study tables.",
+          "main_concept": "Addition, set combination, and basic number identification.",
+          "materials": [
+            "Chalk pieces",
+            "Counting frames",
+            "Numbered storage bowls"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "friend"
+          ],
+          "story_template_malayalam": "കണക്ക് ക്ലാസിൽ {child_name}ന് വലിയൊരു ചുമതല കിട്ടി. മേശപ്പുറത്തിരുന്ന ചോക്ക് കഷ്ണങ്ങൾ എണ്ണി തിട്ടപ്പെടുത്തണമായിരുന്നു. ഒരു പാത്രത്തിൽ മൂന്ന് ചോക്കും മറ്റൊരു പാത്രത്തിൽ രണ്ട് ചോക്കും ഉണ്ടായിരുന്നു. രണ്ടും കൂടി ആകെ എത്രയുണ്ടെന്ന് എണ്ണാൻ {teacher_name} ആവശ്യപ്പെട്ടു. {child_name} ചോക്കുകൾ എല്ലാം ഒന്നിച്ചുകൂട്ടി എണ്ണിത്തുടങ്ങി. എന്നാൽ പെട്ടെന്ന് എണ്ണം തെറ്റി ആകെ 'ആറ്' എന്ന് പറഞ്ഞുപോയി. അത് കേട്ട് കൂട്ടുകാരൻ {friend_name} പതുക്കെ അടുത്തിരുന്ന് ചോക്കുകൾ വരിവരിയായി വെച്ച് ഒന്നുകൂടി കാണിച്ചുതന്നു. {child_name} തന്റെ {favorite_color} പെൻസിൽ കൊണ്ട് ഓരോ ചോക്കിലും തൊട്ട് 'ഒന്ന്, രണ്ട്, മൂന്ന്, നാല്, അഞ്ച്' എന്ന് ശരിയായി എണ്ണി. ആകെ അഞ്ച് ചോക്കുകൾ ഉണ്ടെന്ന് കൃത്യമായി പറഞ്ഞപ്പോൾ അധ്യാപകൻ തോളിൽ തട്ടി പ്രശംസിച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "teacher_name",
+            "friend_name",
+            "favorite_color"
+          ],
+          "possible_challenges": [
+            "Counts the same physical chalk piece twice by mistake",
+            "Skips over a number name in the counting sequence while rushing",
+            "Drops a fragile chalk piece causing it to break into smaller fragments",
+            "Loses track of the total count when an outdoor car horns loudly",
+            "Cannot comprehend the meaning of the concept word 'ആകെ' (total)"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Substitute generic chalk with miniature toy cars or building block segments."
+            ],
+            "analogies": [
+              "Combining two groups of objects is like two small streams joining together into a big river."
+            ],
+            "sensory_extensions": [
+              "Describe the dry powdery feel of gypsum chalk on fingertips and its crisp clicking sounds."
+            ],
+            "attention_support": [
+              "Physically move the items from a left box to a right box to visually secure the transition."
+            ],
+            "reading_support": [
+              "Pair all written digit symbols with large, clear tactile dot arrays for verification."
+            ]
+          },
+          "moral": "Counting one by one with care helps us find correct answers."
+        },
+        {
+          "activity_id": "M3_A2",
+          "activity_name": "രൂപങ്ങൾ വേർതിരിക്കാം (Sorting Shapes)",
+          "learning_goal": "To classify and sort three-dimensional objects based on geometric shapes like circles, squares, and triangles.",
+          "story_theme": "Sorting library blocks into matching shape toy chests.",
+          "main_concept": "Geometric attribute discrimination and categorization.",
+          "materials": [
+            "Geometric wooden blocks",
+            "Shape template stencils"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "friend"
+          ],
+          "story_template_malayalam": "കളിസമയത്ത് {child_name} തറയിൽ ഇരിക്കുകയായിരുന്നു. അവിടെ ഒരു വലിയ പെട്ടി നിറയെ പലതരം തടിയുടെ ബ്ലോക്കുകൾ ഉണ്ടായിരുന്നു. വട്ടത്തിലുള്ള രൂപങ്ങളും ചതുരത്തിലുള്ള രൂപങ്ങളും വെവ്വേറെ കുട്ടകളിലാക്കുക എന്നതായിരുന്നു കളി. {child_name} ഒരു വലിയ ചതുര കട്ട കയ്യിലെടുത്തു. അത് ഏത് കുട്ടയിലാണ് ഇടേണ്ടത് എന്ന് പെട്ടെന്ന് മനസ്സിലാകാതെ അങ്ങോട്ടുമിങ്ങോട്ടും നോക്കി വിഷമിച്ചു. അപ്പോൾ അങ്ങോട്ട് വന്ന {teacher_name} തറയിലെ വലിയ വട്ട വര കാണിച്ചുതന്നു. {child_name} ആ കട്ടയുടെ വശങ്ങളിൽ വിരൽ ഓടിച്ചു നോക്കി. അതിന് {favorite_sport} ബോൾ പോലെ വളവുകൾ ഇല്ലെന്ന് മനസ്സിലാക്കി ചതുരങ്ങളുടെ കുട്ടയിലേക്ക് കൃത്യമായി നിക്ഷേപിച്ചു. എല്ലാ രൂപങ്ങളും ശരിയായി വേർതിരിച്ചപ്പോൾ കൂട്ടുകാരൻ {friend_name} വലിയൊരു കൈയടി നൽകി.",
+          "placeholder_variables": [
+            "child_name",
+            "favorite_sport",
+            "teacher_name",
+            "friend_name"
+          ],
+          "possible_challenges": [
+            "Confuses a rectangle block with a perfect square block shape",
+            "Gets distracted by the colors of the blocks instead of sorting by geometric shape",
+            "Drops a heavy wooden block onto the tile surface with a loud bang",
+            "Cannot visually notice the difference between small circles and big ovals",
+            "Tries to force a square block into a round template cutout space"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Use examples of shapes found on their favorite sports gear or food items."
+            ],
+            "analogies": [
+              "A round shape is perfectly smooth like a steering wheel, a square has corners like a house room."
+            ],
+            "sensory_extensions": [
+              "Detail the texture of smooth polished wood edges and the sharp points of corner vertex angles."
+            ],
+            "attention_support": [
+              "Limit the initial sort selection choices to only two high-contrast contrasting options."
+            ],
+            "reading_support": [
+              "Enlarge and color-code the shape descriptive tags like 'വട്ടം' (circle) and 'ചതുരം' (square)."
+            ]
+          },
+          "moral": "Looking closely at shapes helps us organize our world beautifully."
+        },
+        {
+          "activity_id": "M3_3",
+          "activity_name": "കടയിൽ പോകാം (Going to the Stationery Shop)",
+          "learning_goal": "To identify basic currency denominations and perform simulated small value monetary transaction exchanges.",
+          "story_theme": "A classroom mock shop activity purchasing basic school supplies.",
+          "main_concept": "Value comparison, financial exchanges, and basic functional math application.",
+          "materials": [
+            "Play currency notes",
+            "Pencils and notebooks labeled with price tags",
+            "Toy cash box"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "friend"
+          ],
+          "story_template_malayalam": "ക്ലാസിൽ ഇന്ന് ഒരു കുഞ്ഞു സ്റ്റേഷനറി കട ഒരുക്കിയിട്ടുണ്ടായിരുന്നു. {friend_name} ആയിരുന്നു അവിടുത്തെ കടക്കാരൻ. {child_name} ഒരു പുതിയ {favorite_color} പേന വാങ്ങാൻ കടയുടെ മുന്നിലേക്ക് ചെന്നു. പേനയുടെ വില അഞ്ച് രൂപയായിരുന്നു. {child_name} തന്റെ കയ്യിലെ കുഞ്ഞു ബാഗിൽ നിന്നും പത്തു രൂപയുടെ നോട്ടും അഞ്ചു രൂപയുടെ നോട്ടും പുറത്തെടുത്തു. ഇതിൽ ഏത് നോട്ടാണ് കൊടുക്കേണ്ടത് എന്ന് ഓർത്ത് {child_name} അല്പം സംശയിച്ചു നിന്നു. അപ്പോൾ അങ്ങോട്ട് വന്ന {teacher_name} നോട്ടിലെ '5' എന്ന വലിയ അക്ഷരം കാണിച്ചുതന്നു. {child_name} ശരിയായ നോട്ട് നോക്കി എടുത്ത് {friend_name}ന് നൽകി സന്തോഷത്തോടെ പുതിയ പേന വാങ്ങി. കളി വിജയകരമായി പൂർത്തിയാക്കിയപ്പോൾ {child_name} ആവേശത്തോടെ ചിരിച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "friend_name",
+            "favorite_color",
+            "teacher_name"
+          ],
+          "possible_challenges": [
+            "Confuses a 10-rupee note with a 50-rupee currency note due to color patterns",
+            "Hands over all the play money at once instead of the exact specified tag price",
+            "Walks away with the purchase item without paying any money first",
+            "Drops the small coins which roll away under the main storage cupboards",
+            "Becomes non-verbal due to anxiety during conversational communication with the shopkeeper"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "The item being purchased can match a special hobby item like a drawing sheet or toy clip."
+            ],
+            "analogies": [
+              "Trading money for a toy is like swapping duplicate sticker cards with a close friend."
+            ],
+            "sensory_extensions": [
+              "Describe the unique crisp paper rustle of new currency notes and the shiny metallic feel of coins."
+            ],
+            "attention_support": [
+              "Use highly exaggerated, large-size numeric labels on the priced stationery products."
+            ],
+            "reading_support": [
+              "Utilize brief, isolated phrase loops to clearly list out the monetary trade transactions."
+            ]
+          },
+          "moral": "Using the right numbers helps us become smart independent shoppers."
+        }
+      ]
+    },
+    {
+      "module_number": 4,
+      "module_title": "ആരോഗ്യവും വൃത്തിയും (Health and Hygiene)",
+      "activities": [
+        {
+          "activity_id": "M4_A1",
+          "activity_name": "കൈകൾ വൃത്തിയാക്കാം (Proper Handwashing Routine)",
+          "learning_goal": "To perform structural independent handwashing step sequences thoroughly using soap lather after activities.",
+          "story_theme": "Cleaning up muddy hands after a messy outdoor leisure period.",
+          "main_concept": "Personal sanitation sequence execution and health maintenance tracking.",
+          "materials": [
+            "Scented handwash soap",
+            "Step-by-step sequence poster cards",
+            "Soft hand towel"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "friend"
+          ],
+          "story_template_malayalam": "ഉച്ചഭക്ഷണത്തിന് സമയമായപ്പോൾ {child_name} കൈകൾ കഴുകാനായി വാഷ് ബേസിനടുത്തേക്ക് ചെന്നു. കളിസ്ഥലത്തെ മണ്ണിൽ കളിച്ചതു കൊണ്ട് കൈകളിൽ നല്ലതുപോലെ പൊടി പറ്റിയിട്ടുണ്ടായിരുന്നു. {child_name} പെട്ടെന്ന് പൈപ്പ് തുറന്ന് വെള്ളത്തിൽ കൈകൾ വെറുതെ ഒന്ന് മുക്കി ഉടനെ മാറ്റാൻ ശ്രമിച്ചു. വിരലുകൾക്കിടയിലെ ചെളി മാറിയിട്ടുണ്ടായിരുന്നില്ല. അത് കണ്ടുനിന്ന {teacher_name} പതുക്കെ അരികിൽ വന്ന് ഭിത്തിയിലെ കുഞ്ഞു കുമിളകളുടെ ചിത്രം കാണിച്ചുതന്നു. സോപ്പ് ഉപയോഗിച്ച് നന്നായി തിരുമ്മണം എന്ന് ഓർമ്മിപ്പിച്ചു. {child_name} അല്പം സുഗന്ധമുള്ള സോപ്പ് എടുത്ത് കൈകൾ പരസ്പരം നന്നായി തിരുമ്മി പതപ്പിച്ചു. വെളുത്ത കുമിളകൾ വിരലുകൾക്കിടയിലൂടെ വന്നപ്പോൾ {child_name} സന്തോഷത്തോടെ നോക്കിനിന്നു. വെള്ളത്തിൽ കൈകൾ വൃത്തിയായി കഴുകിയ ശേഷം {favorite_color} ടവൽ കൊണ്ട് തുടച്ച് വൃത്തിയാക്കി ചിരിച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "teacher_name",
+            "favorite_color"
+          ],
+          "possible_challenges": [
+            "Dislikes the slippery texture of liquid soap gel and tries to wipe it off prematurely",
+            "Splashes water onto clothes and shoes while opening the tap tap handle too wide",
+            "Forgets to wash the space back of palms and between the thumb webs",
+            "Wipes wet dirty hands back onto their own trousers instead of the dry clean towel cloth",
+            "Leaves the water tap running open after leaving the washbasin zone"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Utilize a soap variant that produces their most preferred fruity smell like strawberry or orange."
+            ],
+            "analogies": [
+              "Rubbing your hands together to make foam is like a small washing machine cleaning fabrics."
+            ],
+            "sensory_extensions": [
+              "Detail the cooling touch of flowing water and the light texture of rich airy white soap suds."
+            ],
+            "attention_support": [
+              "Use a short 20-second musical nursery rhyme track to visually time the scrubbing duration phase."
+            ],
+            "reading_support": [
+              "Format the structural sequence directions in brief, large graphic blocks with high spacing."
+            ]
+          },
+          "moral": "Washing hands carefully with soap keeps invisible dirt and germs away from us."
+        },
+        {
+          "activity_id": "M4_A2",
+          "activity_name": "ആഹാരരീതികൾ (Table Manners)",
+          "learning_goal": "To open lunch boxes independently, eat without spilling contents, and clean up the dining area.",
+          "story_theme": "A lunch break gathering inside the school dining hall.",
+          "main_concept": "Independent eating routines, fine motor spoon grip, and table sanitation.",
+          "materials": [
+            "Lunch box with secure lid",
+            "Spoon and drinking water bottle",
+            "Dining placemat"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "friend"
+          ],
+          "story_template_malayalam": "ഉച്ചഭക്ഷണത്തിനുള്ള മണി മുഴങ്ങിയപ്പോൾ {child_name} തന്റെ വലിയ {favorite_toy_color} ലഞ്ച് ബോക്സുമായി മേശയ്ക്കരികിൽ വന്നിരുന്നു. പെട്ടെന്ന് ബോക്സിന്റെ വശങ്ങളിലെ മുറുക്കമുള്ള ലോക്കുകൾ സ്വന്തമായി തുറക്കാൻ നോക്കിയപ്പോൾ {child_name}ന്റെ കുഞ്ഞു വിരലുകൾ വഴുതിപ്പോയി. അടപ്പ് തുറക്കാൻ പറ്റാതെ വന്നപ്പോൾ വിശപ്പ് കാരണം {child_name} ഉറക്കെ ശബ്ദമുണ്ടാക്കാൻ തുടങ്ങി. അപ്പോൾ അടുത്തു വന്നിരുന്ന കൂട്ടുകാരൻ {friend_name} പതുക്കെ അരികിൽ വന്ന് ഒരു വശത്തെ ലോക്ക് മെല്ലെ അമർത്തി കാണിച്ചുതന്നു. അത് കണ്ട് {child_name} ശാന്തനായി, തന്റെ വിരലുകൾ കൊണ്ട് അടുത്ത ലോക്ക് പതുക്കെ അമർത്തി തുറന്നു. ഉള്ളിലെ സ്വാദുള്ള ഭക്ഷണം ചിതറാതെ സ്പൂൺ കൊണ്ട് പതുക്കെ എടുത്തു കഴിച്ചു. ഭക്ഷണം കഴിഞ്ഞ ശേഷം ബോക്സ് ഭംഗിയായി അടച്ചുവെച്ച് {child_name} സന്തോഷത്തോടെ ടീച്ചറെ നോക്കി പുഞ്ചിരിച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "favorite_toy_color",
+            "friend_name"
+          ],
+          "possible_challenges": [
+            "Spills the vegetable curry onto the table surface while opening the tight container cover",
+            "Refuses to use a spoon and directly plays with food textures inside the bowl dish",
+            "Swallows large food portions rapidly without proper rhythmic oral chewing steps",
+            "Drops the full water flask causing a loud clatter noise on the tiled dining room floor",
+            "Leaves the table space immediately without wiping away their own food crumbs"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "The lunch box cover can feature a visual branding of their top favored animal emblem."
+            ],
+            "analogies": [
+              "Opening the box locks is like clicking the seatbelt safely into place before a fun car ride."
+            ],
+            "sensory_extensions": [
+              "Describe the rich warm steam smell of fresh rice and the firm cool metal touch of the spoon tool."
+            ],
+            "attention_support": [
+              "Utilize a contrasting colored high-border dining placemat boundary to limit spilling spaces."
+            ],
+            "reading_support": [
+              "Keep the text sentences simple, clear, and focused entirely on basic action-oriented goals."
+            ]
+          },
+          "moral": "Eating our meals neatly and patiently makes dining time beautiful for all."
+        }
+      ]
+    },
+    {
+      "module_number": 5,
+      "module_title": "കലയും കായികവും (Art and Sports)",
+      "activities": [
+        {
+          "activity_id": "M5_A1",
+          "activity_name": "ചിത്രരചന (Making a Leaf Mosaic Painting)",
+          "learning_goal": "To develop fine motor pincer precision and artistic expression by sticking natural leaves inside bounded line contours.",
+          "story_theme": "Creating a green tree poster for the classroom notice board.",
+          "main_concept": "Bilateral hand integration, tactile media adjustment, and border limits awareness.",
+          "materials": [
+            "Thick boundary tree outline sheets",
+            "Fresh garden leaves",
+            "Safe liquid glue tubes"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "friend"
+          ],
+          "story_template_malayalam": "ഉച്ചകഴിഞ്ഞ് ആർട്ട് ക്ലാസ് തുടങ്ങിയപ്പോൾ {child_name}ന്റെ മുന്നിൽ ഒരു വലിയ വരച്ച മരത്തിന്റെ ചിത്രം ഉണ്ടായിരുന്നു. അതിലെ കൊമ്പുകളിൽ ഒട്ടിക്കാൻ ഒരു പ്ലേറ്റ് നിറയെ പച്ച ഇലകളും വെച്ചിട്ടുണ്ടായിരുന്നു. {child_name} ഒരു ചെറിയ ഇലയെടുത്ത് പശ തേക്കാൻ ശ്രമിച്ചു. എന്നാൽ പശ വിരലുകളിൽ പറ്റിപ്പിടിച്ച് ഇല വിരലിൽ നിന്നും വിട്ടുമാറാതെയായി. കയ്യിൽ പശ പറ്റിയപ്പോൾ {child_name} അസ്വസ്ഥനായി ഷീറ്റ് ചുരുട്ടാൻ ആഞ്ഞു. അപ്പോൾ അങ്ങോട്ട് വന്ന {teacher_name} ഒരു കുഞ്ഞു പഞ്ഞി കഷ്ണം നൽകി കൈകൾ തുടപ്പിച്ചു. പിന്നീട് പേപ്പറിൽ ആദ്യം പശ ചുരണ്ടി വെച്ച ശേഷം അതിനു മുകളിലേക്ക് ഇല വെക്കാൻ കാണിച്ചുതന്നു. {child_name} ആ പുതിയ രീതിയിലൂടെ പതുക്കെ ഇലകൾ ഓരോന്നായി കൃത്യമായി ഒട്ടിച്ചു. മരം മുഴുവൻ പച്ചപ്പുള്ളതായി മാറിയപ്പോൾ {child_name} അത് കണ്ട് സന്തോഷത്തോടെ {favorite_game_action} ചെയ്തു.",
+          "placeholder_variables": [
+            "child_name",
+            "teacher_name",
+            "favorite_game_action"
+          ],
+          "possible_challenges": [
+            "Experiences tactile distress or aversion due to sticky wet liquid craft gum on skin surfaces",
+            "Accidentally tears the fragile fresh plant leaves by applying too much pressing tension force",
+            "Pastes the natural materials way outside the thick black boundary line markers of the tree trunk",
+            "Sneezes or blows heavily causing the lightweight leaves to scatter across the workspace floor",
+            "Squeezes the full liquid glue tube out onto one single spot creating a giant wet puddle"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "The shape to be pasted can match their top liked object like a large fish or a racecar body."
+            ],
+            "analogies": [
+              "Pasting green leaves on the bare sketch branches is like putting warm clothes onto a tree in the morning."
+            ],
+            "sensory_extensions": [
+              "Contrast the sticky wet texture of art gum with the dry crisp rustle feel of garden leaves."
+            ],
+            "attention_support": [
+              "Pre-apply structural double-sided tape paths so the child can focus purely on placing leaves without fluid messes."
+            ],
+            "reading_support": [
+              "Maintain extended empty white spacing gaps between structural lines to allow ease of reading tracking."
+            ]
+          },
+          "moral": "Trying new ways when an art task gets tricky leads us to beautiful outcomes."
+        },
+        {
+          "activity_id": "M5_A2",
+          "activity_name": "വളയങ്ങൾക്കുള്ളിൽ ചാടാം (Jumping inside Floor Rings)",
+          "learning_goal": "To build dynamic gross motor balancing, spatial target tracking, and leg muscle motor coordination.",
+          "story_theme": "An outdoor playground game hopping like friendly frogs across a pond.",
+          "main_concept": "Gross motor planning, spatial agility, and rhythmic jumping mechanics.",
+          "materials": [
+            "Multi-colored floor hula hoops",
+            "Non-slip target mats"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "friend"
+          ],
+          "story_template_malayalam": "വൈകുന്നേരത്തെ തണുത്ത വെളിച്ചത്തിൽ വിദ്യാലയത്തിലെ വലിയ മൈതാനത്തേക്ക് {child_name} ഇറങ്ങി. അവിടെ വരിവരിയായി പല നിറങ്ങളിലുള്ള വലിയ വളയങ്ങൾ തറയിൽ വെച്ചിട്ടുണ്ടായിരുന്നു. ഒരു വളയത്തിൽ നിന്നും അടുത്ത വളയത്തിലേക്ക് രണ്ട് കാലുകളും ഒന്നിച്ച് ചേർത്ത് ചാടുക എന്നതായിരുന്നു ഇന്നത്തെ കായിക കളി. {child_name} ആദ്യത്തെ ചുവപ്പ് വളയത്തിലേക്ക് ഭംഗിയായി ചാടി. എന്നാൽ അടുത്ത നീല വളയം കുറച്ചുകൂടി ദൂരെയായതു കൊണ്ട് ചാടിയപ്പോൾ {child_name}ന്റെ ഒരു കാൽ വളയത്തിന് വെളിയിൽ തറയിൽ തട്ടി ബാലൻസ് തെറ്റി. വീഴാൻ പോയപ്പോൾ {child_name} പേടിച്ച് അവിടെത്തന്നെ നിന്നുപോയി. അപ്പോൾ അരികിലുണ്ടായിരുന്ന കൂട്ടുകാരൻ {friend_name} ഓടിവന്ന് കൈകളിൽ പിടിച്ച് താങ്ങി നിർത്തി. 'പതുക്കെ ചാടാം' എന്ന് മാഷ് വിളിച്ചു പറഞ്ഞു. {child_name} ധൈര്യം സംഭരിച്ച് ഒന്നു കൂടി ആഞ്ഞു ചാടി കൃത്യമായി വളയത്തിന്റെ നടുവിലെത്തി വലിയ സന്തോഷത്തോടെ രണ്ടു കൈകളും ഉയർത്തി ചിരിച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "friend_name"
+          ],
+          "possible_challenges": [
+            "Loses standing footing balance completely when landing with two feet together on mats",
+            "Hesitates to jump across the empty space gap due to underlying depth perception anxiety",
+            "Runs forward across the hoops directly instead of executing the proper jumping movement sequence",
+            "Steps on the slippery plastic curved edge of the hula hoop causing it to slide away",
+            "Grows impatient waiting in the student line queue and walks away from the field early"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Frame the activity like an alien astronaut leaping between floating crystal stars in open space skies."
+            ],
+            "analogies": [
+              "Leaping into the floor ring target is like a little green frog finding a floating lily pad sheet."
+            ],
+            "sensory_extensions": [
+              "Describe the cool rushing feel of outdoor air and the firm spring vibration of feet hitting ground surfaces."
+            ],
+            "attention_support": [
+              "Use highly contrasting neon color floor markers to sharply isolate the safe target landing spaces."
+            ],
+            "reading_support": [
+              "Incorporate brief, rhythmic, action-heavy sound words within descriptions like 'ചാടാം, ഓടാം, നിൽക്കാം'."
+            ]
+          },
+          "moral": "With steady focus and help from our peers, we can jump across any obstacle safely."
+        }
+      ]
+    }
+  ]
+}

@@ -368,7 +368,7 @@ def _run_chapter_mode(
                 question=f"{chapter_source} | Module {selected_module['number'] if selected_module else ''}",
                 context_docs=chapter_docs[:3],
                 student_profile=student_profile,
-                max_tokens=5000,
+                max_tokens=4096,
             )
         except Exception:
             logger.exception("Failed to generate learning story")

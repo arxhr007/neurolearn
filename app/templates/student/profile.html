@@ -1,25 +1,46 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <div class="page-header">
-    <h1>Profile</h1>
-    <p class="subtitle">Update your learning preferences.</p>
-  </div>
-  <div class="card">
-    <form class="form">
-      <label>
-        Full name
-        <input type="text" value="{{ user.username }}" />
-      </label>
-      <label>
-        Learning style
-        <input type="text" value="analogy-heavy" />
-      </label>
-      <label>
-        Reading age
-        <input type="number" value="12" min="6" max="18" />
-      </label>
-      <button type="button" class="btn">Save profile</button>
-    </form>
-  </div>
+<div class="page-header">
+  <h1>Profile</h1>
+  <p class="subtitle">Update your learning preferences.</p>
+</div>
+
+{% if saved %}
+<div class="status-banner" data-tone="success" style="padding:var(--space-2) var(--space-3);border-radius:var(--radius);margin-bottom:var(--space-3);background:var(--success-bg);color:var(--success)">Profile saved.</div>
+{% endif %}
+{% if error %}
+<div class="status-banner" data-tone="error" style="padding:var(--space-2) var(--space-3);border-radius:var(--radius);margin-bottom:var(--space-3);background:var(--error-bg);color:var(--error)">{{ error }}</div>
+{% endif %}
+
+<div class="card">
+  <form class="form" action="/student/profile/save" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+    <label>
+      Full name
+      <input type="text" name="full_name" value="{{ user.full_name or user.username }}" />
+    </label>
+    <label>
+      Learning style
+      <input type="text" name="learning_style" value="{{ user.learning_style or 'general' }}" />
+    </label>
+    <label>
+      Reading age
+      <input type="number" name="reading_age" value="{{ user.reading_age or 12 }}" min="6" max="18" />
+    </label>
+    <label>
+      Age
+      <input type="number" name="age" value="{{ user.age or 10 }}" min="4" max="25" />
+    </label>
+    <label>
+      Interests (comma-separated)
+      <input type="text" name="interests" value="{{ user.interests|join(', ') if user.interests is iterable and user.interests is not string else user.interests or '' }}" />
+    </label>
+    <label>
+      Neuro profile (comma-separated)
+      <input type="text" name="neuro_profile" value="{{ user.neuro_profile|join(', ') if user.neuro_profile is iterable and user.neuro_profile is not string else user.neuro_profile or '' }}" />
+    </label>
+    <button type="submit" class="btn">Save profile</button>
+  </form>
+</div>
 {% endblock %}

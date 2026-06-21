@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.learning_service import create_goal, list_goals_for_student, list_goals_for_teacher
 from app.services.session import get_csrf_token, get_session_user, validate_csrf
-from app.services.user_service import create_student, create_teacher, list_students_for_teacher, list_teachers
+from app.services.user_service import create_student, create_teacher, list_students_for_teacher, list_teachers, update_student
 
 
 router = APIRouter()
@@ -436,6 +436,19 @@ async def student_chat(request: Request):
     )
 
 
+@router.get("/student/chapter")
+async def student_chapter(request: Request):
+    user = _require_role(request, "student", "/student/login")
+    if isinstance(user, RedirectResponse):
+        return user
+    token = get_csrf_token(request)
+    return _render(
+        request,
+        "student/chapter.html",
+        {"user": user, "page": "chapter", "role": "student", "csrf_token": token},
+    )
+
+
 @router.get("/student/goals")
 async def student_goals(request: Request, db: Session = Depends(get_db)):
     user = _require_role(request, "student", "/student/login")
@@ -478,7 +491,10 @@ async def student_progress(request: Request):
 
 
 @router.get("/student/profile")
-async def student_profile(request: Request):
+async def student_profile(
+    request: Request,
+    saved: str | None = None,
+):
     user = _require_role(request, "student", "/student/login")
     if isinstance(user, RedirectResponse):
         return user
@@ -486,5 +502,81 @@ async def student_profile(request: Request):
     return _render(
         request,
         "student/profile.html",
-        {"user": user, "page": "profile", "role": "student", "csrf_token": token},
+        {"user": user, "page": "profile", "role": "student", "csrf_token": token, "saved": saved == "1"},
+    )
+
+
+@router.post("/student/profile/save")
+async def student_profile_save(
+    request: Request,
+    full_name: str = Form(""),
+    learning_style: str = Form(""),
+    reading_age: int | None = Form(None),
+    age: int | None = Form(None),
+    interests: str = Form(""),
+    neuro_profile: str = Form(""),
+    csrf_token: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    user = _require_role(request, "student", "/student/login")
+    if isinstance(user, RedirectResponse):
+        return user
+    validate_csrf(request, csrf_token)
+
+    def _split(v: str) -> list[str]:
+        return [s.strip() for s in v.split(",") if s.strip()]
+
+    try:
+        updated = update_student(
+            db,
+            student_id=user.get("student_id") or user.get("username"),
+            full_name=full_name or None,
+            learning_style=learning_style or None,
+            reading_age=reading_age or None,
+            age=age or None,
+            interests=_split(interests) if interests else None,
+            neuro_profile=_split(neuro_profile) if neuro_profile else None,
+        )
+    except ValueError as exc:
+        token = get_csrf_token(request)
+        return _render(
+            request,
+            "student/profile.html",
+            {
+                "user": user, "page": "profile", "role": "student",
+                "csrf_token": token, "error": str(exc),
+                "full_name": full_name, "learning_style": learning_style,
+                "reading_age": reading_age, "age": age,
+                "interests": interests, "neuro_profile": neuro_profile,
+            },
+        )
+
+    # Refresh session with updated profile data
+    from app.services.session import set_session_user
+    set_session_user(request, {
+        "role": "student",
+        "user_id": updated.id,
+        "username": updated.username,
+        "student_id": updated.student_id,
+        "full_name": updated.full_name,
+        "learning_style": updated.learning_style,
+        "reading_age": updated.reading_age,
+        "age": updated.age,
+        "interests": updated.interests,
+        "neuro_profile": updated.neuro_profile,
+    })
+
+    return RedirectResponse("/student/profile?saved=1", status_code=303)
+
+
+@router.get("/student/story")
+async def student_story(request: Request):
+    user = _require_role(request, "student", "/student/login")
+    if isinstance(user, RedirectResponse):
+        return user
+    token = get_csrf_token(request)
+    return _render(
+        request,
+        "student/story.html",
+        {"user": user, "page": "story", "role": "student", "csrf_token": token},
     )

@@ -1,4 +1,4 @@
-"""Groq-backed LLM service."""
+"""LLM service with Groq (primary) and Gemini (fallback) support."""
 
 import os
 import json
@@ -10,16 +10,54 @@ from groq import Groq
 from langgraph_app.config import COMPLEXITY_JUDGE_MODEL, GROQ_MODEL, INTENT_MODEL, SYSTEM_PROMPT
 
 
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
+
+
 class MalayalamLLM:
     def __init__(self):
-        api_key = os.environ.get("GROQ_API_KEY")
-        if not api_key:
+        self.groq_api_key = os.environ.get("GROQ_API_KEY")
+        if not self.groq_api_key:
             raise RuntimeError(
                 "GROQ_API_KEY is required. Set it in the environment or .env file."
             )
-        self.client = Groq(api_key=api_key)
+        self.client = Groq(api_key=self.groq_api_key)
+
+        self.gemini_api_key = os.environ.get("gemini_api_key") or ""
+        self._gemini_model = None
 
         print(f"[LLM] Using Groq model: {GROQ_MODEL}")
+        if self.gemini_api_key:
+            print(f"[LLM] Gemini fallback available (model: {GEMINI_MODEL})")
+
+    def _call_gemini(self, system_prompt: str, user_prompt: str, max_tokens: int = 4096, temperature: float = 0.3) -> str:
+        """Generate text via Google Gemini REST API."""
+        if not self.gemini_api_key:
+            raise RuntimeError("Gemini API key not configured")
+
+        import urllib.request
+        import json
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={self.gemini_api_key}"
+        payload = {
+            "contents": [{"parts": [{"text": user_prompt}]}],
+            "system_instruction": {"parts": [{"text": system_prompt}]},
+            "generationConfig": {
+                "maxOutputTokens": max_tokens,
+                "temperature": temperature,
+            },
+        }
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+        resp = urllib.request.urlopen(req, timeout=60)
+        body = json.loads(resp.read())
+
+        candidates = body.get("candidates", [])
+        if candidates:
+            parts = candidates[0].get("content", {}).get("parts", [])
+            text = "".join(p.get("text", "") for p in parts).strip()
+            if text:
+                return text
+        raise RuntimeError("Empty Gemini response")
 
     @staticmethod
     def _extract_response_text(response) -> str:
@@ -1076,21 +1114,354 @@ class MalayalamLLM:
             "redirect_message": "",
         }
 
-    def generate_story_from_answer(
+    @staticmethod
+    def _strip_curriculum_metadata(text: str) -> str:
+        """Remove assessment criteria, learning outcomes, homework, and metadata lines."""
+        lines = text.split("\n")
+        cleaned: list[str] = []
+        skip_section = False
+        skip_patterns = re.compile(
+            r"^(വിലയിരുത്തല്‍|Assessment|Learning Outcome|Outcome|Rubric|Homework|"
+            r"പ്രവര്‍ത്തനം\s+\d+|Activity\s+\d+|"
+            r"പാഠം\s+\d+|Lesson\s+\d+|Notes|Teacher Notes|Materials Needed|"
+            r"ആവശ്യമായ സാധനങ്ങള്‍|ലക്ഷ്യം|Objective|Goal|"
+            r"നിര്‍ദേശങ്ങള്‍|Instructions|Steps|ചുവടുകള്‍)",
+            re.IGNORECASE,
+        )
+        module_pattern = re.compile(r"(മൊഡ്യൂള്[‌‍]*\s*\d+|Module\s+\d+)", re.IGNORECASE)
+        assessment_markers = re.compile(
+            r"(വിലയിരുത്തല്‍|Assessment|Evaluation|മാർക്ക്|Score|Grade|"
+            r"കുട്ടിക്ക്\s+.*(?:അറിയുന്നു|കഴിയും))",
+            re.IGNORECASE,
+        )
+        curriculum_lang_pattern = re.compile(
+            r"(പ്രവര്‍ത്തന[ംത്തിന്‍]*\s*\d*\s*മണിക്കൂര്‍|"
+            r"മണിക്കൂര്‍\s*പ്രവര്‍ത്തന|"
+            r"ഈ\s+പ്രവര്‍ത്തന|"
+            r"പ്രവര്‍ത്തനത്തിന്റെ\s+ഉദ്ദേശം|"
+            r"പ്രവര്‍ത്തന\s*നിര്‍ദേശം|"
+            r"പ്രവര്‍ത്തന\s*ലക്ഷ്യം|"
+            r"സമയം\s*\d+\s*മണിക്കൂര്‍)",
+            re.IGNORECASE,
+        )
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                if skip_section:
+                    continue
+                cleaned.append("")
+                continue
+            if skip_patterns.match(stripped):
+                skip_section = True
+                continue
+            if module_pattern.search(stripped) and any(c.isdigit() for c in stripped):
+                skip_section = True
+                continue
+            if assessment_markers.search(stripped):
+                skip_section = True
+                continue
+            if curriculum_lang_pattern.search(stripped):
+                skip_section = True
+                continue
+            if skip_section:
+                if stripped.endswith((":", ",-", ".")) and len(stripped) < 60:
+                    continue
+                if re.match(r"^\d+[\.\)]", stripped):
+                    continue
+                skip_section = False
+            if re.match(r"^(അധ്യാപക|Teacher|Parent|രക്ഷാകർത്താവ്)", stripped, re.IGNORECASE):
+                continue
+            if "പോസ്റ്റുചെയ്യുക" in stripped or "പോസ്റ്റ് ചെയ്യുക" in stripped:
+                stripped = stripped.replace("പോസ്റ്റുചെയ്യുക", "കാണിച്ചു").replace("പോസ്റ്റ് ചെയ്യുക", "കാണിച്ചു")
+            cleaned.append(stripped)
+        result = "\n".join(cleaned)
+        result = re.sub(r"\n{3,}", "\n\n", result)
+        return result.strip()
+
+    def _validate_story_quality(self, source: str, story: str) -> list[str]:
+        """Check for metadata leakage and poor narrative quality."""
+        issues: list[str] = []
+
+        # 1. Curriculum language leaked mid-sentence
+        leakage_patterns = [
+            (r"വിലയിരുത്തല്‍", "Assessment term leaked"),
+            (r"Assessment", "English assessment term leaked"),
+            (r"Learning Outcome", "Learning Outcome leaked"),
+            (r"മൊഡ്യൂള്[‌‍]*\s*\d+", "Module number leaked"),
+            (r"പ്രവര്‍ത്തനം\s*\d+", "Activity number leaked"),
+            (r"പോസ്റ്റുചെയ്യുക", "Homework instruction leaked"),
+            (r"കുട്ടിക്ക്\s+.*(?:അറിയുന്നു|കഴിയും)", "Evaluation criteria leaked"),
+            (r"\bപ്രവര്‍ത്തന(?:ം|ത്തിന്|ത്തില്‍|ങ്ങള്‍)", "Curriculum term 'പ്രവര്‍ത്തനം' leaked"),
+            (r"\d+\s*മണിക്കൂര്‍", "Time duration (മണിക്കൂര്‍) leaked"),
+            (r"ലക്ഷ്യബോധം\s*[\)\]\n]", "Generic moral buzzword 'ലക്ഷ്യബോധം'"),
+            (r"സഹകരണം\s*[\)\]\n]", "Generic moral buzzword 'സഹകരണം'"),
+            (r"ശ്രദ്ധ\s*[\)\]\n]", "Generic moral buzzword 'ശ്രദ്ധ'"),
+        ]
+        for pat, msg in leakage_patterns:
+            if re.search(pat, story, re.IGNORECASE):
+                issues.append(msg)
+
+        # 2. Paragraph count (minimum 4 for any real story)
+        para_count = len([p for p in story.split("\n\n") if p.strip()])
+        if para_count < 4:
+            issues.append(f"Too few paragraphs ({para_count})")
+
+        # 3. Named characters beyond defaults
+        char_tokens = re.findall(r"[ഀ-ൿ]{3,}", story)
+        skip_words = {
+            "അനു", "അവന്", "അവള്", "അവർ", "അവര്",
+            "അമ്മ", "അച്ഛൻ", "അച്ഛന്", "സ്കൂള്", "വീട്", "ക്ലാസ്സ്",
+            "കുട്ടി", "കുട്ടികള്", "അധ്യാപിക", "അധ്യാപകന്",
+        }
+        unique_chars = len(set(t for t in char_tokens if t not in skip_words and len(t) >= 3))
+        if unique_chars == 0:
+            issues.append("No named characters beyond defaults")
+
+        # 4. Narrative action verbs
+        has_action = any(
+            word in story for word in
+            ["ചെയ്തു", "പറഞ്ഞു", "എടുത്തു", "നോക്കി", "പോയി", "വന്നു",
+             "ഇരുന്നു", "എഴുന്നേറ്റു", "ഓടി", "ചാടി", "കരഞ്ഞു", "ചിരിച്ചു"]
+        )
+        if not has_action:
+            issues.append("No narrative action verbs found")
+
+        # 5. Measurement density — flag if 4+ numeric measurements
+        measurements = re.findall(
+            r"\d+\s*(?:മീറ്റര്‍|അടി|സെന്റീമീറ്റര്‍|കിലോ|ഗ്രാം|ലിറ്റര്‍|മണിക്കൂര്‍|മിനിറ്റ്)",
+            story,
+        )
+        if len(measurements) >= 3:
+            issues.append(f"High measurement density ({len(measurements)} measurements)")
+
+        # 6. Pronoun inconsistency — both അവൾ and അവൻ in same story
+        has_av = bool(re.search(r'\bഅവന്\b', story))
+        has_al = bool(re.search(r'\bഅവള്\b', story))
+        if has_av and has_al:
+            issues.append("Pronoun inconsistency (both അവൻ and അവൾ used)")
+        if 'അവള്‍മാര്‍' in story or 'അവൾമാർ' in story:
+            issues.append("Non-standard plural 'അവള്‍മാര്‍' used")
+
+        # 7. Instruction-style procedural sentences
+        instruction_verbs = re.findall(
+            r'(?:അധ്യാപിക|അധ്യാപകന്|ടീച്ചര്)\s+\S+\s+(?:നല്‍കി|പറഞ്ഞു|നിര്‍ദേശിച്ചു)',
+            story,
+        )
+        if len(instruction_verbs) >= 2:
+            issues.append(f"Instruction-style framing ({len(instruction_verbs)} instances)")
+
+        # 7b. Procedural step wording
+        procedural_phrases = [
+            r"ആദ്യത്തെ\s+കുട്ടി",
+            r"അടുത്ത\s+കുട്ടി",
+            r"അവസാനത്തെ\s+കുട്ടി",
+            r"ആദ്യമായി\s+എടുത്തു",
+            r"അടുത്ത\s+വൃത്തത്തിലേക്ക്",
+            r"വരിയുടെ\s+അവസാന",
+            r"ഓരോ\s+കുട്ടിയും",
+        ]
+        for pat in procedural_phrases:
+            if re.search(pat, story, re.IGNORECASE):
+                issues.append(f"Procedural wording: '{pat}'")
+                break
+
+        # 8. Unused materials — materials listed within 2 sentences but never used
+        material_words = [
+            "തേങ്ങ", "ചോക്ക്", "വിസി", "വിസിൽ", "പേപ്പര്‍", "കത്രിക",
+            "പെൻസിൽ", "റബ്ബർ", "സ്കെയിൽ", "ഗ്ലൂ", "പശ", "നിറം",
+            "പെയിന്റ്", "ബ്രഷ്", "തുണി", "നൂല്‍", "സൂചി", "ബട്ടണ്‍",
+            "സിപ്പ്", "മരം", "ഇരുമ്പ്", "പ്ലാസ്റ്റിക്", "ഗ്ലാസ്", "കവര്‍",
+            "ചിപ്പ്", "സ്ട്രിപ്പ്", "ബോര്‍ഡര്‍", "ചട്ടം",
+        ]
+        found_materials = [m for m in material_words if m in story]
+        if len(found_materials) >= 3:
+            materials_used = any(
+                word in story for word in
+                ["എടുത്തു", "ഉപയോഗിച്ചു", "പിടിച്ചു", "മുറിച്ചു", "ഒട്ടിച്ചു",
+                 "വെച്ചു", "ചേർത്തു", "നെയ്തു", "തൂക്കി", "വരച്ചു"]
+            )
+            if not materials_used:
+                issues.append(f"Material listing without narrative use ({found_materials})")
+
+        # 9. Measurement anomaly — absurd values like 442 cm for a craft strip
+        anomaly_pairs = re.findall(r"(\d+)\s*(സെ\.?മീ\.?|മീ\.?)", story)
+        for val, unit in anomaly_pairs:
+            num = int(val)
+            if num > 100 and unit.startswith("സെ"):
+                issues.append(f"Measurement anomaly: {num} {unit} (implausible for craft item)")
+            elif num > 20 and unit.startswith("മീ"):
+                issues.append(f"Measurement anomaly: {num} {unit} (too large for classroom)")
+
+        # 10. Character utilization — named characters used only once
+        known_char_names = {"അനു", "മീര", "രാഹുൽ", "രാഹുല്", "റാഹുൽ"}
+        para_char_appearances: dict[str, int] = {}
+        for para in story.split("\n\n"):
+            for name in known_char_names:
+                if name in para:
+                    para_char_appearances[name] = para_char_appearances.get(name, 0) + 1
+        ignored_once = [c for c, count in para_char_appearances.items() if count == 1]
+        if len(ignored_once) >= 1:
+            issues.append(f"Introduced character(s) only appear once: {ignored_once}")
+
+        # 11. Generic ending detector
+        parts = story.split("**കഥയുടെ പാഠം:**")
+        if len(parts) >= 2:
+            ending = parts[0].strip().split("\n")[-1] if parts[0].strip() else ""
+            generic_pattern = re.compile(
+                r"(അഭിമാനിച്ചു|സന്തോഷിച്ചു|വിജയിച്ചു|ആനന്ദം|സന്തോഷം)",
+                re.IGNORECASE,
+            )
+            generic_matches = generic_pattern.findall(ending)
+            specific_details = re.findall(
+                r"(തയ്‌ച്ചു|നെയ്‌തു|വരച്ചു|ഒട്ടിച്ചു|മടക്കി|കുത്തി|അലങ്കരിച്ചു|പൂര്‍ത്തിയാക്കി|"
+                r"മുറിച്ചു|തിരഞ്ഞെടുത്തു|സൃഷ്ടിച്ചു|ശുചിയാക്കി|കാണിച്ചു|സമ്മാനിച്ചു|"
+                r"ഉണ്ടാക്കി|തീർത്തു|ചേർത്തു)",
+                ending,
+            )
+            if len(generic_matches) >= 2 and not specific_details:
+                issues.append("Generic ending (only happiness/pride words, no specific craft detail)")
+
+        # 12. Story compression — count source events vs story events
+        source_sentences = len([s for s in re.split(r'[.!\n]', source) if s.strip() and len(s.strip()) > 3])
+        story_paras = len([p for p in story.split("\n\n") if p.strip()])
+        story_paras_without_moral = story_paras
+        if "**കഥയുടെ പാഠം:**" in story:
+            story_paras_without_moral -= 1
+        if source_sentences >= 8 and story_paras_without_moral < 6:
+            issues.append(f"Story compression: {source_sentences} source steps → {story_paras_without_moral} story paragraphs")
+
+        # 13. Safety hallucination — injury/cut/burn/fall not in source
+        safety_verbs = [
+            "മുറിഞ്ഞു", "മുറിവ്", "രക്തം", "ചോര", "വെട്ടി", "കുത്തി",
+            "പൊള്ളി", "ചുട്ടു", "വീണു", "വീഴ്‌ച്ച", "അടിച്ചു", "ഇടിച്ചു",
+            "തല്ലി", "ഞെരിഞ്ഞു", "ഒടിഞ്ഞു", "പൊട്ടി",
+        ]
+        story_safety = [v for v in safety_verbs if v in story]
+        source_safety = [v for v in safety_verbs if v in source]
+        for v in story_safety:
+            if v not in source_safety:
+                issues.append(f"Safety hallucination: '{v}' in story but not in source")
+
+        # 14. Narrative balance — instruction vs narrative sentence ratio
+        sentences = [s.strip() for s in re.split(r'[.!\n]', story) if s.strip()]
+        total_sentences = len(sentences)
+        instruction_markers = [
+            "ആദ്യം", "പിന്നീട്", "തുടര്‍ന്ന്", "അവസാനമായി",
+            "എടുത്തു", "വച്ചു", "ചെയ്തു",
+        ]
+        instruction_count = sum(
+            1 for s in sentences
+            if any(s.startswith(m) for m in instruction_markers)
+        )
+        if total_sentences >= 6:
+            ratio = instruction_count / total_sentences
+            if ratio > 0.5:
+                issues.append(f"Too procedural: {instruction_count}/{total_sentences} sentences ({ratio:.0%}) start with instruction markers")
+
+        # 15. Missing dialogue/interaction
+        has_dialogue = bool(re.search(r'["\u201C\u201D\u2018\u2019]', story))
+        if not has_dialogue and story_paras_without_moral >= 4:
+            issues.append("No dialogue in story (characters do not speak)")
+
+        # 16. Repetitive sentence starts
+        para_starts = []
+        for para in story.split("\n\n"):
+            first_sentence = para.strip().split("\n")[0] if para.strip() else ""
+            if first_sentence:
+                start_word = first_sentence.split()[0] if first_sentence.split() else ""
+                para_starts.append(start_word)
+        if len(para_starts) >= 4:
+            repetitive = [w for w in para_starts if w in ("അവൾ", "അവള്‍", "അനു", "അവൻ", "അവന്‍")]
+            if len(repetitive) >= len(para_starts) * 0.6:
+                issues.append(f"Repetitive starts: {len(repetitive)}/{len(para_starts)} paragraphs start with '{repetitive[0]}'")
+
+        return issues
+
+    def _extract_facts(self, text: str) -> dict[str, set[str]]:
+        """Extract concrete facts from source text for validation."""
+        facts: dict[str, set[str]] = {
+            "measurements": set(),
+            "materials": set(),
+            "numbers": set(),
+        }
+        if not text:
+            return facts
+
+        measurement_pattern = re.compile(
+            r"(\d+)\s*(സെ\.?മീ\.?|മി\.?മീ\.?|മീ\.?|കി\.?മീ\.?|ഗ്രാം|കി\.?ഗ്രാം|മി\.?ലി\.?|ലി\.?|മണിക്കൂര്‍|മിനിറ്റ്|സെക്കന്റ്|എണ്ണം|തവണ|കഷണം|പേജ്|രൂപ|കോല്‍|ഇഞ്ച്)",
+            re.IGNORECASE,
+        )
+        for m in measurement_pattern.finditer(text):
+            facts["measurements"].add(m.group(0).strip())
+
+        for n in re.findall(r"\b\d+\b", text):
+            facts["numbers"].add(n)
+
+        material_words = [
+            "പേപ്പര്‍", "കത്രിക", "പെൻസിൽ", "റബ്ബർ", "സ്കെയിൽ",
+            "ഗ്ലൂ", "പശ", "നിറം", "പെയിന്റ്", "ബ്രഷ്",
+            "തുണി", "നൂല്‍", "സൂചി", "ബട്ടണ്‍", "സിപ്പ്",
+            "മരം", "ഇരുമ്പ്", "പ്ലാസ്റ്റിക്", "ഗ്ലാസ്", "കവര്‍",
+            "ചിപ്പ്", "സ്ട്രിപ്പ്", "ബോര്‍ഡര്‍", "ചട്ടം", "റൂള്",
+            "കയറ്", "ചോക്ക്", "തേങ്ങ", "വിസിൽ", "വിസി",
+        ]
+        for w in material_words:
+            if w in text:
+                facts["materials"].add(w)
+
+        return facts
+
+    def _validate_story_facts(
+        self, source_text: str, story: str
+    ) -> list[str]:
+        """Compare source facts against generated story and return issues."""
+        issues: list[str] = []
+        source_facts = self._extract_facts(source_text)
+        story_facts = self._extract_facts(story)
+
+        for missing in source_facts["measurements"] - story_facts["measurements"]:
+            if len(missing) > 5:
+                issues.append(f"Missing measurement: {missing}")
+
+        invented_materials = story_facts["materials"] - source_facts["materials"]
+        for mat in sorted(invented_materials):
+            issues.append(f"Invented material: {mat}")
+
+        return issues
+
+    @staticmethod
+    def _postprocess_story(story: str) -> str:
+        """Replace exact measurement numbers with vague terms for natural storytelling."""
+        # Fix absurd cm values (e.g., 442 cm → 44 cm — likely OCR corruption)
+        story = re.sub(
+            r"\b(\d{3,})\s*(സെ\.?മീ\.?)",
+            lambda m: f"{int(m.group(1)) // 10 or 20} {m.group(2)}" if int(m.group(1)) > 100 else m.group(0),
+            story,
+        )
+        story = re.sub(
+            r"\b\d+\s*(?:മീറ്റര്‍|മീ\.?|അടി)\s*(അകലെ|ദൂരത്തില്‍|ദൂരം|അകലത്തില്‍)",
+            r"കുറച്ച് \1",
+            story,
+            flags=re.IGNORECASE,
+        )
+        story = re.sub(
+            r"\b\d+\s*(?:മീറ്റര്‍|മീ\.?|അടി)\b",
+            "കുറച്ച്",
+            story,
+            flags=re.IGNORECASE,
+        )
+        return story
+
+    def _generate_story_gemini(
         self,
         answer: str,
         question: str | None = None,
         context_docs: list[dict] | None = None,
         student_profile: dict | None = None,
-        story_style: str = "child_friendly",
-        max_tokens: int = 768,
+        max_tokens: int = 16384,
     ) -> str:
-        """Convert an existing answer/explanation into a short story.
-
-        This is an opt-in post-processing helper used by the CLI or higher-level
-        services. It intentionally does not modify original answer content and
-        simply returns a storyified variant.
-        """
+        """Generate story directly via Gemini (used when STORY_PROVIDER=gemini)."""
+        cleaned_source = self._strip_curriculum_metadata(answer)
         profile = student_profile or {}
         reading_age = profile.get("reading_age", 12)
         neuro_tags, neuro_guidelines = self._build_neuro_support_guidelines(student_profile)
@@ -1100,28 +1471,272 @@ class MalayalamLLM:
             context_parts.append(f"[{i}] {doc.get('source')} p.{doc.get('page')}: {str(doc.get('text') or '')[:200]}")
         context_block = "\n\n".join(context_parts)
 
+        source_facts = self._extract_facts(cleaned_source)
+        facts_block = ""
+        if source_facts["measurements"]:
+            facts_block += "Measurements in source (use only if plot-relevant): " + ", ".join(sorted(source_facts["measurements"])) + "\n"
+        if source_facts["materials"]:
+            facts_block += "Materials in source (mention only when used by a character): " + ", ".join(sorted(source_facts["materials"])) + "\n"
+
+        source_sentences = len([s for s in re.split(r'[.!\n]', cleaned_source) if s.strip() and len(s.strip()) > 5])
+        if source_sentences <= 3:
+            target_paras = "18–25"
+        elif source_sentences <= 8:
+            target_paras = "22–30"
+        elif source_sentences <= 15:
+            target_paras = "28–35"
+        else:
+            target_paras = "30–40"
+
         system_prompt = (
-            "You are a creative Malayalam storyteller. Your ONLY output is a pure narrative story with a beginning, "
-            "middle, and end. Never use headings, bullet points, numbered lists, bold text, or section dividers. "
-            "Never enumerate steps or instructions. Weave the educational content into the actions and dialogue of the characters. "
-            "Use simple, concrete, age-appropriate Malayalam."
+            "You are a Malayalam storyteller for children. You convert curriculum content into real stories.\n\n"
+            "CRITICAL RULES — follow every rule in order:\n\n"
+            "1. STORY STRUCTURE: Every story MUST have:\n"
+            "   - A child protagonist with a name and a clear goal/want\n"
+            "   - A small challenge or problem they face (something actually goes wrong)\n"
+            "   - Actions they take to overcome it\n"
+            "   - A satisfying outcome tied to their actions\n\n"
+            "2. WHAT TO NEVER INCLUDE:\n"
+            "   - Module numbers, activity numbers, lesson numbers\n"
+            "   - Assessment criteria, evaluation, rubrics, scores\n"
+            "   - Homework instructions or \"post to group\" directives\n"
+            "   - Teacher notes or curriculum metadata\n"
+            "   - The word 'വിലയിരുത്തല്‍' or 'Assessment'\n"
+            "   - Activity instructions like 'കുട്ടികളെ ജോഡിയാക്കി'\n\n"
+            "3. NEVER USE THESE CURRICULUM WORDS IN THE STORY:\n"
+            "   - 'പ്രവര്‍ത്തനം' (children do not call their experiences \"activities\")\n"
+            "   - 'മണിക്കൂര്‍' with numbers (\"2 മണിക്കൂര്‍ സമയം\" — this is a lesson plan, not a story)\n"
+            "   - 'മീറ്റര്‍' / 'അടി' — replace with vague terms like 'കുറച്ച് അകലെ', 'അല്പം ദൂരെ'\n\n"
+            "4. NARRATIVE VOICE — convert instructions into events:\n"
+            "   BAD: 'കുട്ടികളെ ജോഡിയാക്കി ഓരോ ജോഡിയും പ്രവര്‍ത്തിച്ചു'\n"
+            "   GOOD: 'അനുവും മീരയും ഒരു ജോഡിയായി. അവര്‍ ഒന്നിച്ച് പ്രവര്‍ത്തിച്ചു'\n"
+            "   BAD: 'ടീച്ചര്‍ തേങ്ങ, ചോക്ക്, വിസി എന്നിവ നല്‍കി. കുട്ടികള്‍ അവ എടുത്തു.'\n"
+            "   GOOD: 'തേങ്ങ കണ്ടപ്പോള്‍ മീരയ്ക്ക് സന്തോഷമായി. അവള്‍ അതെടുത്ത് ഉരുട്ടി.'\n"
+            "   BAD: '6 മീറ്റര്‍ അകലെയായി രണ്ട് വൃത്തങ്ങള്‍ വരച്ചു'\n"
+            "   GOOD: 'കുറച്ച് അകലെയായി രണ്ട് വൃത്തങ്ങള്‍ വരച്ചു'\n\n"
+            "5. EVERY NAMED CHARACTER MUST MATTER:\n"
+            "   - If you introduce രാഹുൽ or മീര, they must speak or help.\n"
+            "   - Never name a character and then forget them.\n"
+            "   - Side characters should react, encourage, or participate.\n\n"
+            "6. SHOW EMOTION AFTER A PROBLEM:\n"
+            "   BAD: 'തേങ്ങ നിലത്തു വീണു. അവള്‍ അതെടുത്തു.' (no feeling, instant fix)\n"
+            "   GOOD: '\"അയ്യോ!\" എന്ന് അനു ഞെട്ടി. രാഹുൽ പറഞ്ഞു, \"പരവായില്ല, വീണ്ടും ശ്രമിക്കൂ!\" അനു ധൈര്യമായി വീണ്ടും തേങ്ങ എടുത്തു.'\n"
+            "   After something goes wrong, ALWAYS add the character's feeling (ഞെട്ടി, ഭയപ്പെട്ടു, ദേഷ്യപ്പെട്ടു, നിരാശപ്പെട്ടു) before showing the fix.\n\n"
+            "7. NEVER WRITE PROCEDURAL STEPS:\n"
+            "   BAD: 'ആദ്യത്തെ കുട്ടി അടുത്ത വൃത്തത്തിലേക്ക് വച്ചു. വരിയുടെ അവസാനത്തില്‍ എത്തി.'\n"
+            "   GOOD: 'അനു ഓടി അടുത്ത വൃത്തത്തിലെത്തി. അവള്‍ ആവേശത്തോടെ ഫിനിഷ് ചെയ്തു.'\n\n"
+            "8. MATERIALS: Only mention a material if a character uses it in the action. "
+            "Never list materials like a supply checklist.\n\n"
+            "9. TRUTH: Every fact, measurement, and material MUST come from the source. "
+            "NEVER invent numbers, measurements, or materials.\n"
+            "   - If source has '44 സെ.മീ.' write '44 സെ.മീ.' — do NOT merge adjacent numbers.\n"
+            "   - Source '44 × 2 cm' means 44 cm and 2 cm, NEVER '442 cm'.\n"
+            "   - Absurd measurements like 442 cm for a craft strip are IMPOSSIBLE. Use the correct values from source.\n\n"
+            "10. PROCESS DETAIL — do NOT compress steps:\n"
+            "   - For craft/art activities, describe each step in detail.\n"
+            "   - Include: choosing materials, measuring, cutting, arranging, checking alignment, gluing, waiting, adjusting, finishing.\n"
+            "   - Show the character making decisions: 'ഏത് നിറം തിരഞ്ഞെടുക്കണം?'\n"
+            "   - Show observations: 'ഇത് വളരെ നീളമുണ്ട്', 'ഇത് ചെറുതായി പോയി'\n"
+            "   - BAD: 'സ്ട്രിപ്പ് മുറിച്ചു. നെയ്തു. ഒട്ടിച്ചു. കഴിഞ്ഞു.'\n"
+            "   - GOOD: 'ആദ്യം അനു നിറങ്ങള്‍ നോക്കി. പച്ചയും മഞ്ഞയും എടുത്തു. പിന്നീട് അവള്‍ കത്രിക കൊണ്ട് സ്ട്രിപ്പ് മുറിച്ചു. \"ഇത് കൃത്യമായ വലുപ്പമാണോ?\" എന്ന് അവള്‍ പരിശോധിച്ചു. തുടര്‍ന്ന് അവള്‍ അവ നെയ്യാന്‍ തുടങ്ങി...'\n\n"
+            "11. SAFETY — NEVER invent injuries or accidents:\n"
+            "   - Do NOT add cuts, burns, falls, or injuries unless the source mentions them.\n"
+            "   - BAD: 'അവളുടെ വിരൽ ചെറുതായി മുറിഞ്ഞു' (not in source!)\n"
+            "   - GOOD: Find a non-safety conflict like a measurement being wrong or a piece not fitting.\n"
+            "   - For sharp tools, add adult supervision — do NOT let a child get hurt.\n\n"
+            "12. FORMAT: Pure narrative. No headings, bullet points, numbered lists, bold text. "
+            "The only exception is the final '**കഥയുടെ പാഠം:**' paragraph.\n"
+            "13. Paragraphs separated by a blank line. Simple, short sentences in Malayalam.\n"
+            "14. Vary sentence structure — do NOT start every paragraph with 'അവൾ' or 'അനു'.\n"
+            "15. Include at least one line of dialogue in quotation marks: \"...\"\n"
+            "16. Return ONLY the story text, nothing else."
         )
 
         user_prompt = (
-            f"Background material:\n{answer}\n\n"
+            f"This is the cleaned source material (all truth comes from here):\n{cleaned_source}\n\n"
             f"(Optional) Question: {question or ''}\n"
             f"Context excerpts:\n{context_block}\n\n"
             f"Reading age: {reading_age}\n"
             f"Neuro profile: {neuro_tags}\n"
             f"Neurodivergent support guidelines:\n{neuro_guidelines}\n\n"
+            f"Source facts:\n{facts_block}\n\n"
             "Task:\n"
-            "- Write a long, detailed Malayalam story (at least 8–10 paragraphs).\n"
-            "- The protagonist should be a child who learns or discovers something from the background material.\n"
-            "- Show the learning through scenes — what the child does, says, or feels.\n"
-            "- Keep educational facts accurate.\n"
-            "- End the story with a final paragraph that starts with '**കഥയുടെ പാഠം:**' and states the moral lesson clearly.\n"
-            "- NO headings, NO bullet points, NO numbered lists, NO bold text except for the moral paragraph marker, NO section markers like '---'.\n"
-            "- Return ONLY the story text, nothing else.\n\n"
+            f"- Write a {target_paras} paragraph Malayalam story about a child doing the activities described.\n"
+            "- Every paragraph separated by a blank line.\n"
+            "- The protagonist wants something, tries, faces a small REAL problem, and succeeds.\n"
+            "- SHOW THE PROCESS IN DETAIL: For craft activities, describe choosing materials, measuring, cutting, "
+            "arranging, checking, assembling — step by step. Do NOT skip steps.\n"
+            "- SAFETY: Never invent injuries (cuts, burns, falls). Sharp tools→adult supervision.\n"
+            "- Include at least one line of dialogue in \"...\" quotation marks.\n"
+            "- Vary paragraph starters — don't start every paragraph with 'അവൾ' or 'അനു'.\n"
+            "- Measurements from the facts above — only include them if they matter to the plot.\n"
+            "- Materials from the facts above — only mention them when a character actually touches or uses them.\n"
+            "- NEVER mention module numbers, assessment, evaluation, homework, or activity codes.\n"
+            "- NEVER use the word 'പ്രവര്‍ത്തനം' in the story.\n"
+            "- End with '**കഥയുടെ പാഠം:**' and a moral tied to THIS specific story, not a generic one.\n"
+            "- Return ONLY the story.\n\n"
+            "Story in Malayalam:"
+        )
+
+        print("   Using Gemini for story generation...")
+        try:
+            text = self._call_gemini(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                max_tokens=max_tokens,
+                temperature=0.3,
+            )
+            if text:
+                text = self._postprocess_story(text)
+                issues = self._validate_story_facts(cleaned_source, text)
+                quality_issues = self._validate_story_quality(cleaned_source, text)
+                all_issues = issues + quality_issues
+                if all_issues:
+                    print(f"   [Story Validation] {len(all_issues)} issue(s): {all_issues[:5]}")
+                return text
+        except Exception as exc:
+            print(f"   Gemini story generation failed: {exc}")
+
+        return "കഥ സൃഷ്ടിക്കാൻ തകരാറ്. മാപ്പ്, പിന്നീട് വീണ്ടും ശ്രമിക്കുക."
+
+    def generate_story_from_answer(
+        self,
+        answer: str,
+        question: str | None = None,
+        context_docs: list[dict] | None = None,
+        student_profile: dict | None = None,
+        story_style: str = "child_friendly",
+        max_tokens: int = 16384,
+    ) -> str:
+        """Convert an existing answer/explanation into a short story.
+
+        First strips curriculum metadata, then generates a narrative story
+        with proper character goal, conflict, action, and outcome.
+        """
+        # If STORY_PROVIDER=gemini is set, use Gemini directly (skip Groq)
+        if os.getenv("STORY_PROVIDER", "").lower() == "gemini":
+            print("   STORY_PROVIDER=gemini, using Gemini directly")
+            return self._generate_story_gemini(
+                answer=answer, question=question, context_docs=context_docs,
+                student_profile=student_profile, max_tokens=max_tokens,
+            )
+
+        cleaned_source = self._strip_curriculum_metadata(answer)
+
+        profile = student_profile or {}
+        reading_age = profile.get("reading_age", 12)
+        neuro_tags, neuro_guidelines = self._build_neuro_support_guidelines(student_profile)
+
+        context_parts = []
+        for i, doc in enumerate((context_docs or [])[:3], 1):
+            context_parts.append(f"[{i}] {doc.get('source')} p.{doc.get('page')}: {str(doc.get('text') or '')[:200]}")
+        context_block = "\n\n".join(context_parts)
+
+        source_facts = self._extract_facts(cleaned_source)
+        facts_block = ""
+        if source_facts["measurements"]:
+            facts_block += "Measurements in source (use only if plot-relevant): " + ", ".join(sorted(source_facts["measurements"])) + "\n"
+        if source_facts["materials"]:
+            facts_block += "Materials in source (mention only when used by a character): " + ", ".join(sorted(source_facts["materials"])) + "\n"
+
+        # Target length proportional to source complexity
+        source_sentences = len([s for s in re.split(r'[.!\n]', cleaned_source) if s.strip() and len(s.strip()) > 5])
+        if source_sentences <= 3:
+            target_paras = "18–25"
+        elif source_sentences <= 8:
+            target_paras = "22–30"
+        elif source_sentences <= 15:
+            target_paras = "28–35"
+        else:
+            target_paras = "30–40"
+
+        system_prompt = (
+            "You are a Malayalam storyteller for children. You convert curriculum content into real stories.\n\n"
+            "CRITICAL RULES — follow every rule in order:\n\n"
+            "1. STORY STRUCTURE: Every story MUST have:\n"
+            "   - A child protagonist with a name and a clear goal/want\n"
+            "   - A small challenge or problem they face (something actually goes wrong)\n"
+            "   - Actions they take to overcome it\n"
+            "   - A satisfying outcome tied to their actions\n\n"
+            "2. WHAT TO NEVER INCLUDE:\n"
+            "   - Module numbers, activity numbers, lesson numbers\n"
+            "   - Assessment criteria, evaluation, rubrics, scores\n"
+            "   - Homework instructions or \"post to group\" directives\n"
+            "   - Teacher notes or curriculum metadata\n"
+            "   - The word 'വിലയിരുത്തല്‍' or 'Assessment'\n"
+            "   - Activity instructions like 'കുട്ടികളെ ജോഡിയാക്കി'\n\n"
+            "3. NEVER USE THESE CURRICULUM WORDS IN THE STORY:\n"
+            "   - 'പ്രവര്‍ത്തനം' (children do not call their experiences \"activities\")\n"
+            "   - 'മണിക്കൂര്‍' with numbers (\"2 മണിക്കൂര്‍ സമയം\" — this is a lesson plan, not a story)\n"
+            "   - 'മീറ്റര്‍' / 'അടി' — replace with vague terms like 'കുറച്ച് അകലെ', 'അല്പം ദൂരെ'\n\n"
+            "4. NARRATIVE VOICE — convert instructions into events:\n"
+            "   BAD: 'കുട്ടികളെ ജോഡിയാക്കി ഓരോ ജോഡിയും പ്രവര്‍ത്തിച്ചു'\n"
+            "   GOOD: 'അനുവും മീരയും ഒരു ജോഡിയായി. അവര്‍ ഒന്നിച്ച് പ്രവര്‍ത്തിച്ചു'\n"
+            "   BAD: 'ടീച്ചര്‍ തേങ്ങ, ചോക്ക്, വിസി എന്നിവ നല്‍കി. കുട്ടികള്‍ അവ എടുത്തു.'\n"
+            "   GOOD: 'തേങ്ങ കണ്ടപ്പോള്‍ മീരയ്ക്ക് സന്തോഷമായി. അവള്‍ അതെടുത്ത് ഉരുട്ടി.'\n"
+            "   BAD: '6 മീറ്റര്‍ അകലെയായി രണ്ട് വൃത്തങ്ങള്‍ വരച്ചു'\n"
+            "   GOOD: 'കുറച്ച് അകലെയായി രണ്ട് വൃത്തങ്ങള്‍ വരച്ചു'\n\n"
+            "5. EVERY NAMED CHARACTER MUST MATTER:\n"
+            "   - If you introduce രാഹുൽ or മീര, they must speak or help.\n"
+            "   - Never name a character and then forget them.\n"
+            "   - Side characters should react, encourage, or participate.\n\n"
+            "6. SHOW EMOTION AFTER A PROBLEM:\n"
+            "   BAD: 'തേങ്ങ നിലത്തു വീണു. അവള്‍ അതെടുത്തു.' (no feeling, instant fix)\n"
+            "   GOOD: '\"അയ്യോ!\" എന്ന് അനു ഞെട്ടി. രാഹുൽ പറഞ്ഞു, \"പരവായില്ല, വീണ്ടും ശ്രമിക്കൂ!\" അനു ധൈര്യമായി വീണ്ടും തേങ്ങ എടുത്തു.'\n"
+            "   After something goes wrong, ALWAYS add the character's feeling (ഞെട്ടി, ഭയപ്പെട്ടു, ദേഷ്യപ്പെട്ടു, നിരാശപ്പെട്ടു) before showing the fix.\n\n"
+            "7. NEVER WRITE PROCEDURAL STEPS:\n"
+            "   BAD: 'ആദ്യത്തെ കുട്ടി അടുത്ത വൃത്തത്തിലേക്ക് വച്ചു. വരിയുടെ അവസാനത്തില്‍ എത്തി.'\n"
+            "   GOOD: 'അനു ഓടി അടുത്ത വൃത്തത്തിലെത്തി. അവള്‍ ആവേശത്തോടെ ഫിനിഷ് ചെയ്തു.'\n\n"
+            "8. MATERIALS: Only mention a material if a character uses it in the action. "
+            "Never list materials like a supply checklist.\n\n"
+            "9. TRUTH: Every fact, measurement, and material MUST come from the source. "
+            "NEVER invent numbers, measurements, or materials.\n"
+            "   - If source has '44 സെ.മീ.' write '44 സെ.മീ.' — do NOT merge adjacent numbers.\n"
+            "   - Source '44 × 2 cm' means 44 cm and 2 cm, NEVER '442 cm'.\n"
+            "   - Absurd measurements like 442 cm for a craft strip are IMPOSSIBLE. Use the correct values from source.\n\n"
+            "10. PROCESS DETAIL — do NOT compress steps:\n"
+            "   - For craft/art activities, describe each step in detail.\n"
+            "   - Include: choosing materials, measuring, cutting, arranging, checking alignment, gluing, waiting, adjusting, finishing.\n"
+            "   - Show the character making decisions: 'ഏത് നിറം തിരഞ്ഞെടുക്കണം?'\n"
+            "   - Show observations: 'ഇത് വളരെ നീളമുണ്ട്', 'ഇത് ചെറുതായി പോയി'\n"
+            "   - BAD: 'സ്ട്രിപ്പ് മുറിച്ചു. നെയ്തു. ഒട്ടിച്ചു. കഴിഞ്ഞു.'\n"
+            "   - GOOD: 'ആദ്യം അനു നിറങ്ങള്‍ നോക്കി. പച്ചയും മഞ്ഞയും എടുത്തു. പിന്നീട് അവള്‍ കത്രിക കൊണ്ട് സ്ട്രിപ്പ് മുറിച്ചു. \"ഇത് കൃത്യമായ വലുപ്പമാണോ?\" എന്ന് അവള്‍ പരിശോധിച്ചു. തുടര്‍ന്ന് അവള്‍ അവ നെയ്യാന്‍ തുടങ്ങി...'\n\n"
+            "11. SAFETY — NEVER invent injuries or accidents:\n"
+            "   - Do NOT add cuts, burns, falls, or injuries unless the source mentions them.\n"
+            "   - BAD: 'അവളുടെ വിരൽ ചെറുതായി മുറിഞ്ഞു' (not in source!)\n"
+            "   - GOOD: Find a non-safety conflict like a measurement being wrong or a piece not fitting.\n"
+            "   - For sharp tools, add adult supervision — do NOT let a child get hurt.\n\n"
+            "12. FORMAT: Pure narrative. No headings, bullet points, numbered lists, bold text. "
+            "The only exception is the final '**കഥയുടെ പാഠം:**' paragraph.\n"
+            "13. Paragraphs separated by a blank line. Simple, short sentences in Malayalam.\n"
+            "14. Vary sentence structure — do NOT start every paragraph with 'അവൾ' or 'അനു'.\n"
+            "15. Include at least one line of dialogue in quotation marks: \"...\"\n"
+            "16. Return ONLY the story text, nothing else."
+        )
+
+        user_prompt = (
+            f"This is the cleaned source material (all truth comes from here):\n{cleaned_source}\n\n"
+            f"(Optional) Question: {question or ''}\n"
+            f"Context excerpts:\n{context_block}\n\n"
+            f"Reading age: {reading_age}\n"
+            f"Neuro profile: {neuro_tags}\n"
+            f"Neurodivergent support guidelines:\n{neuro_guidelines}\n\n"
+            f"Source facts:\n{facts_block}\n\n"
+            "Task:\n"
+            f"- Write a {target_paras} paragraph Malayalam story about a child doing the activities described.\n"
+            "- Every paragraph separated by a blank line.\n"
+            "- The protagonist wants something, tries, faces a small REAL problem, and succeeds.\n"
+            "- SHOW THE PROCESS IN DETAIL: For craft activities, describe choosing materials, measuring, cutting, "
+            "arranging, checking, assembling — step by step. Do NOT skip steps.\n"
+            "- SAFETY: Never invent injuries (cuts, burns, falls). Sharp tools→adult supervision.\n"
+            "- Include at least one line of dialogue in \"...\" quotation marks.\n"
+            "- Vary paragraph starters — don't start every paragraph with 'അവൾ' or 'അനു'.\n"
+            "- Measurements from the facts above — only include them if they matter to the plot.\n"
+            "- Materials from the facts above — only mention them when a character actually touches or uses them.\n"
+            "- NEVER mention module numbers, assessment, evaluation, homework, or activity codes.\n"
+            "- NEVER use the word 'പ്രവര്‍ത്തനം' in the story.\n"
+            "- End with '**കഥയുടെ പാഠം:**' and a moral tied to THIS specific story, not a generic one.\n"
+            "- Return ONLY the story.\n\n"
             "Story in Malayalam:" 
         )
 
@@ -1134,21 +1749,47 @@ class MalayalamLLM:
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
-                    temperature=0.6,
+                    temperature=0.3,
                     max_tokens=max_tokens,
                 )
                 text = self._extract_response_text(response)
                 if text:
+                    text = self._postprocess_story(text)
+                    issues = self._validate_story_facts(cleaned_source, text)
+                    quality_issues = self._validate_story_quality(cleaned_source, text)
+                    all_issues = issues + quality_issues
+                    if all_issues:
+                        print(f"   [Story Validation] {len(all_issues)} issue(s): {all_issues[:5]}")
                     return text
             except Exception as exc:
                 err_str = str(exc)
                 if "429" in err_str or "rate_limit" in err_str.lower():
-                    wait = 2 ** attempt * 5
+                    wait = 2 ** attempt * 10
                     print(f"   Rate limited. Retrying in {wait}s... (attempt {attempt + 1}/{max_retries})")
                     time.sleep(wait)
                     continue
                 else:
                     raise
+
+        # All Groq retries exhausted — try Gemini fallback
+        print("   Groq rate limit exceeded. Trying Gemini fallback...")
+        try:
+            text = self._call_gemini(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                max_tokens=max_tokens,
+                temperature=0.3,
+            )
+            if text:
+                text = self._postprocess_story(text)
+                issues = self._validate_story_facts(cleaned_source, text)
+                quality_issues = self._validate_story_quality(cleaned_source, text)
+                all_issues = issues + quality_issues
+                if all_issues:
+                    print(f"   [Story Validation] {len(all_issues)} issue(s): {all_issues[:5]}")
+                return text
+        except Exception as exc:
+            print(f"   Gemini fallback also failed: {exc}")
 
         return "കഥ സൃഷ്ടിക്കാൻ തകരാറ്. മാപ്പ്, പിന്നീട് വീണ്ടും ശ്രമിക്കുക."  # fallback message
 

@@ -1,0 +1,1453 @@
+{
+  "curriculum_title": "പൂക്കൾ പൂന്തോട്ടം (Flowers and Garden) - Special School Primary Activity Package",
+  "modules": [
+    {
+      "module_number": 1,
+      "module_title": "ചന്തമുള്ള പൂന്തോട്ടം (Beautiful Garden)",
+      "activities": [
+        {
+          "activity_id": "M1_A1",
+          "activity_name": "ആഹാ! എന്തു ഭംഗി (Ah! How Beautiful)",
+          "learning_goal": "To experience aesthetic pleasure by observing a garden, identify diverse flowers, and develop expressive vocabulary.",
+          "story_theme": "Exploring a magical, colorful outdoor garden.",
+          "main_concept": "Visual discrimination of colors and shapes of flowers; sensory expression.",
+          "materials": [
+            "Fresh flowers",
+            "Picture charts of gardens",
+            "Color cards"
+          ],
+          "characters": [
+            "child",
+            "mother",
+            "friend"
+          ],
+          "story_template_malayalam": "ഒരു ദിവസം രാവിലെ {child_name} എഴുന്നേറ്റ് ജനൽ തുറന്നു. അപ്പോൾ പുറത്ത് നല്ല വെയിൽ ഉണ്ടായിരുന്നു. {mother_name} വന്ന് {child_name}ന്റെ കൈപിടിച്ച് മുറ്റത്തേക്ക് നടന്നു. അവിടെ ഒരു ഭംഗിയുള്ള പൂന്തോട്ടം ഉണ്ടായിരുന്നു! പൂന്തോട്ടത്തിൽ {favorite_color} നിറമുള്ള വലിയ ഒരു പൂവ് വിരിഞ്ഞു നിൽക്കുന്നത് {child_name} കണ്ടു. അത് കണ്ട് {child_name}ന് ഒത്തിരി സന്തോഷം തോന്നി. {child_name} ഓടിച്ചെന്ന് ആ പൂവിന്റെ അടുത്തിരുന്നു. അപ്പോഴാണ് ഒരു കുഞ്ഞു {favorite_animal} പറന്നുവന്ന് ആ പൂവിൽ ഇരുന്നതു കണ്ടത്. {child_name} ആവേശത്തോടെ കൈയടിച്ചു! അടുത്തുനിന്ന {friend_name} ഓടിവന്ന് പൂന്തോട്ടത്തിലെ ഭംഗിയുള്ള കാഴ്ചകൾ കണ്ട് ഒപ്പം ചിരിച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "mother_name",
+            "favorite_color",
+            "favorite_animal",
+            "friend_name"
+          ],
+          "possible_challenges": [
+            "Cannot decide which color flower to look at first",
+            "Gets distracted by a bird and looks away from the flowers",
+            "Confuses a big red flower with a small pink flower",
+            "Drops the color card while trying to match the flower",
+            "Forgets the name of a familiar flower in excitement"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Insert child's favorite outdoor toy or bird into the backyard scene."
+            ],
+            "analogies": [
+              "Compare the soft petals of the flower to the child's favorite plush soft toy."
+            ],
+            "sensory_extensions": [
+              "Expand on the feeling of warm morning sunlight on the skin and the mild scent of jasmine or roses."
+            ],
+            "attention_support": [
+              "Keep paragraphs extremely short and use high-contrast imagery like bright yellow or glowing red."
+            ],
+            "reading_support": [
+              "Use repetitive phrasing like 'പൂവ് കണ്ടു, പൂമ്പാറ്റയെ കണ്ടു' to encourage tracking and sight-word reading."
+            ]
+          },
+          "moral": "Nature's beauty gives happiness to everyone."
+        },
+        {
+          "activity_id": "M1_A2",
+          "activity_name": "കണ്ടുരസിക്കാം (Observe and Enjoy)",
+          "learning_goal": "To recognize distinct attributes of flowers like fragrance, petal texture, and sizes.",
+          "story_theme": "A sensory journey touching and smelling garden treasures.",
+          "main_concept": "Tactile and olfactory identification of flowers.",
+          "materials": [
+            "Real aromatic flowers (Rose, Jasmine, Marigold)",
+            "Blindfolds"
+          ],
+          "characters": [
+            "child",
+            "father",
+            "teacher"
+          ],
+          "story_template_malayalam": "സ്കൂളിലെ പൂന്തോട്ടത്തിൽ {teacher_name} എല്ലാ കുട്ടികളെയും കൂട്ടി ഒരു വട്ടത്തിൽ ഇരുന്നു. {teacher_name} ഒരു വലിയ കുട്ടയിൽ നിറയെ പലതരം പൂക്കൾ കൊണ്ടുവന്നിട്ടുണ്ടായിരുന്നു. {child_name} മെല്ലെ കണ്ണുകൾ അടച്ചു. {teacher_name} ഒരു പൂവെടുത്ത് {child_name}ന്റെ കയ്യിൽ കൊടുത്തു. {child_name} വിരലുകൾ കൊണ്ട് ആ പൂവിന്റെ ഇതളുകളിൽ മെല്ലെ തൊട്ടുനോക്കി. അത് {favorite_texture} പോലെ വളരെ മൃദുവായിരുന്നു! {child_name} ആ പൂവ് മൂക്കിനോട് അടുപ്പിച്ചു ശ്വാസം എടുത്തു. അപ്പോൾ നല്ല സുഗന്ധം തോന്നി! അത് {favorite_flower} ആണെന്ന് തിരിച്ചറിഞ്ഞപ്പോൾ {child_name} സന്തോഷത്തോടെ കണ്ണുകൾ തുറന്ന് {father_name} നോക്കി പുഞ്ചിരിച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "teacher_name",
+            "favorite_texture",
+            "favorite_flower",
+            "father_name"
+          ],
+          "possible_challenges": [
+            "Flower slips from hand due to wet hands",
+            "Cannot immediately find the fragrance of a dry flower",
+            "Accidentally squishes a soft petal too hard",
+            "Gets startled by the rough texture of a leaf",
+            "Cannot differentiate between jasmine and rose scents with eyes closed"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Incorporate the child's love for specific smells or tactile objects like playdough."
+            ],
+            "analogies": [
+              "Compare the shape of the round marigold flower to a soft toy ball."
+            ],
+            "sensory_extensions": [
+              "Describe the cool texture of morning dew drops on the flower petals."
+            ],
+            "attention_support": [
+              "Focus strictly on one sensory action at a time—first touch, then smell."
+            ],
+            "reading_support": [
+              "Use clear, rhythmic Malayalam words like 'തൊട്ടു നോക്കി, മണത്തു നോക്കി'."
+            ]
+          },
+          "moral": "Every flower has its own special feel and smell."
+        },
+        {
+          "activity_id": "M1_A3",
+          "activity_name": "എഴുതി രസിക്കാം (Joy of Writing)",
+          "learning_goal": "To develop fine motor pre-writing tracing skills by drawing lines and flower outlines.",
+          "thought": "Using the curriculum pattern of drawing 'ത' or basic outlines seen in page 20.",
+          "story_theme": "Drawing patterns in the magical sand.",
+          "main_concept": "Fine motor control, shape replication, and trace navigation.",
+          "materials": [
+            "Sand trays",
+            "Crayons",
+            "Dotted worksheets"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "friend"
+          ],
+          "story_template_malayalam": "ക്ലാസ് മുറിയിൽ {teacher_name} ഒരു വലിയ ട്രേയിൽ നിറയെ {favorite_color} നിറമുള്ള മണൽ വെച്ചിട്ടുണ്ടായിരുന്നു. {child_name} ആ മണൽ ട്രേയുടെ അടുത്തേക്ക് നടന്നു. മണലിൽ വിരൽ കൊണ്ട് വരയ്ക്കാൻ {child_name}ന് ഒത്തിരി ഇഷ്ടമാണ്. {teacher_name} മണലിൽ ഒരു ഭംഗിയുള്ള പൂവിന്റെ വര വരച്ചു കാണിച്ചു തന്നു. {child_name} തന്റെ ചൂണ്ടുവിരൽ മെല്ലെ മണലിലേക്ക് അമർത്തി. ഒരു കുഞ്ഞു {favorite_vehicle} ഓടിക്കുന്നതുപോലെ വിരൽ മണലിലൂടെ മുന്നോട്ട് നീക്കി വര പൂർത്തിയാക്കാൻ ശ്രമിച്ചു. പെട്ടെന്ന് വഴി തെറ്റി വിരൽ മാറിപ്പോയെങ്കിലും {friend_name} കൈയ്യടിച്ച് പ്രോത്സാഹിപ്പിച്ചപ്പോൾ {child_name} വീണ്ടും ആ പൂവിന്റെ വൃത്തം ഭംഗിയായി പൂർത്തിയാക്കി നോക്കി ചിരിച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "teacher_name",
+            "favorite_color",
+            "favorite_vehicle",
+            "friend_name"
+          ],
+          "possible_challenges": [
+            "Cannot trace a perfect circle for the flower center",
+            "Crayon breaks halfway through drawing a petal",
+            "Hand shakes while moving from left to right",
+            "Accidentally erases the sand drawing with the palm",
+            "Cannot stay within the thick borders of the drawing paper"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Frame the drawing track like a racetrack for a favorite car or a path for a favorite pet."
+            ],
+            "analogies": [
+              "Compare holding the crayon to holding a magic wand."
+            ],
+            "sensory_extensions": [
+              "Detail the rough feel of the sand particles against the soft fingertips."
+            ],
+            "attention_support": [
+              "Break down the drawing into explicit small steps: a dot, then a line, then a circle."
+            ],
+            "reading_support": [
+              "Keep the font size and word gaps wide in descriptions for dyslexia alignment."
+            ]
+          },
+          "moral": "Trying again and again helps us draw beautiful things."
+        },
+        {
+          "activity_id": "M1_A4",
+          "activity_name": "തുടർന്ന് പഠിക്കാം (Continuous Learning)",
+          "learning_goal": "To match letters with corresponding floral patterns or pictures.",
+          "story_theme": "A treasure hunt matching cards in a park.",
+          "main_concept": "Visual-auditory association, matching picture with target letter.",
+          "materials": [
+            "Letter cards (ത)",
+            "Flower flashcards (താമര)"
+          ],
+          "characters": [
+            "child",
+            "mother",
+            "grandfather"
+          ],
+          "story_template_malayalam": "ഒരു വൈകുന്നേരം {child_name} പൂന്തോട്ടത്തിലിരുന്ന് കളിക്കുകയായിരുന്നു. അപ്പോൾ {grandfather_name} അവിടേക്ക് വന്നു. {grandfather_name}ന്റെ കയ്യിൽ രണ്ടു തരം കാർഡുകൾ ഉണ്ടായിരുന്നു. ഒന്നിൽ ഒരു ഭംഗിയുള്ള താമരപ്പൂവിന്റെ ചിത്രവും മറ്റൊന്നിൽ 'ത' എന്ന അക്ഷരവും ഉണ്ടായിരുന്നു. {child_name} താമരപ്പൂവിന്റെ ചിത്രം കണ്ട് കൈ നീട്ടി. 'ഈ പൂവിന്റെ പേര് തുടങ്ങുന്ന അക്ഷരം ഏതാണ്?' എന്ന് {mother_name} ചോദിച്ചു. {child_name} മേശപ്പുറത്തിരുന്ന പല കാർഡുകളിൽ നിന്നും 'ത' എന്ന അക്ഷരമുള്ള കാർഡ് തിരഞ്ഞു തുടങ്ങി. കുറെ കാർഡുകൾക്കിടയിൽ നിന്ന് ശരിയായ കാർഡ് കണ്ടെത്തിയപ്പോൾ {child_name} അത് ഉയർത്തിപ്പിടിച്ച് ഉറക്കെ 'താമര!' എന്ന് വിളിച്ചു പറഞ്ഞു.",
+          "placeholder_variables": [
+            "child_name",
+            "grandfather_name",
+            "mother_name"
+          ],
+          "possible_challenges": [
+            "Confuses the letter card with a picture card",
+            "Cannot find the matching card from a pile of four choices",
+            "Drops the cards on the floor due to a sudden breeze",
+            "Forgets the sound of the letter temporary in excitement",
+            "Selects a card with a similar looking alphabet shape by mistake"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Replace generic letters with ones that start the names of their favorite toys or pets if adapted."
+            ],
+            "analogies": [
+              "The letter matching is like pairing two pieces of a jigsaw puzzle."
+            ],
+            "sensory_extensions": [
+              "Describe the crisp sound of thick card stock papers clicking together."
+            ],
+            "attention_support": [
+              "Reduce the array of cards present simultaneously to avoid sensory overwhelm."
+            ],
+            "reading_support": [
+              "Highlight structural anchors in letters to support dyslexic orientation."
+            ]
+          },
+          "moral": "Finding matching pairs is an exciting game."
+        },
+        {
+          "activity_id": "M1_A5",
+          "activity_name": "നിറം നൽകാം (Coloring Joy)",
+          "learning_goal": "To develop spatial awareness and hand-eye coordination by coloring inside bounded line drawings.",
+          "story_theme": "Bringing a blank paper garden to life with bright colors.",
+          "main_concept": "Spatial boundary limitation; fine motor grip control.",
+          "materials": [
+            "Crayons",
+            "Thick boundary flower sketches"
+          ],
+          "characters": [
+            "child",
+            "sister",
+            "teacher"
+          ],
+          "story_template_malayalam": "ക്ലാസിൽ {teacher_name} എല്ലാവർക്കും വരച്ചുവെച്ച ഒരു വലിയ പൂവിന്റെ ചിത്രം നൽകി. ആ പൂവിന് ഇതളുകൾ ഉണ്ടായിരുന്നുവെങ്കിലും നിറമില്ലായിരുന്നു. {child_name} തനിക്ക് ഏറ്റവും ഇഷ്ടപ്പെട്ട {favorite_color} നിറമുള്ള വലിയ ഒരു ക്രയോൺ എടുത്തു. ചിത്രത്തിന് പുറത്തുപോകാതെ നിറം നൽകാനായിരുന്നു {child_name} ശ്രമിച്ചത്. പെട്ടെന്ന് കൈ തെന്നി ക്രയോൺ വരിക്ക് പുറത്തേക്ക് നീങ്ങിപ്പോയി. അത് കണ്ട് {child_name} ചെറുതായി വിഷമിച്ചു. അപ്പോൾ അടുത്തു വന്നിരുന്ന {sister_name} മെല്ലെ കൈപിടിച്ച് കാണിച്ചുതന്നു. {child_name} വീണ്ടും പതുക്കെപ്പതുക്കെ വരയ്ക്കുകയും പൂവിനുള്ളിൽ മുഴുവൻ ഭംഗിയായി നിറം തീർക്കുകയും ചെയ്തു. ഇപ്പോൾ ചിത്രം കാണാൻ ഒത്തിരി അഴകുള്ളതായി മാറി.",
+          "placeholder_variables": [
+            "child_name",
+            "teacher_name",
+            "favorite_color",
+            "sister_name"
+          ],
+          "possible_challenges": [
+            "Cannot decide which color to choose for the stem",
+            "Color goes completely outside the border lines",
+            "Presses crayon so hard that the tip snaps off",
+            "Leaves big white empty blank gaps inside the petal sketch",
+            "Grows impatient and wants to color the entire page rapidly"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Incorporate glitter crayons or neon shades if the child loves sensory visual stimulation."
+            ],
+            "analogies": [
+              "Coloring within lines is like keeping a car safely inside the driving lane."
+            ],
+            "sensory_extensions": [
+              "Describe the waxy smell of fresh crayons and the sound of paper scratching."
+            ],
+            "attention_support": [
+              "Color one tiny petal at a time, celebrating completion of each closed shape."
+            ],
+            "reading_support": [
+              "Use highly directional and spatial action vocabulary in Malayalam."
+            ]
+          },
+          "moral": "Patience makes our creations look neat and beautiful."
+        }
+      ]
+    },
+    {
+      "module_number": 2,
+      "module_title": "പൂക്കളെ അറിയാം (Knowing the Flowers)",
+      "activities": [
+        {
+          "activity_id": "M2_A1",
+          "activity_name": "പറഞ്ഞുനോക്കാം (Let's Talk)",
+          "learning_goal": "To encourage verbal communication and articulation by naming local flowers aloud.",
+          "story_theme": "Conversing with birds about garden flowers.",
+          "main_concept": "Speech articulation, expressive language development.",
+          "materials": [
+            "Real flowers",
+            "Puppets"
+          ],
+          "characters": [
+            "child",
+            "grandmother",
+            "friend"
+          ],
+          "story_template_malayalam": "ഒരു ശാന്തമായ വൈകുന്നേരം {child_name} ഉമ്മറത്ത് വന്നിരിക്കുകയായിരുന്നു. മുറ്റത്തെ ചെമ്പരത്തിച്ചെടിയിൽ നല്ല ചുവന്ന പൂക്കൾ വിരിഞ്ഞു നിന്നിരുന്നു. {grandmother_name} അങ്ങോട്ട് വന്ന് {child_name}നോട് വിശേഷങ്ങൾ ചോദിച്ചു. 'ആ നിൽക്കുന്ന പൂവിന്റെ പേരെന്താണ് മോനേ/മോളേ?' എന്ന് {grandmother_name} ചോദിച്ചപ്പോൾ {child_name} പെട്ടെന്ന് പേര് ഓർമ്മവരാതെ ആലോചിച്ചു നിന്നു. {child_name}ന് ആ പൂവിനെ നന്നായി അറിയാം, പക്ഷെ വാക്ക് നാവിൻ തുമ്പിൽ കിട്ടുന്നില്ലായിരുന്നു. അപ്പോൾ കൂടെയുള്ള {friend_name} വന്ന് 'ചെ... ചെ...' എന്ന് ഒരു ചെറിയ സൂചന നൽകി. പെട്ടെന്ന് ആവേശത്തോടെ {child_name} ഉറക്കെ 'ചെമ്പരത്തി!' എന്ന് വിളിച്ചു പറഞ്ഞു. അത് കേട്ട് {grandmother_name} ഒത്തിരി സന്തോഷത്തോടെ കെട്ടിപ്പിടിച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "grandmother_name",
+            "friend_name"
+          ],
+          "possible_challenges": [
+            "Cannot recall the name of a common flower instantly",
+            "Stutters or hesitates due to performance anxiety",
+            "Points at the flower instead of using verbal language",
+            "Mispronounces the long word 'Chembarathi' as a shorter word",
+            "Gets distracted by a butterfly and stops talking mid-sentence"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Introduce a favorite puppet character to hold the conversation with the child."
+            ],
+            "analogies": [
+              "Remembering a word is like finding a favorite lost toy in your toy box."
+            ],
+            "sensory_extensions": [
+              "Focus on the feeling of soft evening breeze and rustling green leaves around."
+            ],
+            "attention_support": [
+              "Provide extended pause times and visual flash cues to reduce naming stress."
+            ],
+            "reading_support": [
+              "Break complex words into simple phonic chunks like ചെ-മ്പ-ര-ത്തി."
+            ]
+          },
+          "moral": "A little help from friends can make us confident."
+        },
+        {
+          "activity_id": "M2_A2",
+          "activity_name": "ചെടികളെ അറിയാം (Knowing the Plants)",
+          "learning_goal": "To identify plant parts such as leaves, stems, and flowers in the natural habitat.",
+          "story_theme": "A scientific exploration of a small backyard plant.",
+          "main_concept": "Part-to-whole relationships in living organisms.",
+          "materials": [
+            "Potted plants",
+            "Magnifying glass labels"
+          ],
+          "characters": [
+            "child",
+            "father",
+            "teacher"
+          ],
+          "story_template_malayalam": "സ്കൂൾ മുറ്റത്തെ ഒരു ചെറിയ ചെടിയുടെ അരികിൽ {child_name} നിന്നു. {teacher_name} {child_name}ന് ഒരു കുഞ്ഞു ഭൂതക്കണ്ണാടി നൽകി. അതിലൂടെ നോക്കിയപ്പോൾ ചെടിയുടെ പച്ച നിറമുള്ള {favorite_leaf_shape} ഇലകൾ വലുതായി കണ്ടു! 'ഇല എവിടെയാണ്?' എന്ന് {teacher_name} ചോദിച്ചപ്പോൾ {child_name} ഇലയിൽ തൊട്ടു കാണിച്ചു. എന്നാൽ ചെടിയുടെ തണ്ട് ഏതാണെന്ന് ചോദിച്ചപ്പോൾ {child_name} കുറച്ചു നേരം അങ്ങോട്ടുമിങ്ങോട്ടും നോക്കി സംശയിച്ചു. {father_name} അപ്പോൾ അവിടേക്ക് വന്ന് താഴെയുള്ള നീളമുള്ള തണ്ടിലേക്ക് ചൂണ്ടിക്കാണിച്ചു തന്നു. അത് ചെടിയെ താങ്ങി നിർത്തുന്ന തണ്ടാണെന്ന് {child_name} മനസിലാക്കി, സന്തോഷത്തോടെ ഇലയും തണ്ടും പൂവും ഓരോന്നായി വേർതിരിച്ചു കാണിച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "teacher_name",
+            "favorite_leaf_shape",
+            "father_name"
+          ],
+          "possible_challenges": [
+            "Confuses the stem of the plant with a nearby dry stick",
+            "Accidentally plucks the leaf instead of just touching it",
+            "Cannot focus the magnifying glass correctly on the object",
+            "Gets distracted by ants crawling on the ground below",
+            "Unsure about where the root ends and stem begins"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Incorporate an insect or ladybug interest that might be sitting on the plant stem."
+            ],
+            "analogies": [
+              "The stem is like the backbone that keeps us standing straight and tall."
+            ],
+            "sensory_extensions": [
+              "Describe the contrasting textures of a rough woody stem and a smooth glossy leaf."
+            ],
+            "attention_support": [
+              "Touch each physical part of the living plant directly to ground focus."
+            ],
+            "reading_support": [
+              "Use highly distinct visual shapes for label keywords in descriptions."
+            ]
+          },
+          "moral": "Every small part of a plant works together to make it grow."
+        },
+        {
+          "activity_id": "M2_A3",
+          "activity_name": "നിലമൊരുക്കാം (Preparing the Ground)",
+          "learning_goal": "To build gross motor skills and practical daily living habits by leveling soil and choosing spots for planting.",
+          "story_theme": "A muddy and fun garden-making afternoon adventure.",
+          "main_concept": "Gross motor planning, coordination, spatial preparation.",
+          "materials": [
+            "Small plastic shovels",
+            "Watering cans",
+            "Soil trays"
+          ],
+          "characters": [
+            "child",
+            "brother",
+            "mother"
+          ],
+          "story_template_malayalam": "അവധിദിവസം വൈകുന്നേരം {child_name} ഒരു കുഞ്ഞു കൈക്കോട്ടുമായി തോട്ടത്തിലേക്ക് ഇറങ്ങി. അവിടെ പുതിയൊരു ചെടി നടാൻ മണ്ണ് ഒരുക്കണം എന്നതായിരുന്നു {child_name}ന്റെ ലക്ഷ്യം. വലിയ കട്ടകളുള്ള മണ്ണ് നിരപ്പാക്കാൻ {child_name} ശ്രമിച്ചെങ്കിലും മൺകട്ടകൾ പെട്ടെന്ന് ഉടയുന്നില്ലായിരുന്നു. കട്ടകൾ കണ്ട് {child_name} എന്ത് ചെയ്യണമെന്ന് അറിയാതെ നിന്നുപോയി. അപ്പോൾ അങ്ങോട്ട് വന്ന {brother_name} തന്റെ ചെറിയ {favorite_toy_color} ബക്കറ്റിൽ നിന്നും അല്പം വെള്ളം മണ്ണിലേക്ക് തളിച്ചു തന്നു. മണ്ണ് കുതിർന്നപ്പോൾ {child_name} മെല്ലെ കൈക്കോട്ട് കൊണ്ട് മണ്ണ് ഇളക്കി ഭംഗിയായി നിരപ്പാക്കി. {mother_name} വന്ന് നല്ല മിടുക്കൻ/മിടുക്കി എന്ന് പറഞ്ഞ് തോളിൽ തട്ടി പ്രശംസിച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "brother_name",
+            "favorite_toy_color",
+            "mother_name"
+          ],
+          "possible_challenges": [
+            "Muck or wet soil sticks to the hands causing tactile aversion",
+            "The plastic shovel slips from the hands due to low grip strength",
+            "Steps on the carefully prepared area by mistake",
+            "Cannot break down a hard dry mud lump",
+            "Pours way too much water making the entire spot muddy"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Incorporate a favorite sand toy or truck model that can transport the dry soil."
+            ],
+            "analogies": [
+              "Mixing and smashing the soil lumps is like kneading soft playdough."
+            ],
+            "sensory_extensions": [
+              "Emphasize the earthy smell of fresh wet soil and cool mud textures."
+            ],
+            "attention_support": [
+              "Define clear, physical visual boundaries with stones for where to dig."
+            ],
+            "reading_support": [
+              "Keep vocabulary simple, utilizing action verbs like 'മണ്ണളക്കാം, കുഴിക്കാം'."
+            ]
+          },
+          "moral": "Working hard makes the ground ready for beautiful flowers."
+        }
+      ]
+    },
+    {
+      "module_number": 3,
+      "module_title": "ഗണിതം പൂക്കളിലൂടെ (Maths Through Flowers)",
+      "activities": [
+        {
+          "activity_id": "M3_A1",
+          "activity_name": "മുകളിൽ താഴെ (Up and Down)",
+          "learning_goal": "To recognize and differentiate spatial concepts of 'top' (above) and 'bottom' (below) using flowers and trees.",
+          "story_theme": "A playful hide-and-seek game with flowers around a bench.",
+          "main_concept": "Spatial positioning and relative coordinates.",
+          "materials": [
+            "Stools",
+            "Flower baskets",
+            "Positional cards"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "friend"
+          ],
+          "story_template_malayalam": "സ്കൂൾ പൂന്തോട്ടത്തിലെ ഒരു വലിയ തണൽമരത്തിന് ചുവട്ടിൽ {child_name} നിൽക്കുകയായിരുന്നു. {teacher_name} അവിടെ വന്ന് മരത്തിന്റെ കൊമ്പിലേക്ക് വിരൽ ചൂണ്ടി. അവിടെ മുകളിൽ ഒരു വലിയ {favorite_bird} ഇരിക്കുന്നത് {child_name} കണ്ടു. 'പക്ഷി എവിടെയാണ് ഇരിക്കുന്നത്?' എന്ന് ടീച്ചർ ചോദിച്ചപ്പോൾ 'മുകളിൽ!' എന്ന് {child_name} കൈ കാണിച്ച് പറഞ്ഞു. തുടർന്ന് {teacher_name} മേശപ്പുറത്തുണ്ടായിരുന്ന ഒരു പൂവെടുത്ത് മേശയുടെ താഴേക്ക് ഇട്ടു. അത് തറയിൽ വീണപ്പോൾ {child_name}ന് പെട്ടെന്ന് മുകളിലും താഴെയും മാറിപ്പോയി. അടുത്തു നിന്ന {friend_name} പതുക്കെ താഴ്ന്നു ഇരുന്ന് തറയിലെ പൂവ് എടുത്തു കാണിച്ചപ്പോൾ, പൂവ് 'താഴെയാണ്' എന്ന് {child_name} ചിരിയോടെ തിരിച്ചറിഞ്ഞു പറഞ്ഞു.",
+          "placeholder_variables": [
+            "child_name",
+            "teacher_name",
+            "favorite_bird",
+            "friend_name"
+          ],
+          "possible_challenges": [
+            "Confuses the words 'Mukalil' and 'Thazhe' during quick responses",
+            "Looks sideways instead of up when asked about the top location",
+            "Drops the item and forgets to track its downward path",
+            "Gets distracted by a bug moving on the wall middle ground",
+            "Cannot associate spatial terms when items are kept on a complex multi-tier shelf"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Use a favorite animated character or animal that hops up and down in stories."
+            ],
+            "analogies": [
+              "Up is high like an airplane in the sky, down is low like our shoes on the floor."
+            ],
+            "sensory_extensions": [
+              "Include the physical somatic action of stretching hands high up to the ceiling and bending low to touch toes."
+            ],
+            "attention_support": [
+              "Use dramatic vocal pitch variations—high pitch voice for 'above', deep low voice for 'below'."
+            ],
+            "reading_support": [
+              "Use distinct icons or bold color text variants for spatial position words."
+            ]
+          },
+          "moral": "Knowing where things are helps us find them quickly."
+        },
+        {
+          "activity_id": "M3_A2",
+          "activity_name": "പൂപറിക്കാം എണ്ണാം (Pluck and Count)",
+          "learning_goal": "To practice 1-to-1 correspondence and basic counting using physical flower models.",
+          "story_theme": "Gathering fallen colorful star blossoms.",
+          "main_concept": "Cardinality, one-to-one correspondence counting.",
+          "materials": [
+            "Plastic counting rings",
+            "Real or artificial flowers",
+            "Numbered boxes"
+          ],
+          "characters": [
+            "child",
+            "mother",
+            "sister"
+          ],
+          "story_template_malayalam": "മുറ്റത്തെ മുല്ലച്ചെടിയിൽ നിന്നും കുറേ വെളുത്ത പൂക്കൾ തറയിൽ വീണു കിടപ്പുണ്ടായിരുന്നു. {child_name} ഒരു ചെറിയ കുട്ടയുമായി അങ്ങോട്ട് ചെന്നു. അമ്മൂമ്മയ്ക്ക് മാല കെട്ടാൻ പൂക്കൾ എണ്ണി എടുക്കുകയായിരുന്നു ലക്ഷ്യം. {child_name} ഒന്നാമത്തെ പൂവെടുത്ത് കുട്ടയിലിട്ട് 'ഒന്ന്' എന്ന് ഉറക്കെ പറഞ്ഞു. അടുത്ത പൂവെടുത്ത് ഇട്ടപ്പോൾ എണ്ണം മാറി 'മൂന്ന്' എന്ന് പറഞ്ഞുപോയി! അരികിൽ ഇരുന്ന {sister_name} പതുക്കെ വിരൽ ചൂണ്ടി, 'ഒന്ന് കഴിഞ്ഞാൽ?' എന്ന് ചോദിച്ചു. {child_name} മെല്ലെ ആലോചിച്ചു തിരുത്തി 'രണ്ട്!' എന്ന് പറഞ്ഞു. അങ്ങനെ {child_name} ഓരോ പൂവും പതുക്കെ തൊട്ട്, വിരലുകൾ കൊണ്ട് എണ്ണി {favorite_number} വരെയുള്ള പൂക്കൾ കുട്ടയിൽ വിജയകരമായി ശേഖരിച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "mother_name",
+            "sister_name",
+            "favorite_number"
+          ],
+          "possible_challenges": [
+            "Skips a number sequence while counting intermediate flowers",
+            "Counts the same flower twice by mistake",
+            "Loses track of the total count when a loud bird chirps nearby",
+            "Gathers an handful of flowers at once instead of one by one",
+            "Confuses the visual order of objects placed in a circular pattern"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Incorporate the child's absolute favorite threshold target number to reach."
+            ],
+            "analogies": [
+              "Counting flowers one-by-one is like passengers climbing into a toy train one after another."
+            ],
+            "sensory_extensions": [
+              "Emphasize the light sound of each blossom gently hitting the bottom of an empty wooden basket."
+            ],
+            "attention_support": [
+              "Physically move each counted item from a 'To-Count' left tray to an 'Already-Counted' right tray."
+            ],
+            "reading_support": [
+              "Use huge numeral font shapes with high color-coding alongside Malayalam number text strings."
+            ]
+          },
+          "moral": "Counting carefully helps us do things accurately."
+        },
+        {
+          "activity_id": "M3_A3",
+          "activity_name": "ഇടത് വലത് (Left and Right)",
+          "learning_goal": "To develop body awareness and identify the left and right directional axes using hands and objects.",
+          "story_theme": "A turning game in a garden path maze.",
+          "main_concept": "Lateral spatial tracking; directional awareness.",
+          "materials": [
+            "Left/Right colored wristbands",
+            "Directional arrow markers"
+          ],
+          "characters": [
+            "child",
+            "father",
+            "teacher"
+          ],
+          "story_template_malayalam": "ഒരു വലിയ പാർക്കിൽ {child_name} {father_name}ന്റെ കൈപിടിച്ച് നടക്കുകയായിരുന്നു. അവിടെ രണ്ടു വശത്തേക്കും പോകുന്ന വഴികൾ ഉണ്ടായിരുന്നു. ഇടതുവശത്ത് മനോഹരമായ ചുവന്ന റോസാപ്പൂക്കളും വലതുവശത്ത് മഞ്ഞ സൂര്യകാന്തിപ്പൂക്കളും നിൽപ്പുണ്ടായിരുന്നു. 'നമുക്ക് മഞ്ഞപ്പൂക്കളുടെ അടുത്തേക്ക് പോകാം, വലത്തോട്ട് തിരിയാം' എന്ന് {father_name} പറഞ്ഞു. {child_name} പെട്ടെന്ന് ഏതാണ് വലതുവശം എന്ന് സംശയിച്ച് തന്റെ ഇടത്തേ കാലെടുത്തു വെച്ചു. അപ്പോൾ {father_name} {child_name}ന്റെ വലത്തെ കയ്യിലെ {favorite_color} വളയിൽ പതുക്കെ തൊട്ടുതന്നു. ഉടനെ {child_name} ചിരിച്ചുകൊണ്ട് വലതുവശത്തേക്ക് തിരിഞ്ഞ് സൂര്യകാന്തിപ്പൂക്കളുടെ അരികിലേക്ക് സന്തോഷത്തോടെ ഓടിച്ചെന്നു.",
+          "placeholder_variables": [
+            "child_name",
+            "father_name",
+            "favorite_color"
+          ],
+          "possible_challenges": [
+            "Mirror-images the teacher's instructions instead of own body reference",
+            "Cannot remember which hand is the dominant one under pressure",
+            "Trips slightly while shifting balance sideways from one leg to another",
+            "Gets confused when turning around completely faces a different background",
+            "Forgets the semantic meaning of the words 'Idathu' or 'Valathu'"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Include a bright thematic bracelet element or stamping of their favorite animal on one hand."
+            ],
+            "analogies": [
+              "The left side is the side where your happy heart beats inside your chest."
+            ],
+            "sensory_extensions": [
+              "Describe the tight, comforting squeeze of a tactile wristband helper on one side."
+            ],
+            "attention_support": [
+              "Use highly discrete physical color prompts—Red for Left, Yellow for Right."
+            ],
+            "reading_support": [
+              "Ensure directional text cues layout mirrors the actual left/right pages in printed templates."
+            ]
+          },
+          "moral": "Using simple clues helps us choose the right direction."
+        },
+        {
+          "activity_id": "M3_A4",
+          "activity_name": "നീളത്തിൽ കോർക്കാം (Stringing Long Chains)",
+          "learning_goal": "To understand linear estimation and sequencing by creating short and long floral strings.",
+          "story_theme": "Making festive garlands for a domestic celebration.",
+          "main_concept": "Length measurement, comparison (long vs short), sequencing.",
+          "materials": [
+            "Thick blunt plastic needles",
+            "Hollow big beads",
+            "Flowers"
+          ],
+          "characters": [
+            "child",
+            "mother",
+            "friend"
+          ],
+          "story_template_malayalam": "വീടിന്റെ ഉമ്മറത്തിരുന്ന് {child_name} ഒരു നീളമുള്ള ചരടിൽ പൂക്കൾ കോർക്കുകയായിരുന്നു. കൂട്ടുകാരൻ {friend_name} വന്ന് അടുത്തു ഇരുന്ന് മറ്റൊരു ചെറിയ നൂലിൽ പൂക്കൾ കോർത്തു. കുറച്ചുകഴിഞ്ഞപ്പോൾ ആരുടെ മാലയ്ക്കാണ് നീളം കൂടുതൽ എന്ന് നോക്കാൻ {mother_name} പറഞ്ഞു. {child_name} തന്റെ മാല മേശപ്പുറത്ത് നിവർത്തിവെച്ചു. {friend_name}ന്റെ മാലയും അടുത്ത് വെച്ചു. തന്റെ മാലയാണോ നീളമുള്ളത് എന്ന് നോക്കിയപ്പോൾ രണ്ടും ഒരേപോലെ തോന്നിയതുകൊണ്ട് {child_name} സംശയത്തിലായി. അപ്പോൾ {mother_name} രണ്ടു മാലകളും ഒരറ്റത്തുനിന്നും ഒരുമിച്ച് പിടിച്ചു കാണിച്ചുതന്നു. അപ്പോൾ {child_name}ന് മനസിലായി തന്റെ മാലയാണ് കൂടുതൽ നീളമുള്ളത്! {child_name} അത് കണ്ട് സന്തോഷത്തോടെ {favorite_game_action} ചെയ്ത് ചിരിച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "friend_name",
+            "mother_name",
+            "favorite_game_action"
+          ],
+          "possible_challenges": [
+            "A flower slips off the unknotted opposite tail end of the string",
+            "Cannot visually compare two items unless they are perfectly aligned at the base",
+            "The string breaks or tangles because of excessive pulling force",
+            "Grows impatient trying to target the small hollow hole with the thread",
+            "Confuses the absolute number of items with physical linear length dimensions"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Replace strings with colorful linking tracks or toy train bogeys if preferred."
+            ],
+            "analogies": [
+              "A long chain is like a giant caterpillar stretching out across a leaf."
+            ],
+            "sensory_extensions": [
+              "Describe the unique slippery texture of the strong satin thread between tiny fingers."
+            ],
+            "attention_support": [
+              "Use large, oversized hollow plastic flower replicas instead of fragile real flowers to enhance speed success."
+            ],
+            "reading_support": [
+              "Bold the descriptive words 'നീളമുള്ളത്' (long) and 'ചെറിയത്' (short) clearly."
+            ]
+          },
+          "moral": "When we work slowly and steadily, our creations grow big and beautiful."
+        },
+        {
+          "activity_id": "M3_A5",
+          "activity_name": "എണ്ണാം എഴുതാം (Count and Write)",
+          "learning_goal": "To link a measured concrete quantity of elements to its representative written math digit notation symbol.",
+          "story_theme": "Creating an inventory log chart for a backyard flower shop game.",
+          "main_concept": "Quantity-to-numeral symbolic mapping transcription.",
+          "materials": [
+            "Sticker sheets",
+            "Number templates",
+            "Felt pens"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "father"
+          ],
+          "story_template_malayalam": "ഇന്ന് ക്ലാസിൽ {child_name} സ്വന്തമായി ഒരു കട കളി നടത്തുകയാണ്. മേശപ്പുറത്ത് {child_name} കുറെ പൂക്കൾ വരിവരിയായി വെച്ചിട്ടുണ്ടായിരുന്നു. {teacher_name} വന്ന് അതിൽ നിന്നും കുറച്ചു പൂക്കൾ ചൂണ്ടിക്കാണിച്ചിട്ട് അവ എത്രയെന്നു ചോദിച്ചു. {child_name} വിരൽ വെച്ച് പതുക്കെ എണ്ണി നോക്കി, 'അഞ്ച് പൂക്കൾ' എന്ന് കണ്ടെത്തി. അടുത്തതായി ആ അഞ്ച് എന്ന സംഖ്യ ബുക്കിൽ എഴുതാൻ മാഷ് ആവശ്യപ്പെട്ടു. പക്ഷെ {child_name} '5' എന്ന സംഖ്യ തിരിച്ചെഴുതണോ അതോ നേരെ എഴുതണോ എന്ന് കണ്ട് ആശയക്കുഴപ്പത്തിലായി. ഉടനെ {teacher_name} ഒരു മണൽ കാർഡിൽ വലിയ അഞ്ചാം നമ്പറിന്റെ ആകൃതി വരച്ചു കാണിച്ചു. {child_name} അതിനു മുകളിലൂടെ വിരലോടിച്ച ശേഷം തന്റെ നോട്ടുകൂപ്പണിൽ ഭംഗിയായി '5' എന്ന് എഴുതി പൂർത്തിയാക്കി.",
+          "placeholder_variables": [
+            "child_name",
+            "teacher_name"
+          ],
+          "possible_challenges": [
+            "Writes the number numeral flipped backwards in configuration (mirroring)",
+            "Counts 4 objects correctly but picks up the number sticker meant for 3",
+            "Pencils numbers upside down on horizontal line spaces",
+            "Loses grip of the slender ink pen while tracing lines",
+            "Cannot recall the precise shape configuration of the target numeral instantly"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Use a theme where numbers represent levels unlocked in their favorite digital racing application."
+            ],
+            "analogies": [
+              "The number 5 shape looks like a little hook hanging from a line canopy."
+            ],
+            "sensory_extensions": [
+              "Use velvet sensory tactile number boards that give tactile feedback when fingernails scratch over them."
+            ],
+            "attention_support": [
+              "Provide large grid visual boxes on worksheets instead of single narrow lined arrays."
+            ],
+            "reading_support": [
+              "Incorporate directional helper arrows (1st stroke down, 2nd curve around) within the script."
+            ]
+          },
+          "moral": "Numbers help us record our treasures so we don't lose track."
+        }
+      ]
+    },
+    {
+      "module_number": 4,
+      "module_title": "വിത്തും കൈക്കോട്ടും (Seeds and Spades)",
+      "activities": [
+        {
+          "activity_id": "M4_A1",
+          "activity_name": "എനിക്കു കഴിയും (I Can Do It)",
+          "learning_goal": "To practice self-reliance and motor control by picking seeds and placing them carefully inside target planting slots.",
+          "thought": "Reflecting curriculum core: building primary household and independent abilities via garden task models.",
+          "story_theme": "Sowing tiny magic beans into little paper cups.",
+          "main_concept": "Fine motor pincer grasp coordination, spatial target accuracy.",
+          "materials": [
+            "Large seeds (Peas/Beans)",
+            "Egg cartons or small cups"
+          ],
+          "characters": [
+            "child",
+            "mother",
+            "brother"
+          ],
+          "story_template_malayalam": "ഒരു അവധിദിവസം രാവിലെ {child_name}ും {mother_name}യും കൂടി വലിയ ഒരു വിത്തുപാത്രവുമായി ഉമ്മറത്തിരുന്നു. ചെറിയ കപ്പുകളിലെ മണ്ണിലേക്ക് ഓരോ വിത്തുകൾ വീതം നടുകയായിരുന്നു അവരുടെ ജോലി. {child_name} വിത്തുകൾ എടുക്കാൻ വിരലുകൾ നീട്ടി. എന്നാൽ വിത്തുകൾ വളരെ ചെറുതായതിനാൽ {child_name}ന്റെ കയ്യിൽ നിന്നും അവ വഴുതി തറയിലേക്ക് വീണുപോയി. വിത്തുകൾ വീണപ്പോൾ {child_name} ചെറുതായി നിരാശനായി. അപ്പോൾ {brother_name} ഓടിവന്ന് ചൂണ്ടുവിരലും തള്ളവിരലും ചേർത്ത് ഒരു പക്ഷിചുണ്ടൂപോലെ 'പിൻസർ ഗ്രാസ്പ്' ചെയ്ത് കാണിച്ചുതന്നു. {child_name} അതുപോലെ വിരലുകൾ കുറുക്കി വിത്ത് പതുക്കെ നുള്ളിയെടുത്ത് ഒരു കുഴപ്പവുമില്ലാതെ കപ്പിന്റെ നടുവിലേക്ക് വിജയകരമായി ഇട്ടു! 'എനിക്കു കഴിഞ്ഞു!' എന്ന് {child_name} ആഹ്ലാദത്തോടെ വിളിച്ചു പറഞ്ഞു.",
+          "placeholder_variables": [
+            "child_name",
+            "mother_name",
+            "brother_name"
+          ],
+          "possible_challenges": [
+            "The small slick round seed rolls out from between fingers into gaps",
+            "Picks up five seeds at once instead of one single piece",
+            "Accidentally drops the collected item outside the perimeter of the cup bowl",
+            "Pushes the seed too deep into the soil base so it disappears entirely",
+            "Gets annoyed when hands become covered with dusty seed powder textures"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Frame the story around planting a giant pumpkin plant like in a cartoon tale."
+            ],
+            "analogies": [
+              "Using your two fingers to hold a seed is exactly like a bird picking up a worm with its beak."
+            ],
+            "sensory_extensions": [
+              "Detail the dry, hard, smooth shell exterior of the raw seed bean."
+            ],
+            "attention_support": [
+              "Place the seeds on a high-contrast dark colored plate to heighten visual focus."
+            ],
+            "reading_support": [
+              "Structure short, declarative statements with strong focal action markers."
+            ]
+          },
+          "moral": "Finding the right way to hold things makes the task easy."
+        },
+        {
+          "activity_id": "M4_A2",
+          "activity_name": "വൃത്തിയാക്കാം (Let's Clean Up)",
+          "learning_goal": "To inculcate independent domestic sorting and clean-up routines by clearing dry leaves from paths.",
+          "story_theme": "A clean-up team mission in the front porch workspace.",
+          "main_concept": "Sorting waste materials; organizing sorting spaces.",
+          "materials": [
+            "Toy leaf rakes",
+            "Green and yellow waste bins"
+          ],
+          "characters": [
+            "child",
+            "father",
+            "friend"
+          ],
+          "story_template_malayalam": "മുറ്റത്ത് ഇന്നലെ രാത്രി പെയ്ത കാറ്റിൽ നിറയെ ഉണങ്ങിയ ഇലകളും ചെറിയ കപ്പുകളും ചിതറിക്കിടപ്പുണ്ടായിരുന്നു. {child_name} കൈകളിൽ ഒരു ചെറിയ ഈർക്കിലി ചൂലുമായി ഇറങ്ങി. ഉമ്മറം മുഴുവൻ വൃത്തിയാക്കി ഭംഗിയാക്കുകയായിരുന്നു {child_name}ന്റെ ഇന്നത്തെ വലിയ ദൗത്യം. കൂട്ടിവെച്ച ഇലക്കൂട്ടത്തിനിടയിൽ നിന്ന് പ്ലാസ്റ്റിക് കപ്പുകൾ വേർതിരിക്കാൻ തുടങ്ങിയപ്പോൾ ഏതൊക്കെ ഏത് വലിപ്പമുള്ള കുട്ടയിലാണ് ഇടേണ്ടത് എന്ന് കണ്ട് {child_name} സംശയത്തിലായി. അപ്പോൾ അങ്ങോട്ട് വന്ന കൂട്ടുകാരൻ {friend_name} പച്ച നിറമുള്ള കുട്ടയിലേക്ക് ഉണക്കവസ്തുക്കൾ ഇടാൻ ഒരു ആംഗ്യം കാണിച്ചു തന്നു. {child_name} ഉടനെ ചിരിച്ചുകൊണ്ട് എല്ലാ ഇലകളും പതുക്കെ കൂട്ടി വാരി ശരിയായ കുട്ടയിൽ നിക്ഷേപിച്ചു. മുറ്റം മുഴുവൻ ഇപ്പോൾ വരിവരിയായി വൃത്തിയായത് കണ്ട് {father_name} വന്ന് മിടുക്കൻ/മിടുക്കി എന്ന് വിളിച്ച് വലിയ ഒരു സമ്മാനം നൽകി.",
+          "placeholder_variables": [
+            "child_name",
+            "friend_name",
+            "father_name"
+          ],
+          "possible_challenges": [
+            "Cannot differentiate between biodegradable leaf debris and plastic waste tags",
+            "Sweeps dry dust into eyes by lifting the broom too high in air",
+            "The gathered pile scatter completely due to a sudden gust of wing",
+            "Loses focus and starts playing creatively with a long fallen dry branch twig",
+            "Cannot hold the heavy dustpan steady while pushing dirt inside with broom"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "The garbage bin could feature a giant hungry dinosaur sticker that eats up all waste scraps."
+            ],
+            "analogies": [
+              "Sweeping dirt into a neat pile is like building a tiny pyramid mountain out of sand."
+            ],
+            "sensory_extensions": [
+              "Describe the unique rustling, crunchy audio crackle sounds of dry autumn leaves beneath boots."
+            ],
+            "attention_support": [
+              "Chunk the courtyard area into a small checkerboard grid, sweeping one square zone at a time."
+            ],
+            "reading_support": [
+              "Incorporate easy, highly repetitive Malayalam cleaning action words like 'കൂട്ടാം, വാരാം, തുടയ്ക്കാം'."
+            ]
+          },
+          "moral": "Keeping our home and surroundings clean makes us happy healthy kids."
+        },
+        {
+          "activity_id": "M4_A3",
+          "activity_name": "നനയ്ക്കാം രസിക്കാം (Water and Fun)",
+          "learning_goal": "To control grip pressure and perform multi-step domestic tasks using a manual watering can device.",
+          "story_theme": "Giving a morning bath shower to thirsty plant pots.",
+          "main_concept": "Liquid volume allocation control; sequence task flow execution.",
+          "materials": [
+            "Miniature shower sprinkle cans",
+            "Sponges"
+          ],
+          "characters": [
+            "child",
+            "mother",
+            "sister"
+          ],
+          "story_template_malayalam": "വെയിൽ ചൂടായി വന്നപ്പോൾ പൂന്തോട്ടത്തിലെ ചെടികളെല്ലാം വാടി നിൽക്കുകയായിരുന്നു. {child_name} അവയ്ക്ക് വെള്ളം നൽകാൻ ആഗ്രഹിച്ചു. ഒരു ചെറിയ {favorite_color} നിറമുള്ള വാട്ടറിങ് കാൻ എടുത്തു പൈപ്പിൽ നിന്നും വെള്ളം നിറച്ചു. വെള്ളം നിറഞ്ഞപ്പോൾ കാൻ കൈകളിൽ പിടിക്കാൻ നല്ല കട്ടി തോന്നി. {child_name} അത് ഉയർത്തിപ്പിടിച്ച് ഒരു കുഞ്ഞു ചെടിയുടെ ചുവട്ടിലേക്ക് ചരിച്ചു. എന്നാൽ കാനിന്റെ വായ് വശം പെട്ടെന്ന് ചരിഞ്ഞുപോയതു കാരണം വെള്ളം മുഴുവൻ ഒന്നിച്ച് ഒഴുകിപ്പോയി ചുവട്ടിലെ മണ്ണ് ഒലിച്ചുപോയി! അത് കണ്ട് വിഷമിച്ച് നിന്ന {child_name}നോട് 'പതുക്കെ ചരിയ്ക്കൂ' എന്ന് അരികിലിരുന്ന {sister_name} പറഞ്ഞുതന്നു. {child_name} രണ്ടാമത്തെ ചെടിയുടെ അരികിൽ ചെന്ന് വളരെ പതുക്കെ പാത്രം ചരിച്ചപ്പോൾ മഴത്തുള്ളികൾ പോലെ വെള്ളം മനോഹരമായി വീഴുന്നത് കണ്ട് {child_name} കൈകൊട്ടി സന്തോഷിച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "favorite_color",
+            "sister_name"
+          ],
+          "possible_challenges": [
+            "The filled canister device is too heavy to balance steadily without tilting premature",
+            "Splashes cold water onto clothes and shoes instead of the soil surface",
+            "Pours the entire volume onto one solitary plant pot forgetting the remaining line",
+            "Cannot judge when the container base is empty of water contents",
+            "Gets distracted playing with running water directly from open hose line faucet"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Imagine the sprinkler stream represents a fire-truck nozzle extinguishing forest hazards."
+            ],
+            "analogies": [
+              "The watering can sprinkler head creates a miniature private rain shower indoor cloud."
+            ],
+            "sensory_extensions": [
+              "Detail the visual change of color in soil from light pale brown to deep rich dark black when wet."
+            ],
+            "attention_support": [
+              "Draw a bright red paint line directly on the target plant pot rim to point out exactly where to aim liquid flow."
+            ],
+            "reading_support": [
+              "Ensure direct, uncomplicated font lines with wide layout track distances are utilized."
+            ]
+          },
+          "moral": "When we water carefully, plants grow up strong and smile at us."
+        }
+      ]
+    },
+    {
+      "module_number": 5,
+      "module_title": "പൂവേപൊലി (Flower Festival / Mosaic Art)",
+      "activities": [
+        {
+          "activity_id": "M5_A1",
+          "activity_name": "ഇതളുകൾ ഒട്ടിക്കാം (Petal Mosaic Art)",
+          "learning_goal": "To develop bilateral hand integration and fine tactile precision by applying adhesive glue and placing petals within defined contours.",
+          "thought": "Focuses on fine social and art motor craft tasks specified under Module V on page 9.",
+          "story_theme": "Dressing up an outline sketch of a butterfly with flower petals.",
+          "main_concept": "Bilateral coordination; surface area spatial pasting accuracy.",
+          "materials": [
+            "Liquid glue sticks",
+            "Loose floral petals",
+            "Thick template boards"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "friend"
+          ],
+          "story_template_malayalam": "ഇന്ന് സ്കൂളിൽ ഒരു വലിയ ക്രാഫ്റ്റ് മേളയാണ്. {teacher_name} {child_name}ന് ഒരു വലിയ പൂമ്പാറ്റയുടെ ചിത്രം നൽകി. അതിന്റെ ചിറകുകളിൽ ഒട്ടിക്കാൻ ഒരു പ്ലേറ്റ് നിറയെ മഞ്ഞ ജെമന്തിപ്പൂവിന്റെ ഇതളുകളും ഉണ്ടായിരുന്നു. {child_name} ഒരു ഇതൾ എടുത്ത് പശ തേക്കാൻ നോക്കി, പക്ഷെ പശ കയ്യിൽ പറ്റിപ്പിടിച്ച് ഇതൾ വിരലിൽ നിന്നും വിട്ടുമാറാതെയായി. {child_name} അസ്വസ്ഥനായി കൈകൾ കുലുക്കി. അപ്പോൾ അടുത്തു വന്നിരുന്ന കൂട്ടുകാരൻ {friend_name} പതുക്കെ തന്റെ വിരൽ ഉപയോഗിച്ച് ചിത്രത്തിൽ മാത്രം ആദ്യം പശ തേച്ചു കാണിച്ചു തന്നു. {child_name} ഉടനെ ആ വിദ്യ പഠിച്ചെടുത്തു; പേപ്പറിൽ പശ വച്ച ശേഷം ഇതളുകൾ ഓരോന്നായി ചിറകുകളിൽ ഭംഗിയായി ഒട്ടിച്ചു. കുറച്ചു കഴിഞ്ഞപ്പോൾ ഒരു യഥാർത്ഥ {favorite_color} വർണ്ണപ്പൂമ്പാറ്റ ചിത്രത്തിൽ വിരിഞ്ഞതുപോലെ സുന്ദരമായി കണ്ടു.",
+          "placeholder_variables": [
+            "child_name",
+            "teacher_name",
+            "friend_name",
+            "favorite_color"
+          ],
+          "possible_challenges": [
+            "Tactile sensitivity/aversion triggered by sticky cold liquid gum textures on palms",
+            "Accidentally blows air or sneezes causing all loose light petals to fly off the work table",
+            "Pastes multiple elements crosswise outside the outer boundary line tracks",
+            "Rips the structural sketch base paper by spreading excessive amounts of wet glue liquid",
+            "Cannot pull apart single flower petals from a dense whole blossom bulb"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "The craft outline can match their favorite cartoon hero badge or vehicle stencil emblem."
+            ],
+            "analogies": [
+              "Pasting down colorful petals is like putting a soft warm blanket over a sleeping sketch."
+            ],
+            "sensory_extensions": [
+              "Contrast the sticky slippery wet texture of glue with the dry velvet feel of petals."
+            ],
+            "attention_support": [
+              "Pre-apply localized double-sided tape pieces so the child can focus purely on peeling and placing without messy liquid glue."
+            ],
+            "reading_support": [
+              "Maintain high visual space intervals between sentence rows for easy narrative reading tracking."
+            ]
+          },
+          "moral": "By learning clever tricks from friends, art tasks become magical fun adventures."
+        },
+        {
+          "activity_id": "M5_A2",
+          "activity_name": "പോകാം കാണാം (Let's Go and See)",
+          "learning_goal": "To practice walking in an organized group and social greeting exchanges within community spaces.",
+          "story_theme": "A joyful team excursion trip to a neighborhood plant greenhouse.",
+          "main_concept": "Group cohesion dynamics, community walking paths safety rules.",
+          "materials": [
+            "Safety rope rings",
+            "Thematic sun caps"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "grandfather"
+          ],
+          "story_template_malayalam": "ഒരു തെളിഞ്ഞ രാവിലെ {child_name}ും ക്ലാസിലെ കൂട്ടുകാരും ചേർന്ന് പുറത്തേക്ക് ഒരു യാത്ര തിരിച്ചു. അടുത്തുള്ള ഒരു വലിയ പൂന്തോട്ട നഴ്സറി സന്ദർശിക്കുകയായിരുന്നു ലക്ഷ്യം. {teacher_name} എല്ലാവരെയും വരിവരിയായി ഒരു നീളമുള്ള സുരക്ഷാ ചരടിൽ പിടിപ്പിച്ചു നടത്തിച്ചു. വഴിയിൽ വലിയ ഒരു {favorite_vehicle} ഹോൺ മുഴക്കി കടന്നുപോയപ്പോൾ {child_name} ഭയന്ന് വരിയിൽ നിന്നും മാറി ഓടാൻ ശ്രമിച്ചു. ഉടനെ {teacher_name} {child_name}ന്റെ തോളിൽ ചേർത്തുപിടിച്ച് ആശ്വസിപ്പിച്ചു. നഴ്സറിയിൽ എത്തിയപ്പോൾ അവിടെ ഒരു മുതിർന്ന {grandfather_name} ഇരിപ്പുണ്ടായിരുന്നു. {child_name} രണ്ടു കൈകളും കൂപ്പി 'നമസ്കാരം!' എന്ന് ഉറക്കെ അഭിവാദ്യം ചെയ്തു. മുത്തശ്ശൻ സന്തോഷത്തോടെ പുഞ്ചിരിച്ച് അവർക്ക് നല്ല മനോഹരമായ ചുവന്ന റോസാച്ചെടി കാണിച്ചു തന്നു.",
+          "placeholder_variables": [
+            "child_name",
+            "teacher_name",
+            "favorite_vehicle",
+            "grandfather_name"
+          ],
+          "possible_challenges": [
+            "Sensory auditory panic triggered by loud unpredictable transit traffic horns outdoors",
+            "Breaks away from the structural walking line array to follow a stray pet animal path",
+            "Refuses to wear the group identification cap or sunhat device due to touch sensitivity",
+            "Becomes non-verbal or shy when prompted to greet the external greenhouse keeper person",
+            "Fatigues easily and sits down flat on the walking track midway during the trek"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Weave an explicit destination target into the story like finding a rare colored stone or toy element."
+            ],
+            "analogies": [
+              "Walking together in a strict straight line queue is like a smooth toy train rolling down iron rails."
+            ],
+            "sensory_extensions": [
+              "Describe the bright warm contrast of golden sun rays outdoor shifting into the cool leafy canopy greenhouse shadow."
+            ],
+            "attention_support": [
+              "Provide a designated physical anchor object, like holding a specific soft loop clip handle during the trip."
+            ],
+            "reading_support": [
+              "Keep vocabulary simple and direct using descriptive, rhythmic locomotion verbs."
+            ]
+          },
+          "moral": "Staying together safely with friends brings us to beautiful new destinations."
+        },
+        {
+          "activity_id": "M5_A3",
+          "activity_name": "വർണ്ണപൂമ്പാറ്റയുണ്ടാക്കാം (Making Colorful Butterflies)",
+          "learning_goal": "To practice symmetric paper folding actions and manual manipulation techniques for craft production.",
+          "story_theme": "Creating artificial butterfly puppets that fly when fans blow.",
+          "main_concept": "Spatial symmetry axis folding; folding pressure control.",
+          "materials": [
+            "Colored kite papers",
+            "Flexible chenille stems / pipe-cleaners"
+          ],
+          "characters": [
+            "child",
+            "mother",
+            "sister"
+          ],
+          "story_template_malayalam": "ഉച്ചയ്ക്ക് മഴ പെയ്യുന്ന സമയത്ത് {child_name} മുറിക്കുള്ളിൽ ഇരിക്കുകയായിരുന്നു. മടുപ്പ് മാറ്റാൻ ഒരു വിദ്യ കാണിക്കാം എന്ന് പറഞ്ഞ് {sister_name} അങ്ങോട്ട് വന്നു. ഒരു ചതുരത്തിലുള്ള {favorite_color} കടലാസ് {child_name}ന്റെ കയ്യിൽ കൊടുത്തു. അത് മടക്കി ഒരു പൂമ്പാറ്റ ഉണ്ടാക്കുകയാണ് ലക്ഷ്യം. കടലാസിന്റെ നടു മടക്കുകൾ സമമായി വെക്കാൻ {child_name} നോക്കിയപ്പോൾ ഒരു വശം ചരിഞ്ഞുപോയി, പേപ്പർ ചുരുണ്ടുപോയി. {child_name} ദേഷ്യം വന്ന് കടലാസ് ദൂരേക്ക് എറിയാൻ ആഞ്ഞു. അപ്പോൾ {mother_name} പതുക്കെ അരികിലിരുന്ന് കയ്യിലെ വിരലുകൾ കൊണ്ട് പേപ്പറിന്റെ അരികുകൾ ഒന്നിച്ചു ചേർത്ത് അമർത്താൻ സഹായിച്ചു. {child_name} വീണ്ടും പതുക്കെ ശ്രമിച്ചു, മനോഹരമായ ഒരു പൂമ്പാറ്റ രൂപം പൂർത്തിയായി! അത് താലോലിച്ച് {child_name} മുറിയിലുടനീളം ആനന്ദത്തോടെ ഓടിക്കളിച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "sister_name",
+            "favorite_color",
+            "mother_name"
+          ],
+          "possible_challenges": [
+            "Accidentally rips or crumbles thin colorful craft tissue papers due to high muscle tone",
+            "Cannot match opposite paper corners accurately for geometric fold operations",
+            "Grows highly frustrated when initial paper folds spring open flat again",
+            "Confuses the folding direction axes (forward fold vs backward accordion pleat)",
+            "Drops the pipe-cleaner wire ties under tables during structural twist fixing attempts"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "The craft paper colors can explicitly model after their top animated cartoon superhero colors."
+            ],
+            "analogies": [
+              "Folding paper backward and forward is like making a small portable cooling fan hand tool."
+            ],
+            "sensory_extensions": [
+              "Detail the sharp, satisfying crinkle acoustic sound made when pressing clean crisp dry paper crease boundaries down."
+            ],
+            "attention_support": [
+              "Utilize pre-creased grid templates or multi-colored fold lines to clearly guide hands step-by-step."
+            ],
+            "reading_support": [
+              "Incorporate distinct spatial layout markers within text chunks to maximize ease of tracking."
+            ]
+          },
+          "moral": "When we slow down and press carefully, simple papers turn into beautiful toys."
+        }
+      ]
+    },
+    {
+      "module_number": 6,
+      "module_title": "ശുചിത്വം നല്ല നാളേക്കായ് (Hygiene for a Good Tomorrow)",
+      "activities": [
+        {
+          "activity_id": "M6_A1",
+          "activity_name": "ചുണക്കുട്ടന്മാർ (Brave Kids / Hand Washing)",
+          "learning_goal": "To perform self-care handwashing routines independently following sequence cues after garden play.",
+          "thought": "Reflecting Module VI health/hygiene parameters from page 9.",
+          "story_theme": "Chasing away invisible mud monsters from hands using soap bubbles.",
+          "main_concept": "Sequential hygiene task steps; tactile cleansing coordination.",
+          "materials": [
+            "Scented liquid soap",
+            "Visual step-by-step poster cards"
+          ],
+          "characters": [
+            "child",
+            "father",
+            "teacher"
+          ],
+          "story_template_malayalam": "പൂന്തോട്ടത്തിൽ മണ്ണിൽ കളിച്ച് കഴിഞ്ഞപ്പോൾ {child_name}ന്റെ രണ്ടു കൈകളിലും നിറയെ ചെളി പറ്റിപ്പിടിച്ചിട്ടുണ്ടായിരുന്നു. 'കൈകൾ കഴുകി ചുണക്കുട്ടനാകൂ' എന്ന് {teacher_name} വിളിച്ചു പറഞ്ഞു. {child_name} ഓടിച്ചെന്ന് വാഷ് ബേസിൻ പൈപ്പ് തുറന്നു. കയ്യിൽ അല്പം സുഗന്ധമുള്ള സോപ്പ് തേച്ചെങ്കിലും വിരലുകൾക്കിടയിലെ മണ്ണ് കളയാൻ {child_name} മറന്നുപോയി. പെട്ടെന്ന് വെള്ളം മാത്രം ഒഴുക്കി കൈ മാറ്റാൻ നോക്കിയപ്പോൾ {father_name} അവിടെയുള്ള ഭിത്തിയിലെ ഒരു ചിത്രം കാണിച്ചു തന്നു. അതിൽ വിരലുകൾ പരസ്പരം കോർത്ത് കഴുകുന്ന പടം ഉണ്ടായിരുന്നു. {child_name} ഉടനെ വിരലുകൾ പരസ്പരം പിണച്ച് പതപ്പിച്ചു കുട്ടൻ/കുട്ടി ആയി മാറി. കൈകളിലെ ചെളി മാറി നല്ല പഞ്ഞിപോലെ വെളുത്ത സോപ്പ് കുമിളകൾ വന്നപ്പോൾ {child_name} അത് കണ്ട് പൊട്ടിച്ചിരിച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "teacher_name",
+            "father_name"
+          ],
+          "possible_challenges": [
+            "Forgets to rinse off hidden soap suds from between fingers",
+            "Splashes slippery water all over the floor area creating hazards",
+            "Dislikes the wet sensory cold feeling of running water and pulls arms back early",
+            "Cannot reach or activate the tap fixture handles independently",
+            "Wipes wet dirty hands onto clothes instead of using the hanging clean towel strip"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Use soaps shaped like cars or containing internal toy elements to motivate sensory interaction."
+            ],
+            "analogies": [
+              "Rubbing your two hands together with soap bubbles is like two toy speedboats racing across foam waves."
+            ],
+            "sensory_extensions": [
+              "Emphasize the rich scent of strawberries or lime fragrance bursting from the warm soap lather."
+            ],
+            "attention_support": [
+              "Sing a short favorite 20-second nursery jingle to track exact operational duration landmarks effortlessly."
+            ],
+            "reading_support": [
+              "Write out distinct sequence instructions in brief bullet text blocks with high clear margins."
+            ]
+          },
+          "moral": "Washing hands properly keeps us safe from tiny bugs we cannot see."
+        },
+        {
+          "activity_id": "M6_A2",
+          "activity_name": "തേച്ചുമിനുക്കാം (Polishing / Cleaning Gardening Tools)",
+          "learning_goal": "To clean and restore gardening equipment using cloths, developing basic domestic chore sequences.",
+          "story_theme": "A cleanup workshop party turning old muddy tools into shiny gems.",
+          "main_concept": "Tool maintenance responsibility; object restoration sequences.",
+          "materials": [
+            "Dry and damp fiber cloths",
+            "Plastic toy shovels and buckets"
+          ],
+          "characters": [
+            "child",
+            "brother",
+            "teacher"
+          ],
+          "story_template_malayalam": "തോട്ടം പണി കഴിഞ്ഞപ്പോൾ മേശപ്പുറത്തിരുന്ന പ്ലാസ്റ്റിക് ചട്ടികളും കൈക്കോട്ടും കറുത്ത മണ്ണ് പുരണ്ട് വൃത്തികേടായി കിടക്കുകയായിരുന്നു. {child_name} ഒരു ചെറിയ നീല കോട്ടൺ തുണിയുമായി അങ്ങോട്ട് ചെന്നു. അവ തേച്ചു മിനുക്കി തിളക്കുകയായിരുന്നു ലക്ഷ്യം. {child_name} തുണികൊണ്ട് തുടച്ചപ്പോൾ ചെളി വശങ്ങളിലേക്ക് പടർന്ന് പാത്രം വീണ്ടും കറുത്തുപോയി. അത് കണ്ട് {child_name} സങ്കടത്തോടെ ഇരുന്നു. അപ്പോൾ ഓടിവന്ന ജ്യേഷ്ഠൻ {brother_name} തന്റെ {favorite_color} സ്പോഞ്ച് എടുത്തു വെള്ളത്തിൽ മുക്കി ആദ്യം തുടച്ചു കാണിച്ചു കൊടുത്തു. {child_name} ഉടനെ ആ സ്പോഞ്ച് വാങ്ങി പാത്രത്തിന്റെ മുകൾ ഭാഗം നന്നായി തേച്ചു കഴുകി. ചെളിയെല്ലാം മാറി പാത്രങ്ങൾ പുതിയതുപോലെ തിളങ്ങിയപ്പോൾ {child_name} അത് വരിവരിയായി റാക്കിൽ ഭംഗിയായി ഒതുക്കി വെച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "brother_name",
+            "favorite_color"
+          ],
+          "possible_challenges": [
+            "Cannot apply sufficient wiping down pressure force to clear dried caked mud parts",
+            "Uses a dripping wet towel that makes the cleanup table entirely flooded",
+            "Drops heavy plastic containers onto feet due to loose wet grip tracking",
+            "Leaves one entire side of the tool muddy while only cleaning the bright top surface",
+            "Grows tired of repetitive scrubbing motions after one single minute of trial"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Frame the activity like cleaning armor plates for an elite outer space astronaut team."
+            ],
+            "analogies": [
+              "Scrubbing away caked dark stains is like using a magic eraser on a whiteboard drawing track."
+            ],
+            "sensory_extensions": [
+              "Highlight the tactile shift from coarse rough sand crusts into smooth, squeaky clean dry plastic surfaces."
+            ],
+            "attention_support": [
+              "Divide the tool visual area into clear zones using colorful masking tape to mark progress steps explicitly."
+            ],
+            "reading_support": [
+              "Utilize highly contrasting layout spacing formats for all instructional Malayalam text sequences."
+            ]
+          },
+          "moral": "Taking good care of our work tools keeps them ready for next play adventures."
+        },
+        {
+          "activity_id": "M6_A3",
+          "activity_name": "ജ്യൂസുണ്ടാക്കാം (Let's Make Juice)",
+          "learning_goal": "To practice kitchen safety, fine squeezing actions, and culinary routines by preparing healthy fresh fruit drinks.",
+          "story_theme": "A kitchen juice chef party sharing cold refreshments with friends.",
+          "main_concept": "Squeezing motor control; proportion mixing logic.",
+          "materials": [
+            "Cut lemon slices",
+            "Plastic blunt manual squeezers",
+            "Cups and spoons"
+          ],
+          "characters": [
+            "child",
+            "mother",
+            "friend"
+          ],
+          "story_template_malayalam": "പൂന്തോട്ടത്തിൽ നല്ല വെയിലത്ത് കളിച്ചപ്പോൾ {child_name}ന് ഒത്തിരി ദാഹം തോന്നി. {mother_name} അടുക്കളയിലേക്ക് വിളിച്ച് ഒരു പാത്രം നിറയെ കുഞ്ഞു നാരങ്ങ കഷ്ണങ്ങൾ കാണിച്ചു തന്നു. ഒരുമിച്ച് ജ്യൂസുണ്ടാക്കാം എന്ന് പറഞ്ഞു. {child_name} ഒരു നാരങ്ങ എടുത്തു ഗ്ലാസിന് മുകളിൽ വെച്ച് വിരലുകൾ കൊണ്ട് ഞെക്കാൻ നോക്കി. പക്ഷെ ആവശ്യത്തിന് ശക്തിയില്ലാത്തതിനാൽ ഒരു തുള്ളി നീര് പോലും വീണില്ല. {child_name} ദേഷ്യത്തോടെ നാരങ്ങ താഴെയിട്ടു. അപ്പോൾ {mother_name} ഒരു ചെറിയ പ്ലാസ്റ്റിക് സ്ക്ീസർ ഉപകരണം {child_name}ന്റെ കൈകളിൽ കൊടുത്തു. അതിനുള്ളിൽ നാരങ്ങ വെച്ച് രണ്ടു കൈകളും ചേർത്ത് ഒന്നിച്ച് അമർത്താൻ സഹായിച്ചു. പെട്ടെന്ന് ഒരു വലിയ {favorite_fruit_color} നീർച്ചാൽ ഗ്ലാസിലേക്ക് ഒഴുകിയിറങ്ങി! അല്പം മധുരവും ഇട്ട് ഇളക്കി {child_name} തന്റെ കൂട്ടുകാരൻ {friend_name}ന് ആ ജ്യൂസ് കുടിക്കാൻ നൽകി.",
+          "placeholder_variables": [
+            "child_name",
+            "mother_name",
+            "favorite_fruit_color",
+            "friend_name"
+          ],
+          "possible_challenges": [
+            "Accidentally squirts acidic sour lemon juice spray directly into eyes due to wrong aim",
+            "Drops slippery wet fruit slices onto the kitchen floor boards repeatedly",
+            "Spills the entire cup volume while trying to stir sugar solids in with a spoon",
+            "Pours excessive sugar mounds into the container instead of single measured scoops",
+            "Dislikes the strong sour citrus scent and refuses to participate further in squeezing"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Add a favorite colorful reusable curly straw element into their dream cup design."
+            ],
+            "analogies": [
+              "Pressing the squeezer handles together is like locking a super-strong robot mechanical arm clamp."
+            ],
+            "sensory_extensions": [
+              "Describe the bright refreshing tang aroma filling up the cozy room space during pressing."
+            ],
+            "attention_support": [
+              "Provide a clear visual fill-line marker sticker on the clear glass body to prevent messy overflowing overshoots."
+            ],
+            "reading_support": [
+              "Break instructions into crisp phonetic steps tailored for easy, independent sight recognition layouts."
+            ]
+          },
+          "moral": "Using the right helper tools makes kitchen creations easy and sweet."
+        }
+      ]
+    },
+    {
+      "module_number": 7,
+      "module_title": "പാറിപ്പറക്കാം (Let's Fly / Art & Motion)",
+      "activities": [
+        {
+          "activity_id": "M7_A1",
+          "activity_name": "കളർപെൻസിൽ (Color Pencil Magic)",
+          "learning_goal": "To develop tripod grip endurance and horizontal stroke replication skills using fine color writing tools.",
+          "thought": "Reflecting Module VII fine arts and physical expression targets listed on page 9.",
+          "story_theme": "Helping a small garden bird sketch draw its missing tail feathers.",
+          "main_concept": "Fine motor precision, pincer pencil hold stability, line completion.",
+          "materials": [
+            "Thick triangle pencil variants",
+            "Textured coloring chart templates"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "sister"
+          ],
+          "story_template_malayalam": "ക്ലാസ് റൂമിൽ ജനലിനടുത്ത് {child_name} വന്നിരുന്നു. അവിടെ ഒരു വലിയ പേപ്പറിൽ ഭംഗിയുള്ള മരക്കൊമ്പും ഒരു കുഞ്ഞു പക്ഷിയുടെ ചിത്രവും മാഷ് വരച്ചിട്ടുണ്ടായിരുന്നു. പക്ഷെ പക്ഷിയുടെ വാലിൽ വരകൾ ഒന്നുമില്ലായിരുന്നു. {child_name} ഒരു {favorite_color} നിറമുള്ള നല്ല മൂർച്ചയുള്ള നീളമുള്ള കളർപെൻസിൽ എടുത്തു. വിരലുകൾ കൊണ്ട് പെൻസിൽ തുമ്പിൽ പിടിക്കാൻ നോക്കിയപ്പോൾ കൈകൾ പെട്ടെന്ന് തെന്നിപ്പോയി വരകൾ വളഞ്ഞുപോയി. {child_name} വരയ്ക്കുന്നത് നിർത്താൻ ആലോചിച്ചു. അപ്പോൾ അടുത്തുവന്ന ചേച്ചി {sister_name} ഒരു കുഞ്ഞു റബ്ബർ ഗ്രിപ്പർ പെൻസിലിൽ ഇട്ടു നൽകി വിരലുകൾ എവിടെ വെക്കണം എന്ന് കാണിച്ചു തന്നു. അത്ഭുതം! ഇപ്പോൾ {child_name}ന്റെ കൈകൾ തെന്നിയില്ല. പക്ഷിക്ക് മനോഹരമായ നീളമുള്ള വാലുകൾ വരച്ചു പൂർത്തിയാക്കി {child_name} സന്തോഷത്തോടെ നോക്കിനിന്നു.",
+          "placeholder_variables": [
+            "child_name",
+            "favorite_color",
+            "sister_name"
+          ],
+          "possible_challenges": [
+            "Holds the color pencil way too close to the top end losing tip control axis",
+            "Snaps the fragile graphite pencil core repeatedly by pressing onto paper with excessive force",
+            "Scribbles crosswise over the whole page out of boundary fatigue",
+            "Cannot maintain a stable grip position for longer than thirty seconds",
+            "Confuses similar color barrel shades like dark green and dark blue under dim light"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Incorporate illustrations of preferred toy cartoon vehicles or spacecraft elements instead of a bird."
+            ],
+            "analogies": [
+              "Moving your pencil tip back and forth is like a tiny windshield wiper clearing rainwater off glass windows."
+            ],
+            "sensory_extensions": [
+              "Detail the mild textured friction sound vibrations felt up the arm while coloring over thick cardstock charts."
+            ],
+            "attention_support": [
+              "Utilize special ergonomically weighted triangular shaft pencil styles that naturally prompt proper thumb-finger placement patterns."
+            ],
+            "reading_support": [
+              "Isolate important narrative text clauses with extra-bold line breaks to ease processing loads."
+            ]
+          },
+          "moral": "When our fingers find the right comfort hold, drawing becomes easy and delightful."
+        },
+        {
+          "activity_id": "M7_A2",
+          "activity_name": "മണൽച്ചിത്രം (Sand Painting Art)",
+          "learning_goal": "To explore unique multi-sensory art media and practice localized pouring control by scattering sand grains over glued card shapes.",
+          "story_theme": "Spreading glistening golden sands to build a glowing hidden path sketch.",
+          "main_concept": "Tactile sensory processing; controlled surface dispersion.",
+          "materials": [
+            "Sieved colored sand jars",
+            "Glue outline boards"
+          ],
+          "characters": [
+            "child",
+            "father",
+            "friend"
+          ],
+          "story_template_malayalam": "ഒരു അവധിദിവസം ഉച്ചയ്ക്ക് {child_name}ും {father_name}യും കൂടി വലിയ ഒരു മേശപ്പുറത്തിരുന്നു. {father_name} ഒരു കട്ടിപ്പേപ്പറിൽ ഭംഗിയുള്ള ഒരു വലിയ നക്ഷത്രപ്പൂവിന്റെ പടം വരച്ച് അതിൽ നിറയെ പശ പുരട്ടി നൽകി. ഇനി അതിനു മുകളിൽ മണൽ വിതറി ഒരു മണൽച്ചിത്രം ഉണ്ടാക്കണം. {child_name} ഒരു കുഞ്ഞു പാത്രത്തിൽ നിന്നും മണൽ എടുത്തു. എന്നാൽ ഒരുമിച്ചുകൂടുതൽ മണൽ ഒരിടത്തേക്ക് മാത്രം വീണതു കൊണ്ട് നക്ഷത്രത്തിന്റെ ഇതളുകൾ മൂടിപ്പോയി, മറ്റുള്ള വശങ്ങൾ വെറുതെ കിടന്നു. {child_name} അത് കണ്ട് സങ്കടത്തിലായി. അപ്പോൾ അങ്ങോട്ട് വന്ന കൂട്ടുകാരൻ {friend_name} തന്റെ വിരലുകൾ കൊണ്ട് ഒരു നുള്ളു മണൽ വീതം എടുത്ത് ഉപ്പുതൂവുന്നതുപോലെ പതുക്കെ വിതറുന്നത് കാണിച്ചു തന്നു. {child_name} അതുപോലെ മെല്ലെ വിരലുകൾ ചലിപ്പിച്ച് മണൽ വിതറിയപ്പോൾ തിളങ്ങുന്ന മനോഹരമായ ഒരു {favorite_color} മണൽപൂവ് റെഡിയായി!",
+          "placeholder_variables": [
+            "child_name",
+            "father_name",
+            "friend_name",
+            "favorite_color"
+          ],
+          "possible_challenges": [
+            "Throws a large palmful of sand all at once over the work desk causing messes",
+            "Shows tactile distress or anxiety with loose sand granules sticking to palms",
+            "Accidentally rubs itchy eyes with sand-covered fingers mid-task",
+            "Pours the glue over the sand instead of scattering sand over the pre-glued area",
+            "Blows onto the loose sand grains scatter-shaking them onto surrounding carpet rugs"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Utilize vibrant craft glitter mixes blended with sand if the child is highly responsive to sparkling sensory elements."
+            ],
+            "analogies": [
+              "Scattering thin sand rows over paper is like gentle snow drops falling from a small winter sky cloud."
+            ],
+            "sensory_extensions": [
+              "Incorporate the deep scraping sounds of shaking loose sand off paper onto plastic catchment trays."
+            ],
+            "attention_support": [
+              "Isolate single sections of the illustration boards with cardboard partitions so the task focus remains small and contained."
+            ],
+            "reading_support": [
+              "Employ clean, wide-gapped custom font spacing for Malayalam vocabulary chains."
+            ]
+          },
+          "moral": "Spreading things gently little by little helps create wonderful art."
+        },
+        {
+          "activity_id": "M7_A3",
+          "activity_name": "മുറിക്കാം ഒട്ടിക്കാം (Cut and Paste Craft)",
+          "learning_goal": "To build introductory bilateral scissor cutting skills and safety tracking on linear lines.",
+          "story_theme": "Harvesting paper flower stems using safe magic loops.",
+          "main_concept": "Bilateral coordination; dual-hand specialization roles (holding vs cutting).",
+          "materials": [
+            "Spring-loaded loop safety scissors",
+            "Thick green paper strips"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "mother"
+          ],
+          "story_template_malayalam": "ഇന്ന് കരകൗശല ക്ലാസിൽ {child_name} ഒരു വലിയ ലക്ഷ്യവുമായി ഇരിക്കുകയാണ്. പേപ്പറിൽ നീളത്തിൽ വരച്ചുവെച്ചിട്ടുള്ള പച്ച ഇലക്കഷ്ണങ്ങൾ മുറിച്ചെടുത്ത് ഒരു പൂച്ചെടി ഉണ്ടാക്കണം. {child_name} വലതുകയ്യിൽ ഒരു ചെറിയ {favorite_toy_color} സുരക്ഷിത കത്രിക എടുത്തു. പേപ്പർ മുറിക്കാൻ കത്രിക അമർത്തിയപ്പോൾ ഇടതുകൈ കൊണ്ട് പേപ്പർ ശരിയായി പിടിക്കാൻ മറന്നതുകൊണ്ട് പേപ്പർ വളഞ്ഞുപോവുകയും കീറിപ്പോവുകയും ചെയ്തു. {child_name} കത്രിക താഴെ വെച്ച് കരയാൻ തുടങ്ങി. അപ്പോൾ അങ്ങോട്ട് വന്ന {teacher_name} {child_name}ന്റെ ഇടതുകൈ മെല്ലെ പേപ്പറിന്റെ അറ്റത്ത് പിടിച്ചു ഉറപ്പിച്ചു നിർത്തി തന്നു. 'ഇനി മെല്ലെ അമർത്തൂ' എന്ന് പറഞ്ഞു. {child_name} പതുക്കെ കത്രിക നീക്കി വരയിലൂടെ നേരെ മുറിച്ചു മാറ്റി. കഷ്ണങ്ങളെല്ലാം ഒന്നിച്ച് ഒട്ടിച്ച് ഭംഗിയുള്ള ഒരു ചെടി ഉണ്ടാക്കിയപ്പോൾ {child_name} അത് കാണിക്കാൻ {mother_name}ന്റെ അടുത്തേക്ക് സന്തോഷത്തോടെ ഓടിപ്പോയി.",
+          "placeholder_variables": [
+            "child_name",
+            "favorite_toy_color",
+            "teacher_name",
+            "mother_name"
+          ],
+          "possible_challenges": [
+            "Holds the scissor device upside down with finger orientation reversed",
+            "Forgets to move the non-dominant hand back, cutting too close to holding fingers",
+            "Tears the craft sheet using raw pull forces instead of real clipping scissor actions",
+            "Cannot follow a straight dark path line, veering off to side margins rapidly",
+            "Grows anxious or hyperactive with the metallic clicking noises of target tools"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "The target strips can feature graphics of train tracks or racing roads that need segmenting."
+            ],
+            "analogies": [
+              "The scissor blades are like a little crocodile opening and closing its mouth to bite target twigs."
+            ],
+            "sensory_extensions": [
+              "Detail the clean tactile sensation of thick heavy paper smoothly separating into two crisp parts."
+            ],
+            "attention_support": [
+              "Utilize extra-thick, 5mm wide black guide border lines to provide a wide, forgiving margin for error."
+            ],
+            "reading_support": [
+              "Highlight key action verbs like 'മുറിക്കാം' (Cut) and 'ഒട്ടിക്കാം' (Paste) using distinct bold lettering styles."
+            ]
+          },
+          "moral": "When our two hands help each other, difficult tasks become easy projects."
+        },
+        {
+          "activity_id": "M7_A4",
+          "activity_name": "തകധിമി (Rhythm and Dance)",
+          "learning_goal": "To build dynamic gross motor balancing, auditory tracking, and imitation skills via rhythmic movement.",
+          "story_theme": "A musical forest celebration dancing along with hopping frogs.",
+          "main_concept": "Gross motor rhythm matching; physical balance coordination.",
+          "materials": [
+            "Ankle bells / Ghungroos",
+            "Rhythm drum/tambourine instruments"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "friend"
+          ],
+          "story_template_malayalam": "സ്കൂളിലെ വലിയ ഹാളിൽ മനോഹരമായ സംഗീതം കേൾക്കുന്നുണ്ടായിരുന്നു. {teacher_name} ഒരു ചെറിയ കൈമുരശിൽ 'തകധിമി' എന്ന് താളം അടിച്ചു കാണിച്ചു തന്നു. ആ താളത്തിനൊപ്പം കാലുകൾ മാറിമാറി ചവിട്ടി ഒരു പൂമ്പാറ്റയെപ്പോലെ കൈകൾ വീശി നൃത്തം ചെയ്യാനായിരുന്നു കുട്ടികളുടെ ടാസ്ക്. {child_name} കാലുകൾ ഉയർത്തിയപ്പോൾ പെട്ടെന്ന് ബാലൻസ് തെറ്റി അല്പം ചരിഞ്ഞു വീഴാൻ പോയി. {child_name} നാണക്കേട് തോന്നി നൃത്തം ചെയ്യാതെ ഒതുങ്ങി നിന്നു. അപ്പോൾ കൂട്ടുകാരൻ {friend_name} വന്ന് {child_name}ന്റെ കൈകളിൽ പിടിച്ച് ഒപ്പം നിന്നു. രണ്ടുപേരും ചേർന്ന് തോളോട് തോൾ ചേർന്ന് പതുക്കെ ചുവടുകൾ വെച്ചു. താളത്തിനൊപ്പം കാലിലെ കുഞ്ഞു മണികൾ 'കിലുകിലി' എന്ന് ശബ്ദമുണ്ടാക്കിയപ്പോൾ {child_name} ആവേശത്തോടെ ഉറക്കെ ചിരിച്ച് {favorite_dance_spin} ചെയ്ത് നൃത്തം തുടർന്നു.",
+          "placeholder_variables": [
+            "child_name",
+            "teacher_name",
+            "friend_name",
+            "favorite_dance_spin"
+          ],
+          "possible_challenges": [
+            "Loses footing balance completely when trying to lift one leg high off the rug surface",
+            "Becomes overwhelmed and covers ears due to loud, unexpected drum hit sounds",
+            "Cannot trace or match the fast tempo speed of the teacher's background instrument rhythm",
+            "Moves out of the assigned safety circle boundaries, bumping into adjacent peer dancers",
+            "Stiffens up out of performance shyness refusing to model the requested actions"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Incorporate the child's top favorite nursery rhyme background tracks or movie scores into session cues."
+            ],
+            "analogies": [
+              "Stomping feet to the heavy beat is like a big friendly elephant walking through a wild forest path."
+            ],
+            "sensory_extensions": [
+              "Focus on the pleasant tingling vibrations felt through bare feet soles from the clean wooden dance floorboards."
+            ],
+            "attention_support": [
+              "Place large, non-slip visual floor footprint sticker targets to establish clear locations for placements."
+            ],
+            "reading_support": [
+              "Use highly repetitive, sing-song sound words inside text structures like 'തകിട തകധിമി ചുവടുകൾ'."
+            ]
+          },
+          "moral": "Holding hands with friends gives us strength to dance with confidence."
+        },
+        {
+          "activity_id": "M7_A5",
+          "activity_name": "പൂപറിക്കാൻ പോരുമോ (Flower Gathering Game)",
+          "learning_goal": "To develop spatial navigation speed and physical agility through outdoor group ring games.",
+          "thought": "Reflecting 5th activity in Module VII from page 9.",
+          "story_theme": "A fast-paced tag game rescuing flowers before sunset.",
+          "main_concept": "Gross motor agility, directional speed switching, team interactions.",
+          "materials": [
+            "Large hula hoops",
+            "Colored beanbags"
+          ],
+          "characters": [
+            "child",
+            "father",
+            "friend"
+          ],
+          "story_template_malayalam": "വൈകുന്നേരത്തെ തണുത്ത വെളിച്ചത്തിൽ വലിയൊരു മൈതാനത്ത് {child_name}ും കൂട്ടുകാരും ഒരു വട്ടത്തിൽ കളിക്കുകയായിരുന്നു. മൈതാനത്തിന്റെ നടുവിലുള്ള പല നിറമുള്ള വളയങ്ങളിൽ നിന്നും 'പൂക്കൾ' എന്ന് വിളിക്കുന്ന കുഞ്ഞു ബീൻബാഗുകൾ ഓടിച്ചെന്ന് പെറുക്കി എടുക്കുന്നതാണ് കളി. 'പൂപറിക്കാൻ പോരുമോ?' എന്ന് {friend_name} ഉറക്കെ ചോദിച്ചപ്പോൾ 'ഞങ്ങളും വരാം!' എന്ന് {child_name} വിളിച്ചു പറഞ്ഞ് മുന്നോട്ട് ഓടി. എന്നാൽ ഓടുന്നതിനിടയിൽ ആവേശത്തിൽ ഏത് വളയത്തിലേക്കാണ് പോകേണ്ടത് എന്ന് സംശയിച്ച് {child_name} പാതിവഴിയിൽ പെട്ടെന്ന് നിന്നുപോയി. അപ്പോൾ അടുത്തുനിന്ന {father_name} ഉറക്കെ 'മഞ്ഞ വളയം! നേരെ ഓടൂ!' എന്ന് വിളിച്ച് കൈകാണിച്ചു. {child_name} പെട്ടെന്ന് ലക്ഷ്യം മനസ്സിലാക്കി വേഗത്തിൽ ഓടി തന്റെ പ്രിയപ്പെട്ട {favorite_color} ബീൻബാഗ് പൂവ് കയ്യിലെടുത്ത് ആകാശത്തേക്ക് ഉയർത്തി വിജയചിരി ചിരിച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "friend_name",
+            "father_name",
+            "favorite_color"
+          ],
+          "possible_challenges": [
+            "Trips over grass tufts or loose shoelaces while running quickly across open parks",
+            "Collides accidentally into another peer runner because of tunnel vision focus issues",
+            "Grabs the exact same prize bag item that a classmate has already touched, leading to arguments",
+            "Becomes disoriented about where the home baseline zone is situated after turning fast",
+            "Cries or gets upset if someone else crosses the finish line ahead of them"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Adapt the beanbags to look like target cosmic stars or energy crystals from space lore."
+            ],
+            "analogies": [
+              "Running to the safety hula hoop ring is like a little bird returning safely back into its cozy nest tree."
+            ],
+            "sensory_extensions": [
+              "Highlight the feeling of cool crisp wind rushing past the cheeks and the smell of freshly cut green lawn grass."
+            ],
+            "attention_support": [
+              "Keep the absolute distance between target points short and highly visible with glowing neon cone guides."
+            ],
+            "reading_support": [
+              "Format text layout lines with highly distinct paragraph break gaps to assist processing."
+            ]
+          },
+          "moral": "Listening for friendly guidance helps us win our goals together."
+        }
+      ]
+    },
+    {
+      "module_number": 8,
+      "module_title": "മാറ്റത്തിനൊപ്പം (Adapting to Change / Tech & Tools)",
+      "activities": [
+        {
+          "activity_id": "M8_A1",
+          "activity_name": "തുറക്കാം അടയ്ക്കാം (Open and Close)",
+          "learning_goal": "To master fine motor rotation and operational finger mechanics by manipulating lids, gates, and boxes.",
+          "thought": "Reflecting Module VIII technology and daily life adaptability parameters from page 9.",
+          "story_theme": "Unlocking secret boxes in a toy garden cabin closet.",
+          "main_concept": "Manipulative fine motor mechanics; binary opposite actions (open/close).",
+          "materials": [
+            "Screw-top jars",
+            "Hinged latched puzzle boards",
+            "Zipper pencil cases"
+          ],
+          "characters": [
+            "child",
+            "mother",
+            "brother"
+          ],
+          "story_template_malayalam": "മേശപ്പുറത്ത് ഒരു വലിയ ഭംഗിയുള്ള {favorite_toy_color} പെട്ടി ഇരിപ്പുണ്ടായിരുന്നു. അതിനുള്ളിൽ {child_name} ഏറെ കൊതിച്ച ഒരു സമ്മാനമുണ്ട്. അത് തുറന്നു നോക്കുകയാണ് ഇപ്പോഴത്തെ ലക്ഷ്യം. {child_name} പെട്ടിയുടെ അടപ്പിൽ പിടിച്ച് മുകളിലേക്ക് ശക്തമായി വലിച്ചു നോക്കി, പക്ഷെ പെട്ടി തുറന്നതേയില്ല. അത് കണ്ട് {child_name} ദേഷ്യത്തോടെ പെട്ടി മേശപ്പുറത്തേക്ക് തട്ടിയിട്ടു. അപ്പോൾ അവിടെ വന്ന ജ്യേഷ്ഠൻ {brother_name} പെട്ടി പതുക്കെ എടുത്ത്, 'ഇത് വലിക്കുന്നതല്ല, തിരിക്കേണ്ട അടപ്പാണ്' എന്ന് പറഞ്ഞ് കൈകൾ മെല്ലെ ഇടത്തോട്ട് തിരിച്ചു കാണിച്ചു തന്നു. {child_name} ദേഷ്യം മാറ്റി പെട്ടി കയ്യിലെടുത്തു വിരലുകൾ കൊണ്ട് അടപ്പ് പതുക്കെ വട്ടത്തിൽ തിരിച്ചു. പെട്ടെന്ന് ഒരു 'ക്ലിക്ക്' ശബ്ദത്തോടെ പാത്രം തുറന്നു! ഉള്ളിലെ ഭംഗിയുള്ള കുഞ്ഞു {favorite_animal} കളിപ്പാട്ടം കണ്ട് {child_name} ഒത്തിരി സന്തോഷത്തോടെ അമ്മയെ കെട്ടിപ്പിടിച്ചു.",
+          "placeholder_variables": [
+            "child_name",
+            "favorite_toy_color",
+            "brother_name",
+            "favorite_animal"
+          ],
+          "possible_challenges": [
+            "Applies linear pull force onto a screw-type rotational lid mechanism, jams it further",
+            "Pinches fingertips accidentally within tight metal hinge box gaps",
+            "Turns the lid clock-wise (tightening side) continuously instead of counter-clock wise to loosen",
+            "Drops the round plastic container cap under massive heavy furniture models",
+            "Becomes hyper-focused on spinning the loose cap over and over without opening the case box"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Hide their favorite treat or special tactile sticker reward inside the puzzle box object."
+            ],
+            "analogies": [
+              "Twisting a round container lid open is like turning a small steering wheel of a sports car to make a corner bend."
+            ],
+            "sensory_extensions": [
+              "Describe the clean mechanical snap sound and physical relief felt when an iron latch pops open."
+            ],
+            "attention_support": [
+              "Paint a bright green arrow trail directly on the bottle neck to show exactly which direction to twist."
+            ],
+            "reading_support": [
+              "Bold and enlarge target action terms like 'തുറക്കാം' (Open) and 'അടയ്ക്കാം' (Close) inside rows."
+            ]
+          },
+          "moral": "Understanding how things work helps us find the happy treasures inside them."
+        },
+        {
+          "activity_id": "M8_A2",
+          "activity_name": "എന്റെ ലോകം (My World / Village)",
+          "learning_goal": "To build foundational spatial cognitive skills and digital tablet navigation by building simple environmental layouts.",
+          "story_theme": "Designing a digital dream farm on a interactive screen display.",
+          "main_concept": "Virtual spatial arrangement; cause-and-effect drag mechanics.",
+          "materials": [
+            "Learning tablets",
+            "Interactive block models"
+          ],
+          "characters": [
+            "child",
+            "teacher",
+            "father"
+          ],
+          "story_template_malayalam": "ഇന്ന് വിദ്യാലയത്തിൽ {teacher_name} {child_name}ന്റെ കയ്യിൽ ഒരു വലിയ തിളങ്ങുന്ന പഠന ടാബ്‌ലെറ്റ് നൽകി. സ്ക്രീനിൽ ഒരു വലിയ മനോഹരമായ പൂന്തോട്ടത്തിന്റെ ചിത്രവും താഴെ കുറെ കുഞ്ഞു പൂക്കളുടെ ചിത്രങ്ങളും ഉണ്ടായിരുന്നു. വിരൽ കൊണ്ട് തൊട്ട് വലിച്ച് (Drag) പൂക്കൾ തോട്ടത്തിൽ വെച്ച് 'എന്റെ ലോകം' ഭംഗിയാക്കുക എന്നതാണ് ഇന്നത്തെ ഡിജിറ്റൽ കളി. {child_name} സ്ക്രീനിൽ വിരൽ വെച്ചെങ്കിലും പെട്ടെന്ന് കൈ വിട്ടുപോയതുകൊണ്ട് പൂക്കൾ വിചാരിച്ച സ്ഥലത്ത് എത്തിയില്ല. {child_name} പരിഭ്രാന്തനായി സ്ക്രീനിൽ ശക്തിയായി അടിക്കാൻ തുടങ്ങി. ഉടനെ {teacher_name} അരികിലിരുന്ന് {child_name}ന്റെ വിരൽ പതുക്കെ പിടിച്ച് സ്ക്രീനിൽ മുട്ടിച്ച് മെല്ലെ നീക്കി കാണിച്ചുതന്നു. വിരൽ നീക്കിയപ്പോൾ പൂവ് തോട്ടത്തിൽ കൃത്യമായി ഇരിക്കുന്നത് കണ്ട് {child_name} ആശ്ചര്യപ്പെട്ടു! തുടർന്ന് {child_name} സ്വന്തമായി പലതരം മരങ്ങളും ഒരു കുഞ്ഞു {favorite_animal} ചിത്രവും അവിടെ വെച്ച് തന്റെ മനോഹരമായ ലോകം ഡിജിറ്റലായി നിർമ്മിച്ച് അച്ഛന് കാണിച്ചുകൊടുത്തു.",
+          "placeholder_variables": [
+            "child_name",
+            "teacher_name",
+            "favorite_animal"
+          ],
+          "possible_challenges": [
+            "Taps the sensitive touch screen with excessive physical force or multiple fingers at once",
+            "Accidentally exits the learning application by pushing the physical home button tab",
+            "Becomes overstimulated by flashing digital lights or screen sound effects, losing task track",
+            "Lifts the dragging finger too early from glass surface causing items to reset to base rows",
+            "Refuses to share or hand back the tablet device when the learning session ends"
+          ],
+          "personalization_opportunities": {
+            "interests": [
+              "Populate the virtual map scene with elements like digital trains or houses matching their interests."
+            ],
+            "analogies": [
+              "Moving an object across a touch screen display is like sliding a smooth ice cube over polished floors."
+            ],
+            "sensory_extensions": [
+              "Detail the sleek, cool, polished feeling of protective glass under warm moving fingertips."
+            ],
+            "attention_support": [
+              "Deactivate all distracting background popups or animation noises to maximize cognitive focus clarity."
+            ],
+            "reading_support": [
+              "Use highly intuitive visual interface layout designs accompanied by simple Malayalam word phrases."
+            ]
+          },
+          "moral": "With gentle patience and smooth touches, we can build our own beautiful worlds."
+        }
+      ]
+    }
+  ]
+}

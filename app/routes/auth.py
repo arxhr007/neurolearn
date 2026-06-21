@@ -95,6 +95,12 @@ async def student_login(
             "user_id": student.id,
             "username": student.username,
             "student_id": student.student_id,
+            "full_name": student.full_name,
+            "learning_style": student.learning_style,
+            "reading_age": student.reading_age,
+            "age": student.age,
+            "interests": student.interests,
+            "neuro_profile": student.neuro_profile,
         },
     )
     return _redirect("/student/dashboard")

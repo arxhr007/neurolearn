@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     static_dir: str = "app/static"
     templates_dir: str = "app/templates"
 
+    gemini_api_key: str = ""
+
     cors_origins_raw: str = "http://localhost:3000,http://localhost:8000"
 
     @property
