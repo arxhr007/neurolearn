@@ -104,6 +104,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440
     groq_api_key: str = ""
+    gemini_api_key: str = ""
     allow_dev_users: bool = True
 
     cors_origins_raw: str = "http://localhost:3000,http://localhost:5173,http://localhost:8000"
