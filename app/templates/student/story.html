@@ -71,14 +71,8 @@
     <button id="reset-btn" class="btn btn-outline" type="button">Start over</button>
   </div>
   <details id="audio-section" style="display:none; margin-top: var(--space-3);">
-    <summary style="cursor:pointer; font-weight:600;">Generate audio narration</summary>
+    <summary style="cursor:pointer; font-weight:600;">Generate audio narration (Gemini TTS)</summary>
     <div class="form" style="margin-top: var(--space-2);">
-      <label>Voice
-        <select id="tts-voice" class="input">
-          <option value="ml-IN-SobhanaNeural">Malayalam - Sobhana</option>
-          <option value="ml-IN-MidhunNeural">Malayalam - Midhun</option>
-        </select>
-      </label>
       <div class="form-actions" style="gap: var(--space-2);">
         <button id="audio-btn" class="btn" type="button">Generate & play audio</button>
         <audio id="audio-player" controls style="display:none; width:100%; margin-top: var(--space-2);"></audio>
@@ -376,8 +370,6 @@
     const status = document.getElementById("audio-status");
     const player = document.getElementById("audio-player");
     const btn = document.getElementById("audio-btn");
-    const voiceSel = document.getElementById("tts-voice");
-    const voice = voiceSel ? voiceSel.value : "ml-IN-SobhanaNeural";
     const text = document.getElementById("story-output")?.textContent || "";
     if (!text) { status.textContent = "No story to read."; return; }
 
@@ -393,12 +385,12 @@
       const resp = await fetch("/api/story/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + access_token },
-        body: JSON.stringify({ text, voice }),
+        body: JSON.stringify({ text }),
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.detail || "TTS request failed");
 
-      const blob = base64ToBlob(data.audioContent, "audio/mpeg");
+      const blob = base64ToBlob(data.audioContent, "audio/wav");
       const url = URL.createObjectURL(blob);
       if (player) {
         player.src = url;

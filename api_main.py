@@ -1609,24 +1609,73 @@ class TTSRequest(BaseModel):
 
 @app.post("/api/story/tts", tags=["Story"])
 def story_tts(req: TTSRequest):
-    """Generate TTS audio using edge-tts (free, no API key needed)."""
+    """Generate TTS audio using Gemini's native TTS model."""
     try:
-        import edge_tts
+        import urllib.request
+        import json
         import base64
         import io
-        import asyncio
+        import struct
 
-        voice = req.voice if req.voice and req.voice.startswith("ml") else "ml-IN-SobhanaNeural"
-        async def _gen():
-            communicate = edge_tts.Communicate(req.text, voice)
-            buf = io.BytesIO()
-            async for chunk in communicate.stream():
-                if chunk["type"] == "audio":
-                    buf.write(chunk["data"])
-            buf.seek(0)
-            return base64.b64encode(buf.read()).decode("utf-8")
+        from app.config import get_settings
+        api_key = get_settings().gemini_api_key
+        if not api_key:
+            raise HTTPException(status_code=400, detail="Gemini API key not configured")
 
-        audio_b64 = asyncio.run(_gen())
+        model = os.getenv("GEMINI_TTS_MODEL", "gemini-2.5-flash-preview-tts")
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+
+        payload = {
+            "contents": [{
+                "parts": [{"text": f"Generate spoken Malayalam audio narration for this children's story:\n\n{req.text}"}]
+            }],
+            "generationConfig": {
+                "responseModalities": ["AUDIO"]
+            },
+        }
+        data = json.dumps(payload).encode("utf-8")
+        http_req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+        resp = urllib.request.urlopen(http_req, timeout=120)
+        body = json.loads(resp.read())
+
+        candidates = body.get("candidates", [])
+        if not candidates:
+            raise RuntimeError("No response from TTS model")
+
+        parts = candidates[0].get("content", {}).get("parts", [])
+        inline = next((p.get("inlineData") for p in parts if "inlineData" in p), None)
+        if not inline:
+            raise RuntimeError("No audio data in TTS response")
+
+        pcm_b64 = inline["data"]
+        pcm_bytes = base64.b64decode(pcm_b64)
+
+        # Add WAV header (16-bit PCM, 24000 Hz, mono)
+        sample_rate = 24000
+        bits_per_sample = 16
+        channels = 1
+        byte_rate = sample_rate * channels * bits_per_sample // 8
+        block_align = channels * bits_per_sample // 8
+        data_size = len(pcm_bytes)
+
+        wav = io.BytesIO()
+        wav.write(b"RIFF")
+        wav.write(struct.pack("<I", 36 + data_size))
+        wav.write(b"WAVE")
+        wav.write(b"fmt ")
+        wav.write(struct.pack("<I", 16))
+        wav.write(struct.pack("<H", 1))  # PCM
+        wav.write(struct.pack("<H", channels))
+        wav.write(struct.pack("<I", sample_rate))
+        wav.write(struct.pack("<I", byte_rate))
+        wav.write(struct.pack("<H", block_align))
+        wav.write(struct.pack("<H", bits_per_sample))
+        wav.write(b"data")
+        wav.write(struct.pack("<I", data_size))
+        wav.write(pcm_bytes)
+        wav.seek(0)
+
+        audio_b64 = base64.b64encode(wav.read()).decode("utf-8")
         return {"audioContent": audio_b64}
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"TTS failed: {exc}")
