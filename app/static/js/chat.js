@@ -66,8 +66,10 @@ if (chatLayout) {
       throw new Error(data.detail || "Tutor request failed");
     }
     lastTurnId = data.turn_id;
-    lastCheckHint = data.check_answer_hint || "";
-    checkQuestion.textContent = data.check_question || "No check question yet.";
+    if (data.check_question) {
+      lastCheckHint = data.check_answer_hint || "";
+      checkQuestion.textContent = data.check_question;
+    }
     addMessage("tutor", data.answer || "No answer returned.");
   }
 
