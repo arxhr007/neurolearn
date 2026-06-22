@@ -155,6 +155,17 @@ def update_student(
     learning_style: str | None = None,
     interests: list[str] | None = None,
     neuro_profile: list[str] | None = None,
+    father_name: str | None = None,
+    mother_name: str | None = None,
+    grandfather_name: str | None = None,
+    grandmother_name: str | None = None,
+    favorite_color: str | None = None,
+    teacher_name: str | None = None,
+    place: str | None = None,
+    friends: str | None = None,
+    favorite_food: str | None = None,
+    favorite_animal: str | None = None,
+    favorite_interest: str | None = None,
     password: str | None = None,
     is_active: bool | None = None,
 ) -> Student:
@@ -174,6 +185,28 @@ def update_student(
         student.interests = list(interests)
     if neuro_profile is not None:
         student.neuro_profile = list(neuro_profile)
+    if father_name is not None:
+        student.father_name = father_name.strip() or None
+    if mother_name is not None:
+        student.mother_name = mother_name.strip() or None
+    if grandfather_name is not None:
+        student.grandfather_name = grandfather_name.strip() or None
+    if grandmother_name is not None:
+        student.grandmother_name = grandmother_name.strip() or None
+    if favorite_color is not None:
+        student.favorite_color = favorite_color.strip() or None
+    if teacher_name is not None:
+        student.teacher_name = teacher_name.strip() or None
+    if place is not None:
+        student.place = place.strip() or None
+    if friends is not None:
+        student.friends = friends.strip() or None
+    if favorite_food is not None:
+        student.favorite_food = favorite_food.strip() or None
+    if favorite_animal is not None:
+        student.favorite_animal = favorite_animal.strip() or None
+    if favorite_interest is not None:
+        student.favorite_interest = favorite_interest.strip() or None
     if password is not None:
         student.password_hash = hash_password(password)
     if is_active is not None:

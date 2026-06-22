@@ -10,6 +10,7 @@ from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from app.models.learning import LearningGoal, MasteryEvent, ProfileUpdateMeta
+from app.models.memory import StudentMemory
 from app.models.user import Student
 from langgraph_app.services.student_db_base import StudentDBBase
 
@@ -35,6 +36,11 @@ class SqlAlchemyStudentDB(StudentDBBase):
 
     def _profile_dict(self, student: Student) -> dict[str, Any]:
         name = student.full_name or student.username
+        memories = sorted(
+            [{"text": m.text, "category": m.category, "title": m.title, "created_at": m.created_at.isoformat()}
+             for m in (student.memories or [])],
+            key=lambda x: x["created_at"], reverse=True,
+        ) if student.memories else []
         return {
             "student_id": student.student_id,
             "name": name,
@@ -42,6 +48,18 @@ class SqlAlchemyStudentDB(StudentDBBase):
             "reading_age": int(student.reading_age),
             "interest_graph": list(student.interests or []),
             "neuro_profile": list(student.neuro_profile or ["general"]),
+            "father_name": student.father_name,
+            "mother_name": student.mother_name,
+            "grandfather_name": student.grandfather_name,
+            "grandmother_name": student.grandmother_name,
+            "favorite_color": student.favorite_color,
+            "teacher_name": student.teacher_name,
+            "place": student.place,
+            "friends": student.friends,
+            "favorite_food": student.favorite_food,
+            "favorite_animal": student.favorite_animal,
+            "favorite_interest": student.favorite_interest,
+            "memories": memories,
             "created_at": student.created_at,
             "updated_at": student.updated_at,
         }
@@ -407,6 +425,49 @@ class SqlAlchemyStudentDB(StudentDBBase):
             "interest_graph": updated_interests,
             "neuro_profile": profile.get("neuro_profile") or ["general"],
         }
+
+    def get_memories(self, student_id: str) -> list[dict[str, Any]]:
+        with self._session() as db:
+            student = self._student_by_student_id(db, student_id)
+            if not student:
+                return []
+            return sorted(
+                [{"id": m.id, "text": m.text, "category": m.category,
+                  "title": m.title, "summary": m.summary,
+                  "emotions": m.emotions, "people": m.people, "places": m.places,
+                  "activities": m.activities, "tags": m.tags,
+                  "importance_score": m.importance_score,
+                  "created_at": m.created_at.isoformat()}
+                 for m in student.memories],
+                key=lambda x: x["created_at"], reverse=True,
+            )
+
+    def add_memory(self, student_id: str, text: str, category: str,
+                   title: str | None = None, summary: str | None = None,
+                   emotions: str | None = None, people: str | None = None,
+                   places: str | None = None, activities: str | None = None,
+                   tags: str | None = None,
+                   importance_score: int | None = None) -> dict[str, Any]:
+        with self._session() as db:
+            student = self._student_by_student_id(db, student_id)
+            if not student:
+                raise ValueError("Student not found")
+            m = StudentMemory(
+                student_id=student.id, text=text, category=category,
+                title=title, summary=summary,
+                emotions=emotions, people=people, places=places,
+                activities=activities, tags=tags,
+                importance_score=importance_score,
+            )
+            db.add(m)
+            db.flush()
+            db.refresh(m)
+            return {"id": m.id, "text": m.text, "category": m.category,
+                    "title": m.title, "summary": m.summary,
+                    "emotions": m.emotions, "people": m.people, "places": m.places,
+                    "activities": m.activities, "tags": m.tags,
+                    "importance_score": m.importance_score,
+                    "created_at": m.created_at.isoformat()}
 
     def health_check(self) -> bool:
         try:

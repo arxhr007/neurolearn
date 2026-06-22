@@ -32,7 +32,7 @@ def _require_role(request: Request, role: str, login_path: str):
 
 @router.get("/")
 async def home():
-    return RedirectResponse("/admin/login", status_code=302)
+    return RedirectResponse("/student/login", status_code=302)
 
 
 @router.get("/admin/login")
@@ -515,6 +515,17 @@ async def student_profile_save(
     age: int | None = Form(None),
     interests: str = Form(""),
     neuro_profile: str = Form(""),
+    father_name: str = Form(""),
+    mother_name: str = Form(""),
+    grandfather_name: str = Form(""),
+    grandmother_name: str = Form(""),
+    favorite_color: str = Form(""),
+    teacher_name: str = Form(""),
+    place: str = Form(""),
+    friends: str = Form(""),
+    favorite_food: str = Form(""),
+    favorite_animal: str = Form(""),
+    favorite_interest: str = Form(""),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
 ):
@@ -536,6 +547,17 @@ async def student_profile_save(
             age=age or None,
             interests=_split(interests) if interests else None,
             neuro_profile=_split(neuro_profile) if neuro_profile else None,
+            father_name=father_name or None,
+            mother_name=mother_name or None,
+            grandfather_name=grandfather_name or None,
+            grandmother_name=grandmother_name or None,
+            favorite_color=favorite_color or None,
+            teacher_name=teacher_name or None,
+            place=place or None,
+            friends=friends or None,
+            favorite_food=favorite_food or None,
+            favorite_animal=favorite_animal or None,
+            favorite_interest=favorite_interest or None,
         )
     except ValueError as exc:
         token = get_csrf_token(request)
@@ -548,6 +570,12 @@ async def student_profile_save(
                 "full_name": full_name, "learning_style": learning_style,
                 "reading_age": reading_age, "age": age,
                 "interests": interests, "neuro_profile": neuro_profile,
+                "father_name": father_name, "mother_name": mother_name,
+                "grandfather_name": grandfather_name, "grandmother_name": grandmother_name,
+                "favorite_color": favorite_color, "teacher_name": teacher_name, "place": place,
+                "friends": friends,
+                "favorite_food": favorite_food, "favorite_animal": favorite_animal,
+                "favorite_interest": favorite_interest,
             },
         )
 
@@ -564,6 +592,17 @@ async def student_profile_save(
         "age": updated.age,
         "interests": updated.interests,
         "neuro_profile": updated.neuro_profile,
+        "father_name": updated.father_name,
+        "mother_name": updated.mother_name,
+        "grandfather_name": updated.grandfather_name,
+        "grandmother_name": updated.grandmother_name,
+        "favorite_color": updated.favorite_color,
+        "teacher_name": updated.teacher_name,
+        "place": updated.place,
+        "friends": updated.friends,
+        "favorite_food": updated.favorite_food,
+        "favorite_animal": updated.favorite_animal,
+        "favorite_interest": updated.favorite_interest,
     })
 
     return RedirectResponse("/student/profile?saved=1", status_code=303)
@@ -579,4 +618,17 @@ async def student_story(request: Request):
         request,
         "student/story.html",
         {"user": user, "page": "story", "role": "student", "csrf_token": token},
+    )
+
+
+@router.get("/student/memories")
+async def student_memories(request: Request):
+    user = _require_role(request, "student", "/student/login")
+    if isinstance(user, RedirectResponse):
+        return user
+    token = get_csrf_token(request)
+    return _render(
+        request,
+        "student/memories.html",
+        {"user": user, "page": "memories", "role": "student", "csrf_token": token},
     )

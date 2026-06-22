@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal, get_db
 from app.models.conversation import Conversation, Message
 from app.models.learning import LearningGoal as LearningGoalModel, MasteryEvent as MasteryEventModel
+from app.models.memory import StudentMemory
 from app.models.user import Student, Teacher
 from app.services.auth import create_access_token, decode_access_token, is_jwt_error
 from app.services.learning_service import create_goal
@@ -105,6 +106,8 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 1440
     groq_api_key: str = ""
     gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.0-flash"
+    story_provider: str = "gemini"
     allow_dev_users: bool = True
 
     cors_origins_raw: str = "http://localhost:3000,http://localhost:5173,http://localhost:8000"
@@ -350,6 +353,10 @@ def _service_bundle() -> tuple[TutorService, SqlAlchemyStudentDB, RAGRetriever]:
         os.environ["GROQ_API_KEY"] = settings.groq_api_key
     if not os.getenv("gemini_api_key") and settings.gemini_api_key:
         os.environ["gemini_api_key"] = settings.gemini_api_key
+    if not os.getenv("GEMINI_MODEL") and settings.gemini_model:
+        os.environ["GEMINI_MODEL"] = settings.gemini_model
+    if not os.getenv("STORY_PROVIDER") and settings.story_provider:
+        os.environ["STORY_PROVIDER"] = settings.story_provider
 
     student_db = SqlAlchemyStudentDB(SessionLocal)
     retriever = RAGRetriever(settings.retriever_db_dir, settings.retriever_model_name)
@@ -1608,78 +1615,94 @@ class TTSRequest(BaseModel):
     speaking_rate: float = 0.9
 
 
+TTS_FALLBACK_MODELS = [
+    "gemini-2.5-flash-preview-tts",
+    "gemini-2.0-flash-exp",
+]
+
+
 @app.post("/api/story/tts", tags=["Story"])
 def story_tts(req: TTSRequest):
-    """Generate TTS audio using Gemini's native TTS model."""
-    try:
-        import urllib.request
-        import json
-        import base64
-        import io
-        import struct
+    """Generate TTS audio using Gemini's native TTS model with fallback."""
+    import urllib.request
+    import json
+    import base64
+    import io
+    import struct
 
-        from app.config import get_settings
-        api_key = get_settings().gemini_api_key
-        if not api_key:
-            raise HTTPException(status_code=400, detail="Gemini API key not configured")
+    from app.config import get_settings
+    api_key = get_settings().gemini_api_key
+    if not api_key:
+        raise HTTPException(status_code=400, detail="Gemini API key not configured")
 
-        model = os.getenv("GEMINI_TTS_MODEL", "gemini-2.5-flash-preview-tts")
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+    primary_model = os.getenv("GEMINI_TTS_MODEL", "gemini-2.5-flash-preview-tts")
+    models_to_try = [primary_model] + [m for m in TTS_FALLBACK_MODELS if m != primary_model]
+    last_error = None
 
-        payload = {
-            "contents": [{
-                "parts": [{"text": f"Generate spoken Malayalam audio narration for this children's story:\n\n{req.text}"}]
-            }],
-            "generationConfig": {
-                "responseModalities": ["AUDIO"]
-            },
-        }
-        data = json.dumps(payload).encode("utf-8")
-        http_req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
-        resp = urllib.request.urlopen(http_req, timeout=120)
-        body = json.loads(resp.read())
+    for model in models_to_try:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
 
-        candidates = body.get("candidates", [])
-        if not candidates:
-            raise RuntimeError("No response from TTS model")
+            payload = {
+                "contents": [{
+                    "parts": [{"text": f"Generate spoken Malayalam audio narration for this children's story:\n\n{req.text}"}]
+                }],
+                "generationConfig": {
+                    "responseModalities": ["AUDIO"]
+                },
+            }
+            data = json.dumps(payload).encode("utf-8")
+            http_req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+            resp = urllib.request.urlopen(http_req, timeout=120)
+            body = json.loads(resp.read())
 
-        parts = candidates[0].get("content", {}).get("parts", [])
-        inline = next((p.get("inlineData") for p in parts if "inlineData" in p), None)
-        if not inline:
-            raise RuntimeError("No audio data in TTS response")
+            candidates = body.get("candidates", [])
+            if not candidates:
+                raise RuntimeError("No response from TTS model")
 
-        pcm_b64 = inline["data"]
-        pcm_bytes = base64.b64decode(pcm_b64)
+            parts = candidates[0].get("content", {}).get("parts", [])
+            inline = next((p.get("inlineData") for p in parts if "inlineData" in p), None)
+            if not inline:
+                raise RuntimeError("No audio data in TTS response")
 
-        # Add WAV header (16-bit PCM, 24000 Hz, mono)
-        sample_rate = 24000
-        bits_per_sample = 16
-        channels = 1
-        byte_rate = sample_rate * channels * bits_per_sample // 8
-        block_align = channels * bits_per_sample // 8
-        data_size = len(pcm_bytes)
+            pcm_b64 = inline["data"]
+            pcm_bytes = base64.b64decode(pcm_b64)
 
-        wav = io.BytesIO()
-        wav.write(b"RIFF")
-        wav.write(struct.pack("<I", 36 + data_size))
-        wav.write(b"WAVE")
-        wav.write(b"fmt ")
-        wav.write(struct.pack("<I", 16))
-        wav.write(struct.pack("<H", 1))  # PCM
-        wav.write(struct.pack("<H", channels))
-        wav.write(struct.pack("<I", sample_rate))
-        wav.write(struct.pack("<I", byte_rate))
-        wav.write(struct.pack("<H", block_align))
-        wav.write(struct.pack("<H", bits_per_sample))
-        wav.write(b"data")
-        wav.write(struct.pack("<I", data_size))
-        wav.write(pcm_bytes)
-        wav.seek(0)
+            # Add WAV header (16-bit PCM, 24000 Hz, mono)
+            sample_rate = 24000
+            bits_per_sample = 16
+            channels = 1
+            byte_rate = sample_rate * channels * bits_per_sample // 8
+            block_align = channels * bits_per_sample // 8
+            data_size = len(pcm_bytes)
 
-        audio_b64 = base64.b64encode(wav.read()).decode("utf-8")
-        return {"audioContent": audio_b64}
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"TTS failed: {exc}")
+            wav = io.BytesIO()
+            wav.write(b"RIFF")
+            wav.write(struct.pack("<I", 36 + data_size))
+            wav.write(b"WAVE")
+            wav.write(b"fmt ")
+            wav.write(struct.pack("<I", 16))
+            wav.write(struct.pack("<H", 1))  # PCM
+            wav.write(struct.pack("<H", channels))
+            wav.write(struct.pack("<I", sample_rate))
+            wav.write(struct.pack("<I", byte_rate))
+            wav.write(struct.pack("<H", block_align))
+            wav.write(struct.pack("<H", bits_per_sample))
+            wav.write(b"data")
+            wav.write(struct.pack("<I", data_size))
+            wav.write(pcm_bytes)
+            wav.seek(0)
+
+            audio_b64 = base64.b64encode(wav.read()).decode("utf-8")
+            return {"audioContent": audio_b64}
+        except Exception as exc:
+            err_str = str(exc)
+            print(f"   TTS model {model} failed: {err_str[:100]}")
+            last_error = exc
+            if "429" not in err_str and "quota" not in err_str.lower():
+                break
+
+    raise HTTPException(status_code=502, detail=f"TTS failed across all models: {last_error}")
 
 
 @app.post("/api/story/generate", tags=["Story"])
@@ -1715,28 +1738,64 @@ def generate_story_from_template(
             detail=f"Activity '{req.activity_id}' not found in module {req.module_number}",
         )
 
-    template = activity.get("story_template_malayalam", "")
+    story_blueprint = activity.get("story_blueprint") or {}
+    template = story_blueprint.get("story_template_malayalam", "")
     if not template:
         raise HTTPException(status_code=400, detail="Activity has no story template")
 
-    # Fill placeholders
-    filled_template = template
-    for key, value in req.placeholder_values.items():
-        filled_template = filled_template.replace("{" + key + "}", value)
-
-    # Build context from activity metadata
-    context_docs = [
-        {"source": data.get("curriculum_title", ""), "page": 0, "text": f"Theme: {activity.get('story_theme', '')}"},
-        {"source": data.get("curriculum_title", ""), "page": 0, "text": f"Concept: {activity.get('main_concept', '')}"},
-        {"source": data.get("curriculum_title", ""), "page": 0, "text": f"Challenge: {'; '.join(activity.get('possible_challenges', [])[:3])}"},
-    ]
-
+    # Auto-fill placeholders from student profile
     student_id = current_user.student_id
     student_profile = None
     try:
         student_profile = service.student_db.get_student_profile(student_id)
     except Exception:
         pass
+
+    auto_values: dict[str, str] = {}
+    if student_profile:
+        relevant_fields = activity.get("relevant_student_fields", [])
+        field_to_placeholder = {
+            "full_name": "child_name",
+            "friends": "friend_name",
+            "favorite_food": "favorite_food",
+            "favorite_animal": "favorite_animal",
+            "favorite_color": "favorite_color",
+            "favorite_interest": "favorite_interest",
+            "place": "place",
+            "mother_name": "mother_name",
+            "father_name": "father_name",
+            "grandmother_name": "grandmother_name",
+            "grandfather_name": "grandfather_name",
+            "teacher_name": "teacher_name",
+        }
+        for field in relevant_fields:
+            placeholder = field_to_placeholder.get(field)
+            if placeholder and f"{{{placeholder}}}" in template:
+                val = student_profile.get(field)
+                if val:
+                    auto_values[placeholder] = str(val)
+
+    # Merge: request values override auto-filled values
+    merged_values = {**auto_values, **req.placeholder_values}
+
+    filled_template = template
+    for key, value in merged_values.items():
+        filled_template = filled_template.replace("{" + key + "}", value)
+
+    # Also inject {child_name} fallback: use name from profile if not set
+    if "{child_name}" in filled_template:
+        profile_name = (student_profile or {}).get("name", "")
+        if profile_name:
+            filled_template = filled_template.replace("{child_name}", profile_name)
+
+    # Build context from activity metadata
+    context_docs = [
+        {"source": data.get("curriculum_title", ""), "page": 0, "text": f"Theme: {story_blueprint.get('story_theme', '')}"},
+        {"source": data.get("curriculum_title", ""), "page": 0, "text": f"Concept: {activity.get('main_concept', '')}"},
+        {"source": data.get("curriculum_title", ""), "page": 0, "text": f"Challenge: {'; '.join(activity.get('possible_challenges', [])[:3])}"},
+    ]
+
+    memory_categories = activity.get("relevant_memory_categories")
 
     story = ""
     try:
@@ -1745,6 +1804,7 @@ def generate_story_from_template(
             question=f"{activity.get('activity_name', '')} – {module.get('module_title', '')}",
             context_docs=context_docs,
             student_profile=student_profile,
+            memory_categories=memory_categories,
             max_tokens=16384,
         )
     except Exception:
@@ -1761,6 +1821,95 @@ def generate_story_from_template(
         "module_title": module.get("module_title") if module else "",
         "curriculum_title": data.get("curriculum_title", ""),
     }
+
+
+class MemoryRecord(BaseModel):
+    id: int
+    text: str
+    category: str
+    title: str | None = None
+    summary: str | None = None
+    emotions: str | None = None
+    people: str | None = None
+    places: str | None = None
+    activities: str | None = None
+    tags: str | None = None
+    importance_score: int | None = None
+    created_at: str
+
+
+class MemoryResponse(BaseModel):
+    memories: list[MemoryRecord]
+
+
+@app.post("/api/memories", tags=["Story"])
+async def create_memory(
+    text: str | None = Form(None),
+    audio: UploadFile | None = File(None),
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    service: TutorService = Depends(get_tutor_service),
+):
+    """Submit a text or audio memory. Audio is transcribed via Gemini, then discarded.
+    Gemini extracts structured metadata from the text. Returns the saved record."""
+    student_id = current_user.student_id
+
+    if not text and not audio:
+        raise HTTPException(status_code=400, detail="Provide either 'text' field or an 'audio' file.")
+
+    # Step 1: get raw text
+    if audio:
+        allowed = ("audio/wav", "audio/x-wav", "audio/mpeg", "audio/ogg", "audio/webm")
+        if audio.content_type not in allowed:
+            raise HTTPException(status_code=400,
+                                detail=f"Unsupported audio format: {audio.content_type}. Use WAV, MP3, OGG, or WebM.")
+        audio_bytes = await audio.read()
+        if len(audio_bytes) == 0:
+            raise HTTPException(status_code=400, detail="Empty audio file")
+        try:
+            raw_text = service.llm.transcribe_audio(audio_bytes, audio.content_type or "audio/wav")
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Audio transcription failed: {exc}")
+        # Audio discarded after transcription — never saved to disk
+    else:
+        raw_text = text.strip()
+
+    # Step 2: extract structured metadata via Gemini
+    metadata = service.llm.extract_memory_metadata(raw_text)
+
+    # Step 3: save to DB
+    def _json(arr):
+        if arr is None:
+            return None
+        return json.dumps(arr, ensure_ascii=False)
+
+    title = metadata.get("title") or None
+    if not title:
+        title = (raw_text[:60] + "...") if len(raw_text) > 60 else raw_text
+
+    record = service.student_db.add_memory(
+        student_id, raw_text, metadata["category"],
+        title=title,
+        summary=metadata.get("summary") or None,
+        emotions=_json(metadata.get("emotions")),
+        people=_json(metadata.get("people")),
+        places=_json(metadata.get("places")),
+        activities=_json(metadata.get("activities")),
+        tags=_json(metadata.get("tags")),
+        importance_score=metadata.get("importance_score", 3),
+    )
+
+    return {"memory": record}
+
+
+@app.get("/api/story/memories", tags=["Story"])
+def get_memories(
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    service: TutorService = Depends(get_tutor_service),
+) -> MemoryResponse:
+    """Get all memories for the current student."""
+    student_id = current_user.student_id
+    memories = service.student_db.get_memories(student_id)
+    return MemoryResponse(memories=[MemoryRecord(**m) for m in memories])
 
 
 if __name__ == "__main__":

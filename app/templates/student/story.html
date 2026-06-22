@@ -47,6 +47,8 @@
   </div>
 </div>
 
+
+
 <div id="step-placeholders" class="card" style="display:none">
   <div class="card-header">
     <div class="card-title">4. Personalize the story</div>
@@ -108,12 +110,40 @@
 <script>
 (() => {
   const CSRF = "{{ csrf_token }}";
-  const PROFILE = {{ { "full_name": user.full_name, "interests": user.interests, "age": user.age, "reading_age": user.reading_age, "learning_style": user.learning_style } | tojson }};
+  const PROFILE = {{ {
+    "full_name": user.full_name,
+    "interests": user.interests,
+    "age": user.age,
+    "reading_age": user.reading_age,
+    "learning_style": user.learning_style,
+    "mother_name": user.mother_name or "",
+    "father_name": user.father_name or "",
+    "grandmother_name": user.grandmother_name or "",
+    "grandfather_name": user.grandfather_name or "",
+    "favorite_color": user.favorite_color or "",
+    "teacher_name": user.teacher_name or "",
+    "place": user.place or "",
+    "friends": user.friends or "",
+    "favorite_food": user.favorite_food or "",
+    "favorite_animal": user.favorite_animal or "",
+    "favorite_interest": user.favorite_interest or "",
+  } | tojson }};
 
   // Map placeholder keys to known profile values
   const PROFILE_MAP = {
     child_name: PROFILE.full_name || "",
     child: PROFILE.full_name || "",
+    mother_name: PROFILE.mother_name || "",
+    father_name: PROFILE.father_name || "",
+    grandmother_name: PROFILE.grandmother_name || "",
+    grandfather_name: PROFILE.grandfather_name || "",
+    favorite_color: PROFILE.favorite_color || "",
+    favorite_food: PROFILE.favorite_food || "",
+    favorite_animal: PROFILE.favorite_animal || "",
+    teacher_name: PROFILE.teacher_name || "",
+    place: PROFILE.place || "",
+    friend_name: (PROFILE.friends || "").split(",")[0]?.trim() || "",
+    friends: PROFILE.friends || "",
   };
 
   let curriculaData = null;
@@ -227,12 +257,13 @@
       list.innerHTML = '<p class="status">No activities in this module.</p>';
       return;
     }
-    list.innerHTML = activities.map(a => `
-      <div class="sel-card" data-id="${a.activity_id}">
+    list.innerHTML = activities.map(a => {
+      const bp = a.story_blueprint || {};
+      return `<div class="sel-card" data-id="${a.activity_id}">
         <strong>${a.activity_name}</strong>
-        <div style="font-size:0.85rem;color:var(--muted)">${a.story_theme || ''}</div>
-      </div>
-    `).join("");
+        <div style="font-size:0.85rem;color:var(--muted)">${bp.story_theme || ''}</div>
+      </div>`;
+    }).join("");
     list.querySelectorAll(".sel-card").forEach(el => {
       el.addEventListener("click", () => onSelectActivity(el.dataset.id));
     });
@@ -253,10 +284,11 @@
       container.innerHTML = '<p class="status">No placeholders to fill.</p>';
     } else {
       container.innerHTML = placeholders.map(v => {
-        const label = v.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-        const known = PROFILE_MAP[v] || "";
+        const key = v.replace(/[{}]/g, "");
+        const label = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+        const known = PROFILE_MAP[key] || "";
         const val = known ? ' value="'+known+'"' : "";
-        return '<div class="field"><label for="ph-'+v+'">'+label+'</label><input id="ph-'+v+'" type="text" class="input" placeholder="Enter '+label.toLowerCase()+'"'+val+' /></div>';
+        return '<div class="field"><label for="ph-'+key+'">'+label+'</label><input id="ph-'+key+'" type="text" class="input" placeholder="Enter '+label.toLowerCase()+'"'+val+' /></div>';
       }).join("");
     }
     showStep("step-placeholders");
@@ -282,8 +314,9 @@
     const placeholders = activity.placeholder_variables || [];
     const values = {};
     placeholders.forEach(v => {
-      const input = document.getElementById(`ph-${v}`);
-      values[v] = input ? input.value.trim() || `[${v}]` : `[${v}]`;
+      const key = v.replace(/[{}]/g, "");
+      const input = document.getElementById(`ph-${key}`);
+      values[key] = input ? input.value.trim() || `[${key}]` : `[${key}]`;
     });
 
     const btn = document.getElementById("generate-btn");

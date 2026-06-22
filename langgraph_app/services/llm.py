@@ -10,7 +10,8 @@ from groq import Groq
 from langgraph_app.config import COMPLEXITY_JUDGE_MODEL, GROQ_MODEL, INTENT_MODEL, SYSTEM_PROMPT
 
 
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
+def _gemini_model() -> str:
+    return os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
 
 class MalayalamLLM:
@@ -27,9 +28,11 @@ class MalayalamLLM:
 
         print(f"[LLM] Using Groq model: {GROQ_MODEL}")
         if self.gemini_api_key:
-            print(f"[LLM] Gemini fallback available (model: {GEMINI_MODEL})")
+            print(f"[LLM] Gemini fallback available (model: {_gemini_model()})")
 
-    def _call_gemini(self, system_prompt: str, user_prompt: str, max_tokens: int = 4096, temperature: float = 0.3) -> str:
+    STORY_FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"]
+
+    def _call_gemini(self, system_prompt: str, user_prompt: str, max_tokens: int = 4096, temperature: float = 0.3, model: str | None = None) -> str:
         """Generate text via Google Gemini REST API."""
         if not self.gemini_api_key:
             raise RuntimeError("Gemini API key not configured")
@@ -37,7 +40,8 @@ class MalayalamLLM:
         import urllib.request
         import json
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={self.gemini_api_key}"
+        model_name = model or _gemini_model()
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={self.gemini_api_key}"
         payload = {
             "contents": [{"parts": [{"text": user_prompt}]}],
             "system_instruction": {"parts": [{"text": system_prompt}]},
@@ -1460,12 +1464,17 @@ class MalayalamLLM:
         context_docs: list[dict] | None = None,
         student_profile: dict | None = None,
         max_tokens: int = 16384,
+        memory_categories: list[str] | None = None,
     ) -> str:
         """Generate story directly via Gemini (used when STORY_PROVIDER=gemini)."""
         cleaned_source = self._strip_curriculum_metadata(answer)
         profile = student_profile or {}
         reading_age = profile.get("reading_age", 12)
         neuro_tags, neuro_guidelines = self._build_neuro_support_guidelines(student_profile)
+        all_memories = profile.get("memories", [])
+        if memory_categories:
+            all_memories = [m for m in all_memories if m.get("category") in memory_categories]
+        memories = all_memories
 
         context_parts = []
         for i, doc in enumerate((context_docs or [])[:3], 1):
@@ -1560,6 +1569,8 @@ class MalayalamLLM:
             f"Reading age: {reading_age}\n"
             f"Neuro profile: {neuro_tags}\n"
             f"Neurodivergent support guidelines:\n{neuro_guidelines}\n\n"
+            f"Student's personal memories (weave relevant ones into the story naturally):\n{self._format_memories_for_prompt(memories)}\n\n"
+            f"Student's personal details (use names/places naturally in the story):\n{self._format_personal_details(profile)}\n\n"
             f"Source facts:\n{facts_block}\n\n"
             "Task:\n"
             f"- Write a {target_paras} paragraph Malayalam story about a child doing the activities described.\n"
@@ -1579,181 +1590,20 @@ class MalayalamLLM:
             "Story in Malayalam:"
         )
 
-        print("   Using Gemini for story generation...")
-        try:
-            text = self._call_gemini(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                max_tokens=max_tokens,
-                temperature=0.3,
-            )
-            if text:
-                text = self._postprocess_story(text)
-                issues = self._validate_story_facts(cleaned_source, text)
-                quality_issues = self._validate_story_quality(cleaned_source, text)
-                all_issues = issues + quality_issues
-                if all_issues:
-                    print(f"   [Story Validation] {len(all_issues)} issue(s): {all_issues[:5]}")
-                return text
-        except Exception as exc:
-            print(f"   Gemini story generation failed: {exc}")
+        primary_model = _gemini_model()
+        models_to_try = [primary_model] + [m for m in self.STORY_FALLBACK_MODELS if m != primary_model]
 
-        return "കഥ സൃഷ്ടിക്കാൻ തകരാറ്. മാപ്പ്, പിന്നീട് വീണ്ടും ശ്രമിക്കുക."
-
-    def generate_story_from_answer(
-        self,
-        answer: str,
-        question: str | None = None,
-        context_docs: list[dict] | None = None,
-        student_profile: dict | None = None,
-        story_style: str = "child_friendly",
-        max_tokens: int = 16384,
-    ) -> str:
-        """Convert an existing answer/explanation into a short story.
-
-        First strips curriculum metadata, then generates a narrative story
-        with proper character goal, conflict, action, and outcome.
-        """
-        # If STORY_PROVIDER=gemini is set, use Gemini directly (skip Groq)
-        if os.getenv("STORY_PROVIDER", "").lower() == "gemini":
-            print("   STORY_PROVIDER=gemini, using Gemini directly")
-            return self._generate_story_gemini(
-                answer=answer, question=question, context_docs=context_docs,
-                student_profile=student_profile, max_tokens=max_tokens,
-            )
-
-        cleaned_source = self._strip_curriculum_metadata(answer)
-
-        profile = student_profile or {}
-        reading_age = profile.get("reading_age", 12)
-        neuro_tags, neuro_guidelines = self._build_neuro_support_guidelines(student_profile)
-
-        context_parts = []
-        for i, doc in enumerate((context_docs or [])[:3], 1):
-            context_parts.append(f"[{i}] {doc.get('source')} p.{doc.get('page')}: {str(doc.get('text') or '')[:200]}")
-        context_block = "\n\n".join(context_parts)
-
-        source_facts = self._extract_facts(cleaned_source)
-        facts_block = ""
-        if source_facts["measurements"]:
-            facts_block += "Measurements in source (use only if plot-relevant): " + ", ".join(sorted(source_facts["measurements"])) + "\n"
-        if source_facts["materials"]:
-            facts_block += "Materials in source (mention only when used by a character): " + ", ".join(sorted(source_facts["materials"])) + "\n"
-
-        # Target length proportional to source complexity
-        source_sentences = len([s for s in re.split(r'[.!\n]', cleaned_source) if s.strip() and len(s.strip()) > 5])
-        if source_sentences <= 3:
-            target_paras = "18–25"
-        elif source_sentences <= 8:
-            target_paras = "22–30"
-        elif source_sentences <= 15:
-            target_paras = "28–35"
-        else:
-            target_paras = "30–40"
-
-        system_prompt = (
-            "You are a Malayalam storyteller for children. You convert curriculum content into real stories.\n\n"
-            "CRITICAL RULES — follow every rule in order:\n\n"
-            "1. STORY STRUCTURE: Every story MUST have:\n"
-            "   - A child protagonist with a name and a clear goal/want\n"
-            "   - A small challenge or problem they face (something actually goes wrong)\n"
-            "   - Actions they take to overcome it\n"
-            "   - A satisfying outcome tied to their actions\n\n"
-            "2. WHAT TO NEVER INCLUDE:\n"
-            "   - Module numbers, activity numbers, lesson numbers\n"
-            "   - Assessment criteria, evaluation, rubrics, scores\n"
-            "   - Homework instructions or \"post to group\" directives\n"
-            "   - Teacher notes or curriculum metadata\n"
-            "   - The word 'വിലയിരുത്തല്‍' or 'Assessment'\n"
-            "   - Activity instructions like 'കുട്ടികളെ ജോഡിയാക്കി'\n\n"
-            "3. NEVER USE THESE CURRICULUM WORDS IN THE STORY:\n"
-            "   - 'പ്രവര്‍ത്തനം' (children do not call their experiences \"activities\")\n"
-            "   - 'മണിക്കൂര്‍' with numbers (\"2 മണിക്കൂര്‍ സമയം\" — this is a lesson plan, not a story)\n"
-            "   - 'മീറ്റര്‍' / 'അടി' — replace with vague terms like 'കുറച്ച് അകലെ', 'അല്പം ദൂരെ'\n\n"
-            "4. NARRATIVE VOICE — convert instructions into events:\n"
-            "   BAD: 'കുട്ടികളെ ജോഡിയാക്കി ഓരോ ജോഡിയും പ്രവര്‍ത്തിച്ചു'\n"
-            "   GOOD: 'അനുവും മീരയും ഒരു ജോഡിയായി. അവര്‍ ഒന്നിച്ച് പ്രവര്‍ത്തിച്ചു'\n"
-            "   BAD: 'ടീച്ചര്‍ തേങ്ങ, ചോക്ക്, വിസി എന്നിവ നല്‍കി. കുട്ടികള്‍ അവ എടുത്തു.'\n"
-            "   GOOD: 'തേങ്ങ കണ്ടപ്പോള്‍ മീരയ്ക്ക് സന്തോഷമായി. അവള്‍ അതെടുത്ത് ഉരുട്ടി.'\n"
-            "   BAD: '6 മീറ്റര്‍ അകലെയായി രണ്ട് വൃത്തങ്ങള്‍ വരച്ചു'\n"
-            "   GOOD: 'കുറച്ച് അകലെയായി രണ്ട് വൃത്തങ്ങള്‍ വരച്ചു'\n\n"
-            "5. EVERY NAMED CHARACTER MUST MATTER:\n"
-            "   - If you introduce രാഹുൽ or മീര, they must speak or help.\n"
-            "   - Never name a character and then forget them.\n"
-            "   - Side characters should react, encourage, or participate.\n\n"
-            "6. SHOW EMOTION AFTER A PROBLEM:\n"
-            "   BAD: 'തേങ്ങ നിലത്തു വീണു. അവള്‍ അതെടുത്തു.' (no feeling, instant fix)\n"
-            "   GOOD: '\"അയ്യോ!\" എന്ന് അനു ഞെട്ടി. രാഹുൽ പറഞ്ഞു, \"പരവായില്ല, വീണ്ടും ശ്രമിക്കൂ!\" അനു ധൈര്യമായി വീണ്ടും തേങ്ങ എടുത്തു.'\n"
-            "   After something goes wrong, ALWAYS add the character's feeling (ഞെട്ടി, ഭയപ്പെട്ടു, ദേഷ്യപ്പെട്ടു, നിരാശപ്പെട്ടു) before showing the fix.\n\n"
-            "7. NEVER WRITE PROCEDURAL STEPS:\n"
-            "   BAD: 'ആദ്യത്തെ കുട്ടി അടുത്ത വൃത്തത്തിലേക്ക് വച്ചു. വരിയുടെ അവസാനത്തില്‍ എത്തി.'\n"
-            "   GOOD: 'അനു ഓടി അടുത്ത വൃത്തത്തിലെത്തി. അവള്‍ ആവേശത്തോടെ ഫിനിഷ് ചെയ്തു.'\n\n"
-            "8. MATERIALS: Only mention a material if a character uses it in the action. "
-            "Never list materials like a supply checklist.\n\n"
-            "9. TRUTH: Every fact, measurement, and material MUST come from the source. "
-            "NEVER invent numbers, measurements, or materials.\n"
-            "   - If source has '44 സെ.മീ.' write '44 സെ.മീ.' — do NOT merge adjacent numbers.\n"
-            "   - Source '44 × 2 cm' means 44 cm and 2 cm, NEVER '442 cm'.\n"
-            "   - Absurd measurements like 442 cm for a craft strip are IMPOSSIBLE. Use the correct values from source.\n\n"
-            "10. PROCESS DETAIL — do NOT compress steps:\n"
-            "   - For craft/art activities, describe each step in detail.\n"
-            "   - Include: choosing materials, measuring, cutting, arranging, checking alignment, gluing, waiting, adjusting, finishing.\n"
-            "   - Show the character making decisions: 'ഏത് നിറം തിരഞ്ഞെടുക്കണം?'\n"
-            "   - Show observations: 'ഇത് വളരെ നീളമുണ്ട്', 'ഇത് ചെറുതായി പോയി'\n"
-            "   - BAD: 'സ്ട്രിപ്പ് മുറിച്ചു. നെയ്തു. ഒട്ടിച്ചു. കഴിഞ്ഞു.'\n"
-            "   - GOOD: 'ആദ്യം അനു നിറങ്ങള്‍ നോക്കി. പച്ചയും മഞ്ഞയും എടുത്തു. പിന്നീട് അവള്‍ കത്രിക കൊണ്ട് സ്ട്രിപ്പ് മുറിച്ചു. \"ഇത് കൃത്യമായ വലുപ്പമാണോ?\" എന്ന് അവള്‍ പരിശോധിച്ചു. തുടര്‍ന്ന് അവള്‍ അവ നെയ്യാന്‍ തുടങ്ങി...'\n\n"
-            "11. SAFETY — NEVER invent injuries or accidents:\n"
-            "   - Do NOT add cuts, burns, falls, or injuries unless the source mentions them.\n"
-            "   - BAD: 'അവളുടെ വിരൽ ചെറുതായി മുറിഞ്ഞു' (not in source!)\n"
-            "   - GOOD: Find a non-safety conflict like a measurement being wrong or a piece not fitting.\n"
-            "   - For sharp tools, add adult supervision — do NOT let a child get hurt.\n\n"
-            "12. FORMAT: Pure narrative. No headings, bullet points, numbered lists, bold text. "
-            "The only exception is the final '**കഥയുടെ പാഠം:**' paragraph.\n"
-            "13. Paragraphs separated by a blank line. Simple, short sentences in Malayalam.\n"
-            "14. Vary sentence structure — do NOT start every paragraph with 'അവൾ' or 'അനു'.\n"
-            "15. Include at least one line of dialogue in quotation marks: \"...\"\n"
-            "16. Return ONLY the story text, nothing else."
-        )
-
-        user_prompt = (
-            f"This is the cleaned source material (all truth comes from here):\n{cleaned_source}\n\n"
-            f"(Optional) Question: {question or ''}\n"
-            f"Context excerpts:\n{context_block}\n\n"
-            f"Reading age: {reading_age}\n"
-            f"Neuro profile: {neuro_tags}\n"
-            f"Neurodivergent support guidelines:\n{neuro_guidelines}\n\n"
-            f"Source facts:\n{facts_block}\n\n"
-            "Task:\n"
-            f"- Write a {target_paras} paragraph Malayalam story about a child doing the activities described.\n"
-            "- Every paragraph separated by a blank line.\n"
-            "- The protagonist wants something, tries, faces a small REAL problem, and succeeds.\n"
-            "- SHOW THE PROCESS IN DETAIL: For craft activities, describe choosing materials, measuring, cutting, "
-            "arranging, checking, assembling — step by step. Do NOT skip steps.\n"
-            "- SAFETY: Never invent injuries (cuts, burns, falls). Sharp tools→adult supervision.\n"
-            "- Include at least one line of dialogue in \"...\" quotation marks.\n"
-            "- Vary paragraph starters — don't start every paragraph with 'അവൾ' or 'അനു'.\n"
-            "- Measurements from the facts above — only include them if they matter to the plot.\n"
-            "- Materials from the facts above — only mention them when a character actually touches or uses them.\n"
-            "- NEVER mention module numbers, assessment, evaluation, homework, or activity codes.\n"
-            "- NEVER use the word 'പ്രവര്‍ത്തനം' in the story.\n"
-            "- End with '**കഥയുടെ പാഠം:**' and a moral tied to THIS specific story, not a generic one.\n"
-            "- Return ONLY the story.\n\n"
-            "Story in Malayalam:" 
-        )
-
-        max_retries = 3
-        for attempt in range(max_retries):
+        last_error = None
+        for model_name in models_to_try:
+            print(f"   Trying Gemini model: {model_name}")
             try:
-                response = self.client.chat.completions.create(
-                    model=GROQ_MODEL,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    temperature=0.3,
+                text = self._call_gemini(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
                     max_tokens=max_tokens,
+                    temperature=0.3,
+                    model=model_name,
                 )
-                text = self._extract_response_text(response)
                 if text:
                     text = self._postprocess_story(text)
                     issues = self._validate_story_facts(cleaned_source, text)
@@ -1764,33 +1614,152 @@ class MalayalamLLM:
                     return text
             except Exception as exc:
                 err_str = str(exc)
-                if "429" in err_str or "rate_limit" in err_str.lower():
-                    wait = 2 ** attempt * 10
-                    print(f"   Rate limited. Retrying in {wait}s... (attempt {attempt + 1}/{max_retries})")
-                    time.sleep(wait)
-                    continue
-                else:
-                    raise
+                print(f"   Gemini model {model_name} failed: {err_str[:100]}")
+                last_error = exc
+                if "429" not in err_str and "quota" not in err_str.lower():
+                    break
 
-        # All Groq retries exhausted — try Gemini fallback
-        print("   Groq rate limit exceeded. Trying Gemini fallback...")
+        print(f"   All Gemini models exhausted: {last_error}")
+        return "കഥ സൃഷ്ടിക്കാൻ തകരാറ്. മാപ്പ്, പിന്നീട് വീണ്ടും ശ്രമിക്കുക."
+
+    def generate_story_from_answer(
+        self,
+        answer: str,
+        question: str | None = None,
+        context_docs: list[dict] | None = None,
+        student_profile: dict | None = None,
+        story_style: str = "child_friendly",
+        max_tokens: int = 16384,
+        memory_categories: list[str] | None = None,
+    ) -> str:
+        """Convert an existing answer/explanation into a short story.
+
+        First strips curriculum metadata, then generates a narrative story
+        with proper character goal, conflict, action, and outcome.
+        """
+        return self._generate_story_gemini(
+            answer=answer, question=question, context_docs=context_docs,
+            student_profile=student_profile, max_tokens=max_tokens,
+            memory_categories=memory_categories,
+        )
+
+    def extract_memory_metadata(self, text: str) -> dict:
+        """Extract structured metadata from a memory text using Gemini.
+
+        Returns dict with keys: title, summary, category, emotions, people,
+        places, activities, tags, importance_score.
+        """
+        system_prompt = (
+            "You are a memory analyzer. Given a student's personal memory text, "
+            "extract structured metadata. Return ONLY valid JSON with these keys:\n"
+            "  \"title\": a short title (max 80 chars),\n"
+            "  \"summary\": one-sentence summary,\n"
+            "  \"category\": one of PERSONAL, FAMILY, ACHIEVEMENT, EXPERIENCE, PREFERENCE,\n"
+            "  \"emotions\": array of emotion words (e.g. [\"happy\",\"nostalgic\"]),\n"
+            "  \"people\": array of person names mentioned,\n"
+            "  \"places\": array of place names mentioned,\n"
+            "  \"activities\": array of activities described,\n"
+            "  \"tags\": array of 2-5 keyword tags,\n"
+            "  \"importance_score\": integer 1-5 (5 = most significant life event).\n\n"
+            "Category definitions:\n"
+            "- PERSONAL: identity, feelings, daily life\n"
+            "- FAMILY: family members, activities with family\n"
+            "- ACHIEVEMENT: success, award, skill learned, goal reached\n"
+            "- EXPERIENCE: specific event or activity (trip, festival, visit)\n"
+            "- PREFERENCE: likes, dislikes, favorites, wishes\n\n"
+            "If no people/places/emotions are mentioned, use empty arrays [].\n"
+            "Output ONLY the raw JSON, no markdown fences, no extra text."
+        )
+        print(f"  [Memory] Extracting metadata from: {text[:80]}...")
         try:
-            text = self._call_gemini(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                max_tokens=max_tokens,
-                temperature=0.3,
-            )
-            if text:
-                text = self._postprocess_story(text)
-                issues = self._validate_story_facts(cleaned_source, text)
-                quality_issues = self._validate_story_quality(cleaned_source, text)
-                all_issues = issues + quality_issues
-                if all_issues:
-                    print(f"   [Story Validation] {len(all_issues)} issue(s): {all_issues[:5]}")
-                return text
+            response = self._call_gemini(system_prompt=system_prompt, user_prompt=text, max_tokens=1024, temperature=0.1)
+            response = response.strip()
+            if response.startswith("```"):
+                response = response.split("\n", 1)[-1]
+                response = response.rsplit("```", 1)[0]
+            data = json.loads(response)
+            assert isinstance(data, dict), "Response must be a dict"
+            data.setdefault("title", "")
+            data.setdefault("summary", "")
+            data.setdefault("category", "PERSONAL")
+            data.setdefault("emotions", [])
+            data.setdefault("people", [])
+            data.setdefault("places", [])
+            data.setdefault("activities", [])
+            data.setdefault("tags", [])
+            data.setdefault("importance_score", 3)
+            if data["category"] not in ("PERSONAL", "FAMILY", "ACHIEVEMENT", "EXPERIENCE", "PREFERENCE"):
+                data["category"] = "PERSONAL"
+            data["importance_score"] = max(1, min(5, int(data.get("importance_score", 3))))
+            print(f"  [Memory] Metadata: title={data['title'][:50]}, category={data['category']}")
+            return data
         except Exception as exc:
-            print(f"   Gemini fallback also failed: {exc}")
+            print(f"  [Memory] Metadata extraction failed: {exc}, using defaults")
+            return {"title": "", "summary": "", "category": "PERSONAL",
+                    "emotions": [], "people": [], "places": [],
+                    "activities": [], "tags": [], "importance_score": 3}
 
-        return "കഥ സൃഷ്ടിക്കാൻ തകരാറ്. മാപ്പ്, പിന്നീട് വീണ്ടും ശ്രമിക്കുക."  # fallback message
+    def transcribe_audio(self, audio_bytes: bytes, mime_type: str = "audio/wav") -> str:
+        """Transcribe audio using Gemini's inline audio support."""
+        import base64
+        import urllib.request
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{_gemini_model()}:generateContent?key={self.gemini_api_key}"
+        b64 = base64.b64encode(audio_bytes).decode("utf-8")
+        payload = {
+            "contents": [{
+                "parts": [
+                    {"inlineData": {"mimeType": mime_type, "data": b64}},
+                    {"text": "Transcribe this audio exactly as spoken. Output only the transcription, nothing else."},
+                ]
+            }],
+            "generationConfig": {"maxOutputTokens": 16384, "temperature": 0.1},
+        }
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+        resp = urllib.request.urlopen(req, timeout=120)
+        body = json.loads(resp.read())
+        candidates = body.get("candidates", [])
+        if candidates:
+            parts = candidates[0].get("content", {}).get("parts", [])
+            text = "".join(p.get("text", "") for p in parts).strip()
+            if text:
+                return text
+        raise RuntimeError("Gemini audio transcription returned empty result")
+
+    def _format_memories_for_prompt(self, memories: list[dict]) -> str:
+        """Format memories list into a prompt-friendly string for story generation."""
+        if not memories:
+            return "(no memories yet)"
+        lines = []
+        for m in memories[:5]:
+            cat = m.get("category", "PERSONAL")
+            text = m.get("text", "")
+            title = m.get("title") or ""
+            if title:
+                lines.append(f"- [{cat}] {title}: {text}")
+            else:
+                lines.append(f"- [{cat}] {text}")
+        return "\n".join(lines)
+
+    @staticmethod
+    def _format_personal_details(profile: dict) -> str:
+        """Format student personal details for story prompt injection."""
+        parts = []
+        for key, label in [
+            ("father_name", "Father's name"),
+            ("mother_name", "Mother's name"),
+            ("grandfather_name", "Grandfather's name"),
+            ("grandmother_name", "Grandmother's name"),
+            ("favorite_color", "Favorite color"),
+            ("teacher_name", "Teacher's name"),
+            ("place", "Place/hometown"),
+            ("friends", "Friends' names"),
+        ]:
+            val = profile.get(key)
+            if val:
+                parts.append(f"{label}: {val}")
+        if not parts:
+            return "(no personal details yet)"
+        return "\n".join(parts)
 
