@@ -1609,10 +1609,75 @@ class StoryGenerateRequest(BaseModel):
     placeholder_values: dict[str, str] = {}
 
 
+import re
+
+
+def _find_split_offset(text: str, fraction: float = 0.33) -> int:
+    """Find a sentence-boundary split point near `fraction` of text length."""
+    target = int(len(text) * fraction)
+    if target >= len(text):
+        return len(text)
+    window = int(len(text) * 0.15)
+    lo = max(target - window, 0)
+    hi = min(target + window, len(text))
+
+    best = target
+    best_dist = abs(target)
+    for m in re.finditer(r'[.!?।\n](?:\s|$)', text[lo:hi]):
+        pos = lo + m.end()
+        dist = abs(pos - target)
+        if dist < best_dist:
+            best_dist = dist
+            best = pos
+
+    if best == target:
+        for m in re.finditer(r'\n\n', text[lo:hi]):
+            pos = lo + m.end()
+            dist = abs(pos - target)
+            if dist < best_dist:
+                best_dist = dist
+                best = pos
+
+    return best
+
+
+def _pcm_to_wav_b64(pcm_bytes: bytes) -> str:
+    import base64
+    import io
+    import struct
+
+    sample_rate = 24000
+    bits_per_sample = 16
+    channels = 1
+    byte_rate = sample_rate * channels * bits_per_sample // 8
+    block_align = channels * bits_per_sample // 8
+    data_size = len(pcm_bytes)
+
+    wav = io.BytesIO()
+    wav.write(b"RIFF")
+    wav.write(struct.pack("<I", 36 + data_size))
+    wav.write(b"WAVE")
+    wav.write(b"fmt ")
+    wav.write(struct.pack("<I", 16))
+    wav.write(struct.pack("<H", 1))
+    wav.write(struct.pack("<H", channels))
+    wav.write(struct.pack("<I", sample_rate))
+    wav.write(struct.pack("<I", byte_rate))
+    wav.write(struct.pack("<H", block_align))
+    wav.write(struct.pack("<H", bits_per_sample))
+    wav.write(b"data")
+    wav.write(struct.pack("<I", data_size))
+    wav.write(pcm_bytes)
+    wav.seek(0)
+    return base64.b64encode(wav.read()).decode("utf-8")
+
+
 class TTSRequest(BaseModel):
     text: str
     voice: str = "ml-IN-SobhanaNeural"
     speaking_rate: float = 0.9
+    part: str = "full"
+    split_offset: int = 0
 
 
 TTS_FALLBACK_MODELS = [
@@ -1621,14 +1686,11 @@ TTS_FALLBACK_MODELS = [
 ]
 
 
-@app.post("/api/story/tts", tags=["Story"])
-def story_tts(req: TTSRequest):
-    """Generate TTS audio using Gemini's native TTS model with fallback."""
+def _tts_generate(prompt_text: str) -> bytes:
+    """Call Gemini TTS and return raw PCM bytes."""
     import urllib.request
     import json
     import base64
-    import io
-    import struct
 
     from app.config import get_settings
     api_key = get_settings().gemini_api_key
@@ -1642,59 +1704,24 @@ def story_tts(req: TTSRequest):
     for model in models_to_try:
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-
             payload = {
                 "contents": [{
-                    "parts": [{"text": f"Generate spoken Malayalam audio narration for this children's story:\n\n{req.text}"}]
+                    "parts": [{"text": f"Generate spoken Malayalam audio narration for this children's story:\n\n{prompt_text}"}]
                 }],
-                "generationConfig": {
-                    "responseModalities": ["AUDIO"]
-                },
+                "generationConfig": {"responseModalities": ["AUDIO"]},
             }
             data = json.dumps(payload).encode("utf-8")
             http_req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
             resp = urllib.request.urlopen(http_req, timeout=120)
             body = json.loads(resp.read())
-
             candidates = body.get("candidates", [])
             if not candidates:
                 raise RuntimeError("No response from TTS model")
-
             parts = candidates[0].get("content", {}).get("parts", [])
             inline = next((p.get("inlineData") for p in parts if "inlineData" in p), None)
             if not inline:
                 raise RuntimeError("No audio data in TTS response")
-
-            pcm_b64 = inline["data"]
-            pcm_bytes = base64.b64decode(pcm_b64)
-
-            # Add WAV header (16-bit PCM, 24000 Hz, mono)
-            sample_rate = 24000
-            bits_per_sample = 16
-            channels = 1
-            byte_rate = sample_rate * channels * bits_per_sample // 8
-            block_align = channels * bits_per_sample // 8
-            data_size = len(pcm_bytes)
-
-            wav = io.BytesIO()
-            wav.write(b"RIFF")
-            wav.write(struct.pack("<I", 36 + data_size))
-            wav.write(b"WAVE")
-            wav.write(b"fmt ")
-            wav.write(struct.pack("<I", 16))
-            wav.write(struct.pack("<H", 1))  # PCM
-            wav.write(struct.pack("<H", channels))
-            wav.write(struct.pack("<I", sample_rate))
-            wav.write(struct.pack("<I", byte_rate))
-            wav.write(struct.pack("<H", block_align))
-            wav.write(struct.pack("<H", bits_per_sample))
-            wav.write(b"data")
-            wav.write(struct.pack("<I", data_size))
-            wav.write(pcm_bytes)
-            wav.seek(0)
-
-            audio_b64 = base64.b64encode(wav.read()).decode("utf-8")
-            return {"audioContent": audio_b64}
+            return base64.b64decode(inline["data"])
         except Exception as exc:
             err_str = str(exc)
             print(f"   TTS model {model} failed: {err_str[:100]}")
@@ -1703,6 +1730,36 @@ def story_tts(req: TTSRequest):
                 break
 
     raise HTTPException(status_code=502, detail=f"TTS failed across all models: {last_error}")
+
+
+@app.post("/api/story/tts", tags=["Story"])
+def story_tts(req: TTSRequest):
+    """Generate TTS audio.
+
+    part=full (default): entire story at once.
+    part=first: first ~1/3 at sentence boundary.
+                Returns {audioContent, splitOffset} so client can call part=rest.
+    part=rest: remaining text from split_offset onward.
+               Returns {audioContent}.
+    """
+    if req.part == "full":
+        pcm = _tts_generate(req.text)
+        return {"audioContent": _pcm_to_wav_b64(pcm)}
+
+    if req.part == "rest":
+        if req.split_offset <= 0 or req.split_offset >= len(req.text):
+            raise HTTPException(status_code=400, detail="Invalid split_offset for part=rest")
+        rest_text = req.text[req.split_offset:]
+        pcm = _tts_generate(rest_text)
+        return {"audioContent": _pcm_to_wav_b64(pcm)}
+
+    if req.part == "first":
+        split_at = _find_split_offset(req.text, 0.33)
+        first_text = req.text[:split_at]
+        pcm = _tts_generate(first_text)
+        return {"audioContent": _pcm_to_wav_b64(pcm), "splitOffset": split_at}
+
+    raise HTTPException(status_code=400, detail=f"Unknown part: {req.part}")
 
 
 @app.post("/api/story/generate", tags=["Story"])
