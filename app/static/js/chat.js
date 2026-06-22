@@ -17,11 +17,15 @@ if (chatLayout) {
     addMessage("tutor", "Missing student ID for this session.");
   }
 
+  function stripMarkdown(text) {
+    return text.replace(/\*\*([^*]+)\*\*/g, "$1").replace(/\*([^*]+)\*/g, "$1");
+  }
+
   function addMessage(role, text) {
     if (!messagesEl) return;
     const bubble = document.createElement("div");
     bubble.className = `chat-bubble ${role}`;
-    bubble.textContent = text;
+    bubble.textContent = role === "tutor" ? stripMarkdown(text) : text;
     messagesEl.appendChild(bubble);
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
@@ -66,8 +70,10 @@ if (chatLayout) {
       throw new Error(data.detail || "Tutor request failed");
     }
     lastTurnId = data.turn_id;
-    lastCheckHint = data.check_answer_hint || "";
-    checkQuestion.textContent = data.check_question || "No check question yet.";
+    if (data.check_question) {
+      lastCheckHint = data.check_answer_hint || "";
+      checkQuestion.textContent = data.check_question;
+    }
     addMessage("tutor", data.answer || "No answer returned.");
   }
 

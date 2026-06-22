@@ -8,6 +8,48 @@ def _sanitize_component(text: str, fallback: str = "general") -> str:
     return cleaned or fallback
 
 
+def _heuristic_concept_components(question: str, check_answer_hint: str, docs: list[dict]) -> dict[str, str] | None:
+    combined = f"{(question or '').lower()} {(check_answer_hint or '').lower()}"
+    if docs:
+        combined = f"{combined} {str(docs[0].get('source') or '').lower()}"
+
+    mappings = [
+        (("കൈകഴുക", "handwash", "hand wash", "hygiene"), ("hygiene", "handwashing")),
+        (("പല്ല്", "tooth", "brush"), ("hygiene", "toothbrushing")),
+        (("ചെസ്", "chess"), ("games", "chess")),
+        (("ഫുട്ബോൾ", "football", "soccer"), ("games", "football")),
+        (("ശുചിത്വ",), ("hygiene", "clean_habits")),
+    ]
+
+    domain = "general"
+    topic = "topic"
+    for tokens, (candidate_domain, candidate_topic) in mappings:
+        if any(token in combined for token in tokens):
+            domain = candidate_domain
+            topic = candidate_topic
+            break
+
+    if domain == "general":
+        return None
+
+    if any(token in combined for token in ["എങ്ങനെ", "how", "steps", "step", "രീതി", "ചുവട"]):
+        skill = "steps"
+    elif any(token in combined for token in ["എന്തുകൊണ്ട്", "why", "importance", "പ്രധാന"]):
+        skill = "importance"
+    elif any(token in combined for token in ["എത്ര", "how many", "സെക്കൻഡ്", "seconds", "time"]):
+        skill = "fact"
+    elif any(token in combined for token in ["എന്ത്", "which", "what"]):
+        skill = "identify"
+    else:
+        skill = "basics"
+
+    return {
+        "domain": domain,
+        "topic": topic,
+        "skill": skill,
+    }
+
+
 def _build_semantic_concept_key(
     question: str,
     check_answer_hint: str,
@@ -15,6 +57,15 @@ def _build_semantic_concept_key(
     llm=None,
 ) -> tuple[str, str]:
     combined = f"{(question or '').lower()} {(check_answer_hint or '').lower()}"
+
+    heuristic = _heuristic_concept_components(question, check_answer_hint, docs)
+    if heuristic is not None:
+        return (
+            f"{_sanitize_component(str(heuristic.get('domain') or ''), 'general')}."
+            f"{_sanitize_component(str(heuristic.get('topic') or ''), 'topic')}."
+            f"{_sanitize_component(str(heuristic.get('skill') or ''), 'basics')}",
+            "heuristic",
+        )
 
     if llm is not None:
         try:
@@ -135,9 +186,12 @@ def process_mastery_side_effects(state: dict, evaluation: dict) -> dict | None:
         print(f"   Mastery record failed: {exc}")
 
     try:
-        updated_profile = student_db.update_profile_from_mastery(student_id, recent_limit=10)
-        if updated_profile and updated_profile["reading_age"] != state.get("student_profile", {}).get("reading_age"):
-            print("   Profile updated for next interaction")
+        last_update_event_id = int(student_db.get_last_profile_update_event_id(student_id) or 0)
+        should_update_profile = last_update_event_id <= 0 or (event_id - last_update_event_id) >= 3
+        if should_update_profile:
+            updated_profile = student_db.update_profile_from_mastery(student_id, recent_limit=10)
+            if updated_profile and updated_profile["reading_age"] != state.get("student_profile", {}).get("reading_age"):
+                print("   Profile updated for next interaction")
     except Exception as exc:
         print(f"   Profile update failed: {exc}")
 

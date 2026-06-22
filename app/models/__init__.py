@@ -3,6 +3,7 @@
 from app.models.analytics import AnalyticsLog
 from app.models.conversation import Conversation, Message
 from app.models.learning import LearningGoal, MasteryEvent, ProfileUpdateMeta
+from app.models.memory import StudentMemory
 from app.models.user import Admin, Teacher, Student
 
 __all__ = [
@@ -15,4 +16,5 @@ __all__ = [
     "Conversation",
     "Message",
     "AnalyticsLog",
+    "StudentMemory",
 ]

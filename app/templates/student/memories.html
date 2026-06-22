@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <h1>My Memories</h1>
+  <p class="subtitle">Share memories about yourself — stories will weave them in naturally.</p>
+</div>
+
+<div id="status-banner" class="status-banner is-hidden" data-tone="info" aria-live="polite"></div>
+
+<div class="card">
+  <div class="card-header">
+    <h3>Add a memory</h3>
+  </div>
+  <div class="card-body">
+    <form id="text-form" class="form" onsubmit="return false;">
+      <div style="display:flex; gap:var(--space-2);">
+        <input id="memory-input" type="text" class="input" placeholder="Tell me about yourself..." style="flex:1;" />
+        <button id="memory-btn" class="btn" type="submit">Save</button>
+      </div>
+    </form>
+    <hr style="margin:var(--space-3) 0;">
+    <form id="audio-form" class="form" onsubmit="return false;">
+      <p class="subtitle" style="margin-bottom:var(--space-2);">Or record an audio memory (no audio saved — only the transcription is stored):</p>
+      <div style="display:flex; gap:var(--space-2); align-items:center; flex-wrap:wrap;">
+        <input id="audio-input" type="file" accept="audio/wav,audio/mpeg,audio/ogg,audio/webm" class="input" style="flex:1; min-width:180px;" />
+        <button id="audio-btn" class="btn" type="submit">Transcribe & save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="margin-top:var(--space-4);">
+  <div class="card-header">
+    <h3>Saved memories</h3>
+  </div>
+  <div id="memory-list" class="card-body"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  function setStatus(msg, tone, duration) {
+    const el = document.getElementById("status-banner");
+    if (!el) return;
+    el.textContent = msg;
+    el.className = "status-banner" + (msg ? "" : " is-hidden");
+    if (tone) el.dataset.tone = tone;
+    if (duration) setTimeout(() => el.classList.add("is-hidden"), duration);
+  }
+
+  async function getToken() {
+    const r = await fetch("/auth/session-token");
+    if (!r.ok) throw new Error("Not authenticated");
+    return (await r.json()).access_token;
+  }
+
+  async function loadMemories() {
+    const list = document.getElementById("memory-list");
+    try {
+      const token = await getToken();
+      const res = await fetch("/api/story/memories", {
+        headers: { Authorization: "Bearer " + token },
+      });
+      if (!res.ok) throw new Error("Failed to load");
+      const data = await res.json();
+      const memories = data.memories || [];
+      if (!memories.length) {
+        list.innerHTML = '<p class="status" style="font-style:italic;">No memories yet. Share something above!</p>';
+        return;
+      }
+      list.innerHTML = `<div class="table">
+        <div class="table-row table-head">
+          <div>Title / Memory</div>
+          <div>Category</div>
+          <div>Tags</div>
+          <div>Score</div>
+        </div>
+        ${memories.map(m => {
+          const tags = m.tags ? JSON.parse(m.tags).join(", ") : "";
+          return `<div class="table-row">
+            <div><strong>${m.title || "(no title)"}</strong><br><span style="font-size:0.85rem;color:var(--muted);">${m.text}</span></div>
+            <div><span class="badge">${m.category}</span></div>
+            <div style="font-size:0.85rem;">${tags || "—"}</div>
+            <div>${"★".repeat(m.importance_score || 0)}${"☆".repeat(5 - (m.importance_score || 0))}</div>
+          </div>`;
+        }).join("")}
+      </div>`;
+    } catch (err) {
+      list.innerHTML = '<p class="status" style="color:var(--error);">' + err.message + '</p>';
+    }
+  }
+
+  async function saveTextMemory() {
+    const input = document.getElementById("memory-input");
+    const text = input.value.trim();
+    if (!text) return;
+    const btn = document.getElementById("memory-btn");
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+    try {
+      const token = await getToken();
+      const fd = new FormData();
+      fd.append("text", text);
+      const res = await fetch("/api/memories", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token },
+        body: fd,
+      });
+      if (!res.ok) throw new Error((await res.json()).detail || "Save failed");
+      input.value = "";
+      setStatus("Memory saved!", "success", 3000);
+      await loadMemories();
+    } catch (err) {
+      setStatus(String(err), "error", 5000);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Save";
+    }
+  }
+
+  async function saveAudioMemory() {
+    const input = document.getElementById("audio-input");
+    const file = input.files[0];
+    if (!file) { setStatus("Select an audio file first.", "warning", 3000); return; }
+    const btn = document.getElementById("audio-btn");
+    btn.disabled = true;
+    btn.textContent = "Transcribing...";
+    setStatus("Transcribing audio with Gemini...", "info");
+    try {
+      const token = await getToken();
+      const fd = new FormData();
+      fd.append("audio", file);
+      const res = await fetch("/api/memories", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token },
+        body: fd,
+      });
+      if (!res.ok) throw new Error((await res.json()).detail || "Upload failed");
+      input.value = "";
+      setStatus("Audio memory saved!", "success", 3000);
+      await loadMemories();
+    } catch (err) {
+      setStatus(String(err), "error", 8000);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Transcribe & save";
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("text-form")?.addEventListener("submit", saveTextMemory);
+    document.getElementById("audio-form")?.addEventListener("submit", saveAudioMemory);
+    loadMemories();
+  });
+})();
+</script>
+{% endblock %}

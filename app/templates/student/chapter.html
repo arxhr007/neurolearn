@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="page-header">
+    <h1>Chapter Mode</h1>
+    <p class="subtitle">Pick a chapter and module to learn with a story and drill questions.</p>
+  </div>
+  <div class="card" id="chapter-app">
+    <div class="form" id="setup-form">
+      <label>
+        Chapter / PDF
+        <select id="chapter-select"><option value="">-- Select a chapter --</option></select>
+      </label>
+      <label>
+        Module (optional)
+        <select id="module-select"><option value="">-- Whole chapter --</option></select>
+      </label>
+      <button class="btn" id="start-btn" disabled>Start Learning</button>
+    </div>
+
+    <div id="story-section" style="display:none">
+      <h2>Story</h2>
+      <div id="story-text" class="story-content" style="white-space:pre-wrap; line-height:1.8"></div>
+    </div>
+
+    <div id="drill-section" style="display:none">
+      <h2>Drill Questions</h2>
+      <div id="question-counter"></div>
+      <div id="question-text" class="question-text"></div>
+      <form id="answer-form" class="chat-form">
+        <input id="answer-input" type="text" placeholder="Your answer..." autocomplete="off" />
+        <button class="btn" type="submit">Submit</button>
+      </form>
+      <div id="feedback-text" class="feedback-text"></div>
+    </div>
+
+    <div id="loading" style="display:none; margin-top:1rem">Loading...</div>
+    <div id="error" style="display:none; margin-top:1rem; color:var(--danger)"></div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const app = document.getElementById("chapter-app");
+  if (!app) return;
+
+  const chapterSelect = document.getElementById("chapter-select");
+  const moduleSelect = document.getElementById("module-select");
+  const startBtn = document.getElementById("start-btn");
+  const storySection = document.getElementById("story-section");
+  const storyText = document.getElementById("story-text");
+  const drillSection = document.getElementById("drill-section");
+  const questionCounter = document.getElementById("question-counter");
+  const questionText = document.getElementById("question-text");
+  const answerForm = document.getElementById("answer-form");
+  const answerInput = document.getElementById("answer-input");
+  const feedbackText = document.getElementById("feedback-text");
+  const loadingEl = document.getElementById("loading");
+  const errorEl = document.getElementById("error");
+
+  let chapters = [];
+  let questions = [];
+  let questionIndex = 0;
+  let accessToken = "";
+
+  function showLoading(msg) { loadingEl.style.display = "block"; loadingEl.textContent = msg || "Loading..."; errorEl.style.display = "none"; }
+  function hideLoading() { loadingEl.style.display = "none"; }
+  function showError(msg) { errorEl.style.display = "block"; errorEl.textContent = msg; hideLoading(); }
+
+  async function getToken() {
+    const resp = await fetch("/auth/session-token");
+    if (!resp.ok) throw new Error("Session token failed");
+    const data = await resp.json();
+    accessToken = data.access_token;
+    return accessToken;
+  }
+
+  async function loadChapters() {
+    showLoading("Loading chapters...");
+    try {
+      const token = await getToken();
+      const resp = await fetch("/api/chapters", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await resp.json();
+      chapters = data.chapters || [];
+      chapterSelect.innerHTML = '<option value="">-- Select a chapter --</option>';
+      chapters.forEach((ch, i) => {
+        const opt = document.createElement("option");
+        opt.value = ch.source || ch.name || i;
+        opt.textContent = ch.label || ch.source || ch.name || `Chapter ${i+1}`;
+        chapterSelect.appendChild(opt);
+      });
+      hideLoading();
+    } catch (err) {
+      showError("Failed to load chapters: " + err.message);
+    }
+  }
+
+  async function loadModules(source) {
+    moduleSelect.innerHTML = '<option value="">-- Whole chapter --</option>';
+    if (!source) return;
+    showLoading("Loading modules...");
+    try {
+      const resp = await fetch(`/api/chapters/${encodeURIComponent(source)}/modules`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const data = await resp.json();
+      (data.modules || []).forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m.number;
+        opt.textContent = `മൊഡ്യൂള്\u200d ${m.number}`;
+        moduleSelect.appendChild(opt);
+      });
+      hideLoading();
+      startBtn.disabled = false;
+    } catch (err) {
+      showError("Failed to load modules: " + err.message);
+    }
+  }
+
+  chapterSelect.addEventListener("change", () => {
+    const idx = chapterSelect.selectedIndex - 1;
+    const ch = chapters[idx];
+    if (ch) {
+      loadModules(ch.source || ch.name);
+    } else {
+      moduleSelect.innerHTML = '<option value="">-- Whole chapter --</option>';
+      startBtn.disabled = true;
+    }
+  });
+
+  async function startLearning() {
+    const idx = chapterSelect.selectedIndex - 1;
+    const ch = chapters[idx];
+    if (!ch) return;
+    const source = ch.source || ch.name;
+    const moduleVal = moduleSelect.value ? parseInt(moduleSelect.value) : null;
+
+    storySection.style.display = "none";
+    drillSection.style.display = "none";
+    showLoading("Generating story and questions...");
+
+    try {
+      const resp = await fetch("/api/chapters/learn", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ source, module_number: moduleVal }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || "Learn request failed");
+      hideLoading();
+
+      if (data.story) {
+        const paragraphs = (data.story || "").split(/\n{2,}/).filter(Boolean);
+        storyText.innerHTML = paragraphs.map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join("");
+        storySection.style.display = "block";
+      }
+
+      questions = data.questions || [];
+      questionIndex = 0;
+      if (questions.length > 0) {
+        drillSection.style.display = "block";
+        showQuestion();
+      }
+    } catch (err) {
+      showError("Failed: " + err.message);
+    }
+  }
+
+  function showQuestion() {
+    if (questionIndex >= questions.length) {
+      questionCounter.textContent = "All questions completed!";
+      questionText.textContent = "";
+      answerForm.style.display = "none";
+      feedbackText.textContent = "";
+      return;
+    }
+    const q = questions[questionIndex];
+    questionCounter.textContent = `Question ${questionIndex + 1}/${questions.length}`;
+    questionText.textContent = q.question || "No question generated.";
+    answerInput.value = "";
+    feedbackText.textContent = "";
+    answerForm.style.display = "";
+    answerInput.focus();
+  }
+
+  answerForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const answer = answerInput.value.trim();
+    if (!answer) return;
+
+    const q = questions[questionIndex];
+    const expected = (q.expected_answer || "").toLowerCase().trim();
+    const userAns = answer.toLowerCase().trim();
+
+    let feedback = "";
+    if (expected && (userAns.includes(expected) || expected.includes(userAns))) {
+      feedback = "✅ Correct!";
+    } else if (expected) {
+      feedback = `❌ Not quite. Expected: ${q.expected_answer}`;
+    } else {
+      feedback = "Thanks for your answer!";
+    }
+    feedbackText.textContent = feedback;
+    questionIndex++;
+    setTimeout(showQuestion, 1500);
+  });
+
+  startBtn.addEventListener("click", startLearning);
+  loadChapters();
+})();
+</script>
+{% endblock %}

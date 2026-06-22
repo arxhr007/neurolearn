@@ -26,6 +26,8 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
 app.state.templates = Jinja2Templates(directory=settings.templates_dir)
 
+# Remove the API root route so the web router handles "/"
+app.routes[:] = [r for r in app.routes if not (getattr(r, "path", None) == "/" and getattr(r, "methods", None) == {"GET"})]
 app.include_router(web_routes.router)
 app.include_router(auth_routes.router)
 

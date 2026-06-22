@@ -1,25 +1,59 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <div class="page-header">
-    <h1>Profile</h1>
-    <p class="subtitle">Update your learning preferences.</p>
-  </div>
-  <div class="card">
-    <form class="form">
-      <label>
-        Full name
-        <input type="text" value="{{ user.username }}" />
-      </label>
-      <label>
-        Learning style
-        <input type="text" value="analogy-heavy" />
-      </label>
-      <label>
-        Reading age
-        <input type="number" value="12" min="6" max="18" />
-      </label>
-      <button type="button" class="btn">Save profile</button>
-    </form>
-  </div>
+<div class="page-header">
+  <h1>Profile</h1>
+  <p class="subtitle">Update your learning preferences.</p>
+</div>
+
+{% if saved %}
+<div class="status-banner" data-tone="success" style="padding:var(--space-2) var(--space-3);border-radius:var(--radius);margin-bottom:var(--space-3);background:var(--success-bg);color:var(--success)">Profile saved.</div>
+{% endif %}
+{% if error %}
+<div class="status-banner" data-tone="error" style="padding:var(--space-2) var(--space-3);border-radius:var(--radius);margin-bottom:var(--space-3);background:var(--error-bg);color:var(--error)">{{ error }}</div>
+{% endif %}
+
+<div class="card">
+  <form class="form" action="/student/profile/save" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+    <label>
+      Full name
+      <input type="text" name="full_name" value="{{ user.full_name or user.username }}" />
+    </label>
+    <label>
+      Learning style
+      <input type="text" name="learning_style" value="{{ user.learning_style or 'general' }}" />
+    </label>
+    <label>
+      Reading age
+      <input type="number" name="reading_age" value="{{ user.reading_age or 12 }}" min="6" max="18" />
+    </label>
+    <label>
+      Age
+      <input type="number" name="age" value="{{ user.age or 10 }}" min="4" max="25" />
+    </label>
+    <label>
+      Interests (comma-separated)
+      <input type="text" name="interests" value="{{ user.interests|join(', ') if user.interests is iterable and user.interests is not string else user.interests or '' }}" />
+    </label>
+    <label>
+      Neuro profile (comma-separated)
+      <input type="text" name="neuro_profile" value="{{ user.neuro_profile|join(', ') if user.neuro_profile is iterable and user.neuro_profile is not string else user.neuro_profile or '' }}" />
+    </label>
+    <hr style="margin:var(--space-3) 0;">
+    <p class="subtitle" style="margin-bottom:var(--space-3);">Personal details (used to personalize stories):</p>
+    <label>Father's name <input type="text" name="father_name" value="{{ user.father_name or '' }}" /></label>
+    <label>Mother's name <input type="text" name="mother_name" value="{{ user.mother_name or '' }}" /></label>
+    <label>Grandfather's name <input type="text" name="grandfather_name" value="{{ user.grandfather_name or '' }}" /></label>
+    <label>Grandmother's name <input type="text" name="grandmother_name" value="{{ user.grandmother_name or '' }}" /></label>
+    <label>Favorite color <input type="text" name="favorite_color" value="{{ user.favorite_color or '' }}" /></label>
+    <label>Teacher's name <input type="text" name="teacher_name" value="{{ user.teacher_name or '' }}" /></label>
+    <label>Place / hometown <input type="text" name="place" value="{{ user.place or '' }}" /></label>
+    <label>Friends' names <input type="text" name="friends" placeholder="comma-separated" value="{{ user.friends or '' }}" /></label>
+    <label>Favorite food <input type="text" name="favorite_food" value="{{ user.favorite_food or '' }}" /></label>
+    <label>Favorite animal <input type="text" name="favorite_animal" value="{{ user.favorite_animal or '' }}" /></label>
+    <label>Favorite interest/hobby <input type="text" name="favorite_interest" value="{{ user.favorite_interest or '' }}" /></label>
+    <button type="submit" class="btn">Save profile</button>
+  </form>
+</div>
 {% endblock %}

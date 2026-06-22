@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from datetime import datetime, timedelta
@@ -9,8 +10,9 @@ from functools import lru_cache
 from hmac import compare_digest
 from pathlib import Path
 from typing import Any
+from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -21,6 +23,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal, get_db
 from app.models.conversation import Conversation, Message
 from app.models.learning import LearningGoal as LearningGoalModel, MasteryEvent as MasteryEventModel
+from app.models.memory import StudentMemory
 from app.models.user import Student, Teacher
 from app.services.auth import create_access_token, decode_access_token, is_jwt_error
 from app.services.learning_service import create_goal
@@ -74,6 +77,17 @@ logger = logging.getLogger(__name__)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
+@asynccontextmanager
+async def _lifespan(_: FastAPI):
+    from app.database import init_db
+
+    init_db()
+    with SessionLocal() as db:
+        ensure_default_admin(db)
+        ensure_single_admin(db)
+    yield
+
+
 class Settings(BaseSettings):
     """App settings loaded from environment variables."""
 
@@ -91,6 +105,9 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440
     groq_api_key: str = ""
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.0-flash"
+    story_provider: str = "gemini"
     allow_dev_users: bool = True
 
     cors_origins_raw: str = "http://localhost:3000,http://localhost:5173,http://localhost:8000"
@@ -133,7 +150,6 @@ class TeacherResponse(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
-
 
 class TeacherListResponse(BaseModel):
     total: int
@@ -335,6 +351,12 @@ def _service_bundle() -> tuple[TutorService, SqlAlchemyStudentDB, RAGRetriever]:
     settings = get_settings()
     if not os.getenv("GROQ_API_KEY") and settings.groq_api_key:
         os.environ["GROQ_API_KEY"] = settings.groq_api_key
+    if not os.getenv("gemini_api_key") and settings.gemini_api_key:
+        os.environ["gemini_api_key"] = settings.gemini_api_key
+    if not os.getenv("GEMINI_MODEL") and settings.gemini_model:
+        os.environ["GEMINI_MODEL"] = settings.gemini_model
+    if not os.getenv("STORY_PROVIDER") and settings.story_provider:
+        os.environ["STORY_PROVIDER"] = settings.story_provider
 
     student_db = SqlAlchemyStudentDB(SessionLocal)
     retriever = RAGRetriever(settings.retriever_db_dir, settings.retriever_model_name)
@@ -691,6 +713,7 @@ app = FastAPI(
     title=settings.api_title,
     version=settings.api_version,
     description=settings.api_description,
+    lifespan=_lifespan,
     docs_url="/api/docs",
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
@@ -702,16 +725,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-def _startup() -> None:
-    from app.database import init_db
-
-    init_db()
-    with SessionLocal() as db:
-        ensure_default_admin(db)
-        ensure_single_admin(db)
 
 
 @app.get("/", tags=["Meta"])
@@ -910,6 +923,165 @@ def get_conversation_by_id(
 ) -> ConversationResponse:
     _require_student_access(db, current_user, student_id)
     return service.get_conversation_by_id(conversation_id=conversation_id, student_id=student_id)
+
+
+@app.get(
+    "/api/conversations/{student_id}/{conversation_id}/{turn_id}/story",
+    tags=["Tutor"],
+)
+def get_conversation_turn_story(
+    student_id: str,
+    conversation_id: str,
+    turn_id: str,
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    service: TutorService = Depends(get_tutor_service),
+    student_db: SqlAlchemyStudentDB = Depends(get_student_db),
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    """Return a storyified variant of the answer for the requested conversation turn.
+
+    This endpoint reconstructs a minimal `state` from the stored conversation turn
+    and delegates to `TutorService.generate_story_from_state`. It is intentionally
+    a read-only, opt-in helper.
+    """
+    _require_student_access(db, current_user, student_id)
+    profile = student_db.get_student_profile(student_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail=f"Student not found: {student_id}")
+
+    conversation = service.get_conversation_by_id(conversation_id=conversation_id, student_id=student_id)
+    # Find the requested turn
+    target = None
+    for t in conversation.turns:
+        if t.turn_id == turn_id:
+            target = t
+            break
+    if target is None:
+        raise HTTPException(status_code=404, detail="Turn not found")
+
+    answer_text = target.answer or ""
+    question_text = target.question or ""
+    docs = []
+    for s in (target.sources or []):
+        # convert Source pydantic model to minimal doc dict
+        try:
+            docs.append({"source": s.source, "page": s.page, "text": s.excerpt})
+        except Exception:
+            # fallback for plain dict-like values
+            docs.append({"source": getattr(s, "source", ""), "page": getattr(s, "page", None), "text": getattr(s, "excerpt", "")})
+
+    if not answer_text:
+        raise HTTPException(status_code=400, detail="No answer text available for this turn")
+
+    state = {"answer": answer_text, "question": question_text, "docs": docs}
+
+    try:
+        story = service.generate_story_from_state(state, student_id=student_id, student_profile=profile)
+    except Exception as exc:
+        logger.exception("Failed to generate story for turn")
+        raise HTTPException(status_code=500, detail=f"Story generation failed: {exc}") from exc
+
+    return {"conversation_id": conversation_id, "turn_id": turn_id, "story": story}
+
+
+@app.get("/api/chapters", tags=["Tutor"])
+def list_chapters(
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    service: TutorService = Depends(get_tutor_service),
+) -> dict[str, Any]:
+    del current_user
+    return {"chapters": service.list_available_chapters()}
+
+
+class ChapterLearnRequest(BaseModel):
+    source: str
+    module_number: int | None = None
+
+
+@app.get("/api/chapters/{source}/modules", tags=["Tutor"])
+def list_chapter_modules(
+    source: str,
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    service: TutorService = Depends(get_tutor_service),
+) -> dict[str, Any]:
+    del current_user
+    modules = service.get_chapter_modules(source)
+    return {"modules": modules, "source": source}
+
+
+@app.post("/api/chapters/learn", tags=["Tutor"])
+def chapter_learn(
+    req: ChapterLearnRequest,
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    service: TutorService = Depends(get_tutor_service),
+) -> dict[str, Any]:
+    student_id = current_user.student_id
+    module = None
+    if req.module_number:
+        modules = service.get_chapter_modules(req.source)
+        for m in modules:
+            if m["number"] == req.module_number:
+                module = m
+                break
+        chapter_docs = service.load_module_docs(req.source, req.module_number)
+    else:
+        chapter_docs = service.load_chapter_docs(req.source)
+
+    if not chapter_docs:
+        raise HTTPException(status_code=404, detail="No content found for this chapter/module")
+
+    topic = module["title"] if module else req.source
+
+    from langgraph_app.services.chapter_mode import plan_chapter_session
+    session_plan = plan_chapter_session(topic, chapter_docs)
+    question_count = session_plan.get("question_count", 3)
+
+    combined_text = "\n\n".join(str(d.get("text") or "") for d in chapter_docs if d)
+    student_profile = None
+    try:
+        student_profile = service.student_db.get_student_profile(student_id)
+    except Exception:
+        pass
+
+    story = ""
+    try:
+        story = service.llm.generate_story_from_answer(
+            answer=combined_text or topic,
+            question=f"{req.source} | Module {req.module_number}" if req.module_number else req.source,
+            context_docs=chapter_docs[:3],
+            student_profile=student_profile,
+            max_tokens=4096,
+        )
+    except Exception:
+        logger.exception("Failed to generate story for chapter learn")
+
+    questions = []
+    for qi in range(1, question_count + 1):
+        try:
+            bundle = service.generate_chapter_drill_bundle(
+                chapter_name=req.source,
+                topic=topic,
+                chapter_docs=chapter_docs,
+                student_profile=student_profile,
+                question_index=qi,
+                total_questions=question_count,
+                previous_questions=[q["question"] for q in questions],
+            )
+            questions.append({
+                "question": bundle.get("question", ""),
+                "expected_answer": bundle.get("expected_answer", ""),
+            })
+        except Exception:
+            logger.exception(f"Failed to generate drill question {qi}")
+            break
+
+    return {
+        "story": story,
+        "questions": questions,
+        "session_plan": session_plan,
+        "module": module,
+        "topic": topic,
+    }
 
 
 @app.delete("/api/conversations/{conversation_id}", tags=["Conversations"])
@@ -1390,6 +1562,411 @@ def system_stats(
     service: TutorService = Depends(get_tutor_service),
 ) -> dict[str, Any]:
     return service.get_stats()
+
+
+STORY_JSON_DIR = Path(__file__).parent / "input" / "story"
+
+
+@app.get("/api/story/curricula", tags=["Story"])
+def list_story_curricula(
+    _: TokenData = Depends(require_roles("student", "teacher", "admin")),
+) -> dict[str, Any]:
+    """List available story curriculum JSON files."""
+    curricula = []
+    for f in sorted(STORY_JSON_DIR.glob("*.json")):
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            curricula.append({
+                "name": f.stem,
+                "title": data.get("curriculum_title", f.stem),
+                "module_count": len(data.get("modules", [])),
+            })
+        except Exception:
+            logger.warning("Failed to parse story curriculum %s", f.name)
+    return {"curricula": curricula}
+
+
+@app.get("/api/story/curricula/{name}", tags=["Story"])
+def get_story_curriculum(
+    name: str,
+    _: TokenData = Depends(require_roles("student", "teacher", "admin")),
+) -> dict[str, Any]:
+    """Get full curriculum data with modules and activities."""
+    path = STORY_JSON_DIR / f"{name}.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"Curriculum '{name}' not found")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to parse curriculum: {exc}")
+
+
+class StoryGenerateRequest(BaseModel):
+    curriculum: str
+    module_number: int
+    activity_id: str
+    placeholder_values: dict[str, str] = {}
+
+
+import re
+
+
+def _find_split_offset(text: str, fraction: float = 0.33) -> int:
+    """Find a sentence-boundary split point near `fraction` of text length."""
+    target = int(len(text) * fraction)
+    if target >= len(text):
+        return len(text)
+    window = int(len(text) * 0.15)
+    lo = max(target - window, 0)
+    hi = min(target + window, len(text))
+
+    best = target
+    best_dist = abs(target)
+    for m in re.finditer(r'[.!?।\n](?:\s|$)', text[lo:hi]):
+        pos = lo + m.end()
+        dist = abs(pos - target)
+        if dist < best_dist:
+            best_dist = dist
+            best = pos
+
+    if best == target:
+        for m in re.finditer(r'\n\n', text[lo:hi]):
+            pos = lo + m.end()
+            dist = abs(pos - target)
+            if dist < best_dist:
+                best_dist = dist
+                best = pos
+
+    return best
+
+
+def _pcm_to_wav_b64(pcm_bytes: bytes) -> str:
+    import base64
+    import io
+    import struct
+
+    sample_rate = 24000
+    bits_per_sample = 16
+    channels = 1
+    byte_rate = sample_rate * channels * bits_per_sample // 8
+    block_align = channels * bits_per_sample // 8
+    data_size = len(pcm_bytes)
+
+    wav = io.BytesIO()
+    wav.write(b"RIFF")
+    wav.write(struct.pack("<I", 36 + data_size))
+    wav.write(b"WAVE")
+    wav.write(b"fmt ")
+    wav.write(struct.pack("<I", 16))
+    wav.write(struct.pack("<H", 1))
+    wav.write(struct.pack("<H", channels))
+    wav.write(struct.pack("<I", sample_rate))
+    wav.write(struct.pack("<I", byte_rate))
+    wav.write(struct.pack("<H", block_align))
+    wav.write(struct.pack("<H", bits_per_sample))
+    wav.write(b"data")
+    wav.write(struct.pack("<I", data_size))
+    wav.write(pcm_bytes)
+    wav.seek(0)
+    return base64.b64encode(wav.read()).decode("utf-8")
+
+
+class TTSRequest(BaseModel):
+    text: str
+    voice: str = "ml-IN-SobhanaNeural"
+    speaking_rate: float = 0.9
+    part: str = "full"
+    split_offset: int = 0
+
+
+TTS_FALLBACK_MODELS = [
+    "gemini-2.5-flash-preview-tts",
+    "gemini-2.0-flash-exp",
+]
+
+
+def _tts_generate(prompt_text: str) -> bytes:
+    """Call Gemini TTS and return raw PCM bytes."""
+    import urllib.request
+    import json
+    import base64
+
+    from app.config import get_settings
+    api_key = get_settings().gemini_api_key
+    if not api_key:
+        raise HTTPException(status_code=400, detail="Gemini API key not configured")
+
+    primary_model = os.getenv("GEMINI_TTS_MODEL", "gemini-2.5-flash-preview-tts")
+    models_to_try = [primary_model] + [m for m in TTS_FALLBACK_MODELS if m != primary_model]
+    last_error = None
+
+    for model in models_to_try:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+            payload = {
+                "contents": [{
+                    "parts": [{"text": f"Generate spoken Malayalam audio narration for this children's story:\n\n{prompt_text}"}]
+                }],
+                "generationConfig": {"responseModalities": ["AUDIO"]},
+            }
+            data = json.dumps(payload).encode("utf-8")
+            http_req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+            resp = urllib.request.urlopen(http_req, timeout=120)
+            body = json.loads(resp.read())
+            candidates = body.get("candidates", [])
+            if not candidates:
+                raise RuntimeError("No response from TTS model")
+            parts = candidates[0].get("content", {}).get("parts", [])
+            inline = next((p.get("inlineData") for p in parts if "inlineData" in p), None)
+            if not inline:
+                raise RuntimeError("No audio data in TTS response")
+            return base64.b64decode(inline["data"])
+        except Exception as exc:
+            err_str = str(exc)
+            print(f"   TTS model {model} failed: {err_str[:100]}")
+            last_error = exc
+            if "429" not in err_str and "quota" not in err_str.lower():
+                break
+
+    raise HTTPException(status_code=502, detail=f"TTS failed across all models: {last_error}")
+
+
+@app.post("/api/story/tts", tags=["Story"])
+def story_tts(req: TTSRequest):
+    """Generate TTS audio.
+
+    part=full (default): entire story at once.
+    part=first: first ~1/3 at sentence boundary.
+                Returns {audioContent, splitOffset} so client can call part=rest.
+    part=rest: remaining text from split_offset onward.
+               Returns {audioContent}.
+    """
+    if req.part == "full":
+        pcm = _tts_generate(req.text)
+        return {"audioContent": _pcm_to_wav_b64(pcm)}
+
+    if req.part == "rest":
+        if req.split_offset <= 0 or req.split_offset >= len(req.text):
+            raise HTTPException(status_code=400, detail="Invalid split_offset for part=rest")
+        rest_text = req.text[req.split_offset:]
+        pcm = _tts_generate(rest_text)
+        return {"audioContent": _pcm_to_wav_b64(pcm)}
+
+    if req.part == "first":
+        split_at = _find_split_offset(req.text, 0.33)
+        first_text = req.text[:split_at]
+        pcm = _tts_generate(first_text)
+        return {"audioContent": _pcm_to_wav_b64(pcm), "splitOffset": split_at}
+
+    raise HTTPException(status_code=400, detail=f"Unknown part: {req.part}")
+
+
+@app.post("/api/story/generate", tags=["Story"])
+def generate_story_from_template(
+    req: StoryGenerateRequest,
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    service: TutorService = Depends(get_tutor_service),
+) -> dict[str, Any]:
+    """Generate a story from a curriculum template with filled placeholders."""
+    path = STORY_JSON_DIR / f"{req.curriculum}.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"Curriculum '{req.curriculum}' not found")
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to parse curriculum: {exc}")
+
+    module = None
+    activity = None
+    for m in data.get("modules", []):
+        if m.get("module_number") == req.module_number:
+            module = m
+            for a in m.get("activities", []):
+                if a.get("activity_id") == req.activity_id:
+                    activity = a
+                    break
+            break
+
+    if not activity:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Activity '{req.activity_id}' not found in module {req.module_number}",
+        )
+
+    story_blueprint = activity.get("story_blueprint") or {}
+    template = story_blueprint.get("story_template_malayalam", "")
+    if not template:
+        raise HTTPException(status_code=400, detail="Activity has no story template")
+
+    # Auto-fill placeholders from student profile
+    student_id = current_user.student_id
+    student_profile = None
+    try:
+        student_profile = service.student_db.get_student_profile(student_id)
+    except Exception:
+        pass
+
+    auto_values: dict[str, str] = {}
+    if student_profile:
+        relevant_fields = activity.get("relevant_student_fields", [])
+        field_to_placeholder = {
+            "full_name": "child_name",
+            "friends": "friend_name",
+            "favorite_food": "favorite_food",
+            "favorite_animal": "favorite_animal",
+            "favorite_color": "favorite_color",
+            "favorite_interest": "favorite_interest",
+            "place": "place",
+            "mother_name": "mother_name",
+            "father_name": "father_name",
+            "grandmother_name": "grandmother_name",
+            "grandfather_name": "grandfather_name",
+            "teacher_name": "teacher_name",
+        }
+        for field in relevant_fields:
+            placeholder = field_to_placeholder.get(field)
+            if placeholder and f"{{{placeholder}}}" in template:
+                val = student_profile.get(field)
+                if val:
+                    auto_values[placeholder] = str(val)
+
+    # Merge: request values override auto-filled values
+    merged_values = {**auto_values, **req.placeholder_values}
+
+    filled_template = template
+    for key, value in merged_values.items():
+        filled_template = filled_template.replace("{" + key + "}", value)
+
+    # Also inject {child_name} fallback: use name from profile if not set
+    if "{child_name}" in filled_template:
+        profile_name = (student_profile or {}).get("name", "")
+        if profile_name:
+            filled_template = filled_template.replace("{child_name}", profile_name)
+
+    # Build context from activity metadata
+    context_docs = [
+        {"source": data.get("curriculum_title", ""), "page": 0, "text": f"Theme: {story_blueprint.get('story_theme', '')}"},
+        {"source": data.get("curriculum_title", ""), "page": 0, "text": f"Concept: {activity.get('main_concept', '')}"},
+        {"source": data.get("curriculum_title", ""), "page": 0, "text": f"Challenge: {'; '.join(activity.get('possible_challenges', [])[:3])}"},
+    ]
+
+    memory_categories = activity.get("relevant_memory_categories")
+
+    story = ""
+    try:
+        story = service.llm.generate_story_from_answer(
+            answer=filled_template,
+            question=f"{activity.get('activity_name', '')} – {module.get('module_title', '')}",
+            context_docs=context_docs,
+            student_profile=student_profile,
+            memory_categories=memory_categories,
+            max_tokens=16384,
+        )
+    except Exception:
+        logger.exception("Failed to generate story from template")
+
+    return {
+        "story": story,
+        "activity": {
+            "id": activity.get("activity_id"),
+            "name": activity.get("activity_name"),
+            "theme": activity.get("story_theme"),
+            "moral": activity.get("moral"),
+        },
+        "module_title": module.get("module_title") if module else "",
+        "curriculum_title": data.get("curriculum_title", ""),
+    }
+
+
+class MemoryRecord(BaseModel):
+    id: int
+    text: str
+    category: str
+    title: str | None = None
+    summary: str | None = None
+    emotions: str | None = None
+    people: str | None = None
+    places: str | None = None
+    activities: str | None = None
+    tags: str | None = None
+    importance_score: int | None = None
+    created_at: str
+
+
+class MemoryResponse(BaseModel):
+    memories: list[MemoryRecord]
+
+
+@app.post("/api/memories", tags=["Story"])
+async def create_memory(
+    text: str | None = Form(None),
+    audio: UploadFile | None = File(None),
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    service: TutorService = Depends(get_tutor_service),
+):
+    """Submit a text or audio memory. Audio is transcribed via Gemini, then discarded.
+    Gemini extracts structured metadata from the text. Returns the saved record."""
+    student_id = current_user.student_id
+
+    if not text and not audio:
+        raise HTTPException(status_code=400, detail="Provide either 'text' field or an 'audio' file.")
+
+    # Step 1: get raw text
+    if audio:
+        allowed = ("audio/wav", "audio/x-wav", "audio/mpeg", "audio/ogg", "audio/webm")
+        if audio.content_type not in allowed:
+            raise HTTPException(status_code=400,
+                                detail=f"Unsupported audio format: {audio.content_type}. Use WAV, MP3, OGG, or WebM.")
+        audio_bytes = await audio.read()
+        if len(audio_bytes) == 0:
+            raise HTTPException(status_code=400, detail="Empty audio file")
+        try:
+            raw_text = service.llm.transcribe_audio(audio_bytes, audio.content_type or "audio/wav")
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Audio transcription failed: {exc}")
+        # Audio discarded after transcription — never saved to disk
+    else:
+        raw_text = text.strip()
+
+    # Step 2: extract structured metadata via Gemini
+    metadata = service.llm.extract_memory_metadata(raw_text)
+
+    # Step 3: save to DB
+    def _json(arr):
+        if arr is None:
+            return None
+        return json.dumps(arr, ensure_ascii=False)
+
+    title = metadata.get("title") or None
+    if not title:
+        title = (raw_text[:60] + "...") if len(raw_text) > 60 else raw_text
+
+    record = service.student_db.add_memory(
+        student_id, raw_text, metadata["category"],
+        title=title,
+        summary=metadata.get("summary") or None,
+        emotions=_json(metadata.get("emotions")),
+        people=_json(metadata.get("people")),
+        places=_json(metadata.get("places")),
+        activities=_json(metadata.get("activities")),
+        tags=_json(metadata.get("tags")),
+        importance_score=metadata.get("importance_score", 3),
+    )
+
+    return {"memory": record}
+
+
+@app.get("/api/story/memories", tags=["Story"])
+def get_memories(
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    service: TutorService = Depends(get_tutor_service),
+) -> MemoryResponse:
+    """Get all memories for the current student."""
+    student_id = current_user.student_id
+    memories = service.student_db.get_memories(student_id)
+    return MemoryResponse(memories=[MemoryRecord(**m) for m in memories])
 
 
 if __name__ == "__main__":

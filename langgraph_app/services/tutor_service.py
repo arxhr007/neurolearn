@@ -6,17 +6,22 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 import re
+import time
 from threading import Lock
 from typing import Any, Optional
 from uuid import uuid4
 
 from langgraph_app.graph.builder import invoke_graph_safe
+import logging
+
+logger = logging.getLogger(__name__)
 from langgraph_app.models import (
     ConversationResponse,
     ConversationTurn,
     Source,
     TutorQuestionResponse,
 )
+from langgraph_app.services.chapter_mode import discover_chapters, extract_modules, load_chapter_docs, load_module_docs
 from langgraph_app.services.retriever_base import RetrieverBase
 from langgraph_app.services.student_db_base import StudentDBBase
 
@@ -26,9 +31,9 @@ class TutorServiceConfig:
     """Configuration for TutorService behavior."""
 
     default_top_k_retrieval: int = 5
-    default_response_timeout_seconds: int = 30
+    default_response_timeout_seconds: int = 60
     enable_conversation_history: bool = True
-    enable_smalltalk_heuristics: bool = False
+    enable_smalltalk_heuristics: bool = True
 
 
 @dataclass
@@ -112,13 +117,14 @@ class TutorService:
         """Run the graph for a student question turn."""
         conversation_id = conversation_id or str(uuid4())
         turn_id = str(uuid4())
+        active_learning_goal = self._extract_active_goal(student_id)
         smalltalk_kind = self._smalltalk_kind(question) if self.config.enable_smalltalk_heuristics else None
         if smalltalk_kind:
             response = self._build_smalltalk_response(conversation_id, turn_id, smalltalk_kind)
             self._store_turn(
                 conversation_id=conversation_id,
                 student_id=student_id,
-                learning_goal=self._extract_active_goal(student_id),
+                learning_goal=active_learning_goal,
                 turn=self._build_question_turn(turn_id, question, response),
             )
             return response
@@ -127,6 +133,7 @@ class TutorService:
             question=question,
             student_id=student_id,
             student_profile=profile,
+            active_learning_goal=active_learning_goal,
             top_k=top_k,
             conversation_id=conversation_id,
         )
@@ -135,7 +142,7 @@ class TutorService:
         self._store_turn(
             conversation_id=conversation_id,
             student_id=student_id,
-            learning_goal=self._extract_active_goal(student_id),
+            learning_goal=active_learning_goal,
             turn=self._build_question_turn(turn_id, question, response),
         )
         return response
@@ -171,11 +178,13 @@ class TutorService:
         """Run the graph for an answer-evaluation turn."""
         conversation_id = conversation_id or str(uuid4())
         turn_id = turn_id or str(uuid4())
+        active_learning_goal = self._extract_active_goal(student_id)
         profile = self._resolve_student_profile(student_id, student_profile)
         payload = self._build_payload(
             question=question,
             student_id=student_id,
             student_profile=profile,
+            active_learning_goal=active_learning_goal,
             top_k=top_k,
             conversation_id=conversation_id,
             student_response=student_answer,
@@ -186,7 +195,7 @@ class TutorService:
         self._store_turn(
             conversation_id=conversation_id,
             student_id=student_id,
-            learning_goal=self._extract_active_goal(student_id),
+            learning_goal=active_learning_goal,
             turn=self._build_answer_turn(turn_id, question, student_answer, response),
         )
         return response
@@ -216,6 +225,7 @@ class TutorService:
 
     def get_conversation_history(self, student_id: str, limit: int = 10) -> ConversationResponse:
         """Return the most recent in-memory conversation history for a student."""
+        active_learning_goal = self._extract_active_goal(student_id)
         with self._lock:
             recent: tuple[str, dict[str, Any]] | None = None
             for conversation_id, entry in self._history.items():
@@ -232,7 +242,7 @@ class TutorService:
                     created_at=now,
                     updated_at=now,
                     turns=[],
-                    learning_goal=self._extract_active_goal(student_id),
+                    learning_goal=active_learning_goal,
                 )
 
             conversation_id, entry = recent
@@ -248,6 +258,7 @@ class TutorService:
 
     def get_conversation_by_id(self, conversation_id: str, student_id: str) -> ConversationResponse:
         """Return a specific conversation history by conversation id."""
+        active_learning_goal = self._extract_active_goal(student_id)
         with self._lock:
             entry = self._history.get(conversation_id)
             if not entry:
@@ -258,7 +269,7 @@ class TutorService:
                     created_at=now,
                     updated_at=now,
                     turns=[],
-                    learning_goal=self._extract_active_goal(student_id),
+                    learning_goal=active_learning_goal,
                 )
             return ConversationResponse(
                 conversation_id=conversation_id,
@@ -278,6 +289,67 @@ class TutorService:
 
     def get_learning_goals(self, student_id: str) -> list[dict[str, Any]]:
         return self.student_db.get_learning_goals(student_id)
+
+    def list_available_chapters(self, chunks_dir: str | None = None) -> list[dict[str, Any]]:
+        return discover_chapters(chunks_dir=chunks_dir)
+
+    def load_chapter_docs(
+        self,
+        chapter_source: str,
+        chunks_dir: str | None = None,
+        max_docs: int = 8,
+    ) -> list[dict[str, Any]]:
+        return load_chapter_docs(chapter_source=chapter_source, chunks_dir=chunks_dir, max_docs=max_docs)
+
+    def get_chapter_modules(
+        self,
+        chapter_source: str,
+        chunks_dir: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return list of {number, title, page} modules for a chapter PDF."""
+        from langgraph_app.services.chapter_mode import _find_source_json, _safe_load_json
+
+        path = _find_source_json(chapter_source, chunks_dir)
+        if path is None:
+            return []
+        all_chunks = [c for c in _safe_load_json(path) if isinstance(c, dict)]
+        return extract_modules(all_chunks)
+
+    def load_module_docs(
+        self,
+        chapter_source: str,
+        module_number: int,
+        chunks_dir: str | None = None,
+        max_docs: int = 8,
+    ) -> list[dict[str, Any]]:
+        return load_module_docs(
+            chapter_source=chapter_source,
+            module_number=module_number,
+            chunks_dir=chunks_dir,
+            max_docs=max_docs,
+        )
+
+    def generate_chapter_drill_bundle(
+        self,
+        chapter_name: str,
+        topic: str,
+        chapter_docs: list[dict[str, Any]] | None = None,
+        student_profile: dict[str, Any] | None = None,
+        question_index: int = 1,
+        total_questions: int = 3,
+        previous_questions: list[str] | None = None,
+        review_focus: str | None = None,
+    ) -> dict[str, Any]:
+        return self.llm.generate_chapter_drill_bundle(
+            chapter_name=chapter_name,
+            topic=topic,
+            chapter_docs=chapter_docs,
+            student_profile=student_profile,
+            question_index=question_index,
+            total_questions=total_questions,
+            previous_questions=previous_questions,
+            review_focus=review_focus,
+        )
 
     def get_active_learning_goal(self, student_id: str) -> Any:
         return self.student_db.get_active_learning_goal(student_id)
@@ -300,11 +372,17 @@ class TutorService:
         }
 
     def _invoke(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return invoke_graph_safe(
-            self.graph,
-            payload,
-            timeout_seconds=self.config.default_response_timeout_seconds,
-        )
+        start = time.perf_counter()
+        try:
+            return invoke_graph_safe(
+                self.graph,
+                payload,
+                timeout_seconds=self.config.default_response_timeout_seconds,
+            )
+        finally:
+            elapsed_ms = (time.perf_counter() - start) * 1000.0
+            if elapsed_ms >= 1.0:
+                logger.info("Tutor graph invocation took %.1f ms", elapsed_ms)
 
     def _resolve_student_profile(
         self,
@@ -327,6 +405,7 @@ class TutorService:
         question: str,
         student_id: str,
         student_profile: dict[str, Any],
+        active_learning_goal: str | None,
         top_k: int | None,
         conversation_id: str,
         student_response: str | None = None,
@@ -340,6 +419,7 @@ class TutorService:
             "student_response": student_response if student_response is not None else question,
             "top_k": top_k or self.config.default_top_k_retrieval,
             "student_profile": student_profile,
+            "active_learning_goal": active_learning_goal or "",
             "conversation_id": conversation_id,
         }
         if check_answer_hint:
@@ -369,28 +449,18 @@ class TutorService:
         turn_id: str,
         state: dict[str, Any],
     ) -> TutorResponse:
-        # If the graph indicated no docs were found, surface a clear error message
-        if state.get("no_docs_found"):
-            msg = "No relevant sources found; unable to provide an answer."
-            return TutorResponse(
-                conversation_id=conversation_id,
-                turn_id=turn_id,
-                status="error",
-                answer=msg,
-                check_question=None,
-                check_answer_hint=None,
-                sources=[],
-                evaluation_result=state.get("evaluation_result") or {},
-                mastery_event=state.get("mastery_event"),
-                remediation_explanation=state.get("remediation_explanation"),
-                raw_state=state,
-            )
-
         answer = state.get("answer")
         if answer is None:
             evaluation_result = state.get("evaluation_result") or {}
             answer = evaluation_result.get("feedback") or ""
-        check_question = state.get("check_question")
+        looks_like_refusal = False
+        try:
+            looks_like_refusal = bool(self.llm.looks_like_refusal(str(answer)))
+        except Exception:
+            looks_like_refusal = False
+        check_question = state.get("check_question") if not (state.get("general_answer_fallback") or looks_like_refusal) else None
+        if check_question:
+            print(f"  [tutor_service] check_question present: {check_question[:60]}...")
         check_answer_hint = state.get("check_answer_hint")
         sources = self._build_sources(state)
         status = "waiting_for_answer" if check_question else "answered"
@@ -545,3 +615,38 @@ class TutorService:
             entry["updated_at"] = turn.generated_at
             if learning_goal and not entry.get("learning_goal"):
                 entry["learning_goal"] = learning_goal
+
+    def generate_story_from_state(
+        self,
+        state: dict[str, Any],
+        student_id: str | None = None,
+        student_profile: dict[str, Any] | None = None,
+        story_style: str | None = None,
+    ) -> str:
+        """Generate a storyified variant of the answer contained in `state`.
+
+        This is non-destructive: it does not modify stored history or the
+        original state. It is intended as an opt-in post-processing step.
+        """
+        if not state:
+            raise ValueError("No state provided for story generation")
+
+        profile = student_profile or (self.student_db.get_student_profile(student_id) if student_id else {})
+
+        # Prefer the explicit answer field, fall back to evaluator feedback.
+        answer_text = str(state.get("answer") or (state.get("evaluation_result") or {}).get("feedback") or "").strip()
+        question_text = str(state.get("question") or "").strip()
+        context_docs = state.get("docs") or []
+
+        if not answer_text:
+            raise ValueError("No answer text available in state to convert to a story")
+
+        # Delegate to LLM story helper; this may raise on API errors.
+        story = self.llm.generate_story_from_answer(
+            answer=answer_text,
+            question=question_text or None,
+            context_docs=context_docs,
+            student_profile=profile,
+            story_style=story_style or "child_friendly",
+        )
+        return story

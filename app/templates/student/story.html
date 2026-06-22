@@ -1,0 +1,554 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Story generator</h1>
+  <p class="subtitle">Pick a curriculum, module, and activity, then fill in details to generate a personalized story.</p>
+</div>
+
+<div id="status-banner" class="status-banner is-hidden" data-tone="info" aria-live="polite"></div>
+<div id="loading-overlay" class="loading-overlay" style="display:none">
+  <div class="loading-card">
+    <div class="spinner"></div>
+    <div id="loading-msg" class="loading-msg">Generating story...</div>
+    <div id="loading-log" class="loading-log"></div>
+  </div>
+</div>
+
+<div class="card-grid grid-3">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">1. Choose curriculum</div>
+      <p class="subtitle">Select a curriculum package.</p>
+    </div>
+    <div id="curricula-list" class="card-body">
+      <p class="status">Loading curricula...</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">2. Choose module</div>
+      <p class="subtitle">Select a module within the curriculum.</p>
+    </div>
+    <div id="modules-list" class="card-body">
+      <p class="status">Select a curriculum first.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">3. Choose activity</div>
+      <p class="subtitle">Select an activity to generate a story for.</p>
+    </div>
+    <div id="activities-list" class="card-body">
+      <p class="status">Select a module first.</p>
+    </div>
+  </div>
+</div>
+
+
+
+<div id="step-placeholders" class="card" style="display:none">
+  <div class="card-header">
+    <div class="card-title">4. Personalize the story</div>
+    <p class="subtitle">Fill in details about the child to personalize the story.</p>
+  </div>
+  <form id="placeholder-form" onsubmit="return false;">
+    <div id="placeholder-fields" class="form-grid grid-2"></div>
+    <div class="form-actions" style="margin-top: var(--space-4)">
+      <button id="generate-btn" class="btn" type="button">Generate story</button>
+    </div>
+  </form>
+</div>
+
+<div id="step-result" class="card" style="display:none">
+  <div class="card-header">
+    <div class="card-title">Generated story</div>
+    <p id="story-meta" class="subtitle"></p>
+  </div>
+  <div id="story-output" class="story-content"></div>
+  <div class="form-actions" style="margin-top: var(--space-3); gap: var(--space-2);">
+    <button id="play-btn" class="btn btn-outline" type="button" style="display:none">▶ Play story</button>
+    <button id="reset-btn" class="btn btn-outline" type="button">Start over</button>
+  </div>
+  <details id="audio-section" style="display:none; margin-top: var(--space-3);">
+    <summary style="cursor:pointer; font-weight:600;">Generate audio narration (Gemini TTS)</summary>
+    <div class="form" style="margin-top: var(--space-2);">
+      <div class="form-actions" style="gap: var(--space-2);">
+        <button id="audio-btn" class="btn" type="button">Generate & play audio</button>
+        <audio id="audio-player" controls style="display:none; width:100%; margin-top: var(--space-2);"></audio>
+      </div>
+      <div id="audio-status" class="status" style="margin-top: var(--space-1);"></div>
+    </div>
+  </details>
+</div>
+
+<style>
+  .grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--space-4); }
+  .grid-2 { display:grid; grid-template-columns:repeat(2,1fr); gap:var(--space-3); }
+  .sel-card { cursor:pointer; padding:var(--space-3); border:2px solid var(--border); border-radius:var(--radius); transition:border-color .15s; margin-bottom:var(--space-2); }
+  .sel-card:hover { border-color:var(--accent); }
+  .sel-card.is-selected { border-color:var(--accent); background:var(--accent-bg); }
+  .story-content { white-space:pre-wrap; line-height:1.8; }
+  .status-banner { padding:var(--space-2) var(--space-3); border-radius:var(--radius); margin-bottom:var(--space-3); }
+  .loading-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; z-index:1000; }
+  .loading-card { background:var(--surface,#fff); border-radius:var(--radius,8px); padding:var(--space-6,2rem); max-width:480px; width:90%; text-align:center; box-shadow:0 8px 32px rgba(0,0,0,0.2); }
+  .spinner { width:36px; height:36px; border:4px solid var(--border,#ddd); border-top-color:var(--accent,#4361ee); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto var(--space-3); }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .loading-msg { font-weight:600; margin-bottom:var(--space-2); }
+  .loading-log { font-size:0.85rem; color:var(--muted,#666); max-height:120px; overflow-y:auto; text-align:left; }
+  .status-banner.is-hidden { display:none; }
+  .status-banner[data-tone=info] { background:var(--info-bg); color:var(--info); }
+  .status-banner[data-tone=success] { background:var(--success-bg); color:var(--success); }
+  .status-banner[data-tone=error] { background:var(--error-bg); color:var(--error); }
+  .status-banner[data-tone=warning] { background:var(--warning-bg); color:var(--warning); }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const CSRF = "{{ csrf_token }}";
+  const PROFILE = {{ {
+    "full_name": user.full_name,
+    "interests": user.interests,
+    "age": user.age,
+    "reading_age": user.reading_age,
+    "learning_style": user.learning_style,
+    "mother_name": user.mother_name or "",
+    "father_name": user.father_name or "",
+    "grandmother_name": user.grandmother_name or "",
+    "grandfather_name": user.grandfather_name or "",
+    "favorite_color": user.favorite_color or "",
+    "teacher_name": user.teacher_name or "",
+    "place": user.place or "",
+    "friends": user.friends or "",
+    "favorite_food": user.favorite_food or "",
+    "favorite_animal": user.favorite_animal or "",
+    "favorite_interest": user.favorite_interest or "",
+  } | tojson }};
+
+  // Map placeholder keys to known profile values
+  const PROFILE_MAP = {
+    child_name: PROFILE.full_name || "",
+    child: PROFILE.full_name || "",
+    mother_name: PROFILE.mother_name || "",
+    father_name: PROFILE.father_name || "",
+    grandmother_name: PROFILE.grandmother_name || "",
+    grandfather_name: PROFILE.grandfather_name || "",
+    favorite_color: PROFILE.favorite_color || "",
+    favorite_food: PROFILE.favorite_food || "",
+    favorite_animal: PROFILE.favorite_animal || "",
+    teacher_name: PROFILE.teacher_name || "",
+    place: PROFILE.place || "",
+    friend_name: (PROFILE.friends || "").split(",")[0]?.trim() || "",
+    friends: PROFILE.friends || "",
+  };
+
+  let curriculaData = null;
+  let selectedCurriculum = null;
+  let selectedModule = null;
+  let selectedActivity = null;
+
+  function setStatus(msg, tone, duration) {
+    const el = document.getElementById("status-banner");
+    if (!el) return;
+    el.textContent = msg;
+    el.className = "status-banner" + (msg ? "" : " is-hidden");
+    if (tone) el.dataset.tone = tone;
+    if (duration) setTimeout(() => el.classList.add("is-hidden"), duration);
+  }
+
+  function setButtonBusy(btn, busy, text) {
+    if (!btn) return;
+    btn.disabled = busy;
+    btn.textContent = text || (busy ? "Working..." : btn.dataset.origText || btn.textContent);
+  }
+
+  async function apiRequest(method, path, body) {
+    const opts = { method, headers: { "Content-Type": "application/json" } };
+    if (body) opts.body = JSON.stringify(body);
+
+    // Get session token first
+    const tokenRes = await fetch("/auth/session-token");
+    if (!tokenRes.ok) throw new Error("Not authenticated");
+    const { access_token } = await tokenRes.json();
+    opts.headers["Authorization"] = "Bearer " + access_token;
+
+    const res = await fetch(path, opts);
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({}));
+      throw new Error(detail.detail || `Request failed: ${res.status}`);
+    }
+    return res.json();
+  }
+
+  function showStep(id) {
+    document.querySelectorAll("#step-placeholders, #step-result").forEach(el => el.style.display = "none");
+    const step = document.getElementById(id);
+    if (step) step.style.display = "block";
+  }
+
+  function renderCurricula(data) {
+    const list = document.getElementById("curricula-list");
+    if (!data.length) {
+      list.innerHTML = '<p class="status">No curricula available.</p>';
+      return;
+    }
+    list.innerHTML = data.map(c => `
+      <div class="sel-card" data-name="${c.name}">
+        <strong>${c.title}</strong>
+        <div style="font-size:0.85rem;color:var(--muted)">${c.module_count} module(s)</div>
+      </div>
+    `).join("");
+    list.querySelectorAll(".sel-card").forEach(el => {
+      el.addEventListener("click", () => onSelectCurriculum(el.dataset.name));
+    });
+  }
+
+  async function loadCurricula() {
+    setStatus("Loading curricula...", "info");
+    const data = await apiRequest("GET", "/api/story/curricula");
+    curriculaData = data.curricula || [];
+    renderCurricula(curriculaData);
+    setStatus(`Loaded ${curriculaData.length} curriculum/curricula.`, "success", 3000);
+  }
+
+  async function onSelectCurriculum(name) {
+    selectedCurriculum = name;
+    selectedModule = null;
+    selectedActivity = null;
+    showStep("step-placeholders");
+    document.querySelector("#curricula-list .is-selected")?.classList.remove("is-selected");
+    document.querySelector(`#curricula-list [data-name="${name}"]`)?.classList.add("is-selected");
+    document.getElementById("modules-list").innerHTML = '<p class="status">Loading modules...</p>';
+    document.getElementById("activities-list").innerHTML = '<p class="status">Select a module first.</p>';
+
+    const data = await apiRequest("GET", `/api/story/curricula/${name}`);
+    curriculaData = data;
+    const modules = data.modules || [];
+    const list = document.getElementById("modules-list");
+    if (!modules.length) {
+      list.innerHTML = '<p class="status">No modules in this curriculum.</p>';
+      return;
+    }
+    list.innerHTML = modules.map(m => `
+      <div class="sel-card" data-number="${m.module_number}">
+        <strong>Module ${m.module_number}: ${m.module_title}</strong>
+        <div style="font-size:0.85rem;color:var(--muted)">${m.activities.length} activity/activities</div>
+      </div>
+    `).join("");
+    list.querySelectorAll(".sel-card").forEach(el => {
+      el.addEventListener("click", () => onSelectModule(parseInt(el.dataset.number)));
+    });
+  }
+
+  function onSelectModule(moduleNumber) {
+    selectedModule = moduleNumber;
+    selectedActivity = null;
+    document.querySelector("#modules-list .is-selected")?.classList.remove("is-selected");
+    document.querySelector(`#modules-list [data-number="${moduleNumber}"]`)?.classList.add("is-selected");
+
+    const mod = curriculaData.modules.find(m => m.module_number === moduleNumber);
+    const activities = mod ? mod.activities : [];
+    const list = document.getElementById("activities-list");
+    if (!activities.length) {
+      list.innerHTML = '<p class="status">No activities in this module.</p>';
+      return;
+    }
+    list.innerHTML = activities.map(a => {
+      const bp = a.story_blueprint || {};
+      return `<div class="sel-card" data-id="${a.activity_id}">
+        <strong>${a.activity_name}</strong>
+        <div style="font-size:0.85rem;color:var(--muted)">${bp.story_theme || ''}</div>
+      </div>`;
+    }).join("");
+    list.querySelectorAll(".sel-card").forEach(el => {
+      el.addEventListener("click", () => onSelectActivity(el.dataset.id));
+    });
+  }
+
+  function onSelectActivity(activityId) {
+    selectedActivity = activityId;
+    document.querySelector("#activities-list .is-selected")?.classList.remove("is-selected");
+    document.querySelector(`#activities-list [data-id="${activityId}"]`)?.classList.add("is-selected");
+
+    const mod = curriculaData.modules.find(m => m.module_number === selectedModule);
+    const activity = mod ? mod.activities.find(a => a.activity_id === activityId) : null;
+    if (!activity) return;
+
+    const placeholders = activity.placeholder_variables || [];
+    const container = document.getElementById("placeholder-fields");
+    if (!placeholders.length) {
+      container.innerHTML = '<p class="status">No placeholders to fill.</p>';
+    } else {
+      container.innerHTML = placeholders.map(v => {
+        const key = v.replace(/[{}]/g, "");
+        const label = key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+        const known = PROFILE_MAP[key] || "";
+        const val = known ? ' value="'+known+'"' : "";
+        return '<div class="field"><label for="ph-'+key+'">'+label+'</label><input id="ph-'+key+'" type="text" class="input" placeholder="Enter '+label.toLowerCase()+'"'+val+' /></div>';
+      }).join("");
+    }
+    showStep("step-placeholders");
+  }
+
+  function showLoading(msg, log) {
+    document.getElementById("loading-overlay").style.display = "flex";
+    document.getElementById("loading-msg").textContent = msg || "Generating story...";
+    const logEl = document.getElementById("loading-log");
+    if (log) logEl.textContent = (logEl.textContent ? logEl.textContent + "\n" : "") + log;
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function hideLoading() {
+    document.getElementById("loading-overlay").style.display = "none";
+    document.getElementById("loading-log").textContent = "";
+  }
+
+  async function generateStory() {
+    const mod = curriculaData.modules.find(m => m.module_number === selectedModule);
+    const activity = mod ? mod.activities.find(a => a.activity_id === selectedActivity) : null;
+    if (!activity) return;
+
+    const placeholders = activity.placeholder_variables || [];
+    const values = {};
+    placeholders.forEach(v => {
+      const key = v.replace(/[{}]/g, "");
+      const input = document.getElementById(`ph-${key}`);
+      values[key] = input ? input.value.trim() || `[${key}]` : `[${key}]`;
+    });
+
+    const btn = document.getElementById("generate-btn");
+    setButtonBusy(btn, true, "Generating...");
+    setStatus("Generating story...", "info");
+    showLoading("Generating story...", "Sending request to LLM...");
+
+    const progressMsgs = [
+      "LLM processing... (may take 30-60s)",
+      "Validating story quality...",
+      "Finalizing output...",
+    ];
+    let pi = 0;
+    progressTimer = setInterval(() => {
+      if (pi < progressMsgs.length) {
+        const el = document.getElementById("loading-log");
+        el.textContent = (el.textContent ? el.textContent + "\n" : "") + progressMsgs[pi];
+        el.scrollTop = el.scrollHeight;
+        pi++;
+      }
+    }, 15000);
+
+    try {
+      const result = await apiRequest("POST", "/api/story/generate", {
+        curriculum: selectedCurriculum,
+        module_number: selectedModule,
+        activity_id: selectedActivity,
+        placeholder_values: values,
+      });
+
+      document.getElementById("story-meta").textContent =
+        `${result.curriculum_title} › ${result.module_title} › ${result.activity.name}`;
+      const story = result.story || "";
+      const paragraphs = story.split(/\n{2,}/).filter(Boolean);
+      document.getElementById("story-output").innerHTML = paragraphs.map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join("");
+      showStep("step-result");
+      clearInterval(progressTimer);
+      hideLoading();
+      const playBtn = document.getElementById("play-btn");
+      if (playBtn) { playBtn.style.display = ""; playBtn.textContent = "▶ Play story"; }
+      const audioSec = document.getElementById("audio-section");
+      if (audioSec) audioSec.style.display = "block";
+      setStatus("Story generated successfully.", "success", 5000);
+    } catch (err) {
+      clearInterval(progressTimer);
+      showLoading("Error", err.message);
+      setTimeout(hideLoading, 4000);
+      setStatus(String(err), "error", 8000);
+    } finally {
+      clearInterval(progressTimer);
+      setButtonBusy(btn, false);
+    }
+  }
+
+  let progressTimer = null;
+
+  function resetAll() {
+    if (progressTimer) clearInterval(progressTimer);
+    speechSynthesis.cancel();
+    const player = document.getElementById("audio-player");
+    if (player) { player.pause(); player.style.display = "none"; player.src = ""; }
+    const audioSec = document.getElementById("audio-section");
+    if (audioSec) audioSec.style.display = "none";
+    document.getElementById("audio-status").textContent = "";
+    const playBtn = document.getElementById("play-btn");
+    if (playBtn) { playBtn.style.display = "none"; playBtn.textContent = "▶ Play story"; }
+    selectedCurriculum = null;
+    selectedModule = null;
+    selectedActivity = null;
+    curriculaData = null;
+    document.querySelectorAll(".is-selected").forEach(el => el.classList.remove("is-selected"));
+    document.getElementById("modules-list").innerHTML = '<p class="status">Select a curriculum first.</p>';
+    document.getElementById("activities-list").innerHTML = '<p class="status">Select a module first.</p>';
+    document.getElementById("placeholder-fields").innerHTML = "";
+    document.getElementById("story-output").textContent = "";
+    document.getElementById("story-meta").textContent = "";
+    showStep("step-placeholders");
+    loadCurricula();
+  }
+
+  let utterance = null;
+
+  async function generateAudio() {
+    const status = document.getElementById("audio-status");
+    const player = document.getElementById("audio-player");
+    const btn = document.getElementById("audio-btn");
+    const text = document.getElementById("story-output")?.textContent || "";
+    if (!text) { status.textContent = "No story to read."; return; }
+
+    btn.disabled = true;
+    status.textContent = "Generating first part of audio...";
+    if (player) { player.style.display = "none"; }
+
+    let restLoaded = false;
+    let restBlob = null;
+    let firstEnded = false;
+    let playingRest = false;
+
+    try {
+      const tokenRes = await fetch("/auth/session-token");
+      if (!tokenRes.ok) throw new Error("Not authenticated");
+      const { access_token } = await tokenRes.json();
+
+      function tts(body) {
+        return fetch("/api/story/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + access_token },
+          body: JSON.stringify(body),
+        }).then(r => r.json().then(d => { if (!r.ok) throw new Error(d.detail || "TTS failed"); return d; }));
+      }
+
+      async function mergeWavs(b1, b2) {
+        const [buf1, buf2] = await Promise.all([b1.arrayBuffer(), b2.arrayBuffer()]);
+        const pcm1 = new Uint8Array(buf1, 44);
+        const pcm2 = new Uint8Array(buf2, 44);
+        const mergedPcm = new Uint8Array(pcm1.length + pcm2.length);
+        mergedPcm.set(pcm1, 0);
+        mergedPcm.set(pcm2, pcm1.length);
+        const sr = 24000, bps = 16, ch = 1;
+        const br = sr * ch * bps / 8, ba = ch * bps / 8;
+        const ds = mergedPcm.length;
+        const h = new ArrayBuffer(44);
+        const dv = new DataView(h);
+        dv.setUint32(0, 0x52494646, false); dv.setUint32(4, 36 + ds, true);
+        dv.setUint32(8, 0x57415645, false); dv.setUint32(12, 0x666D7420, false);
+        dv.setUint16(20, 1, true); dv.setUint16(22, ch, true);
+        dv.setUint32(24, sr, true); dv.setUint32(28, br, true);
+        dv.setUint16(32, ba, true); dv.setUint16(34, bps, true);
+        dv.setUint32(40, ds, true);
+        const out = new Uint8Array(44 + ds);
+        out.set(new Uint8Array(h), 0); out.set(mergedPcm, 44);
+        return new Blob([out], { type: "audio/wav" });
+      }
+
+      const first = await tts({ text, part: "first" });
+      const firstBlob = base64ToBlob(first.audioContent, "audio/wav");
+      const firstUrl = URL.createObjectURL(firstBlob);
+      const firstDurationSec = Math.round(firstBlob.size / 48000);
+
+      player.addEventListener("ended", () => {
+        firstEnded = true;
+        if (restLoaded) {
+          const mergedUrl = URL.createObjectURL(restBlob);
+          player.src = mergedUrl;
+          player.play();
+          playingRest = true;
+        }
+      }, { once: true });
+
+      status.textContent = "Playing first part, generating rest...";
+      btn.disabled = false;
+      if (player) {
+        player.src = firstUrl;
+        player.style.display = "block";
+        player.play();
+      }
+
+      tts({ text, part: "rest", split_offset: first.splitOffset }).then(async (rest) => {
+        const restPartBlob = base64ToBlob(rest.audioContent, "audio/wav");
+
+        // Merge both parts into one fully-seekable WAV
+        restBlob = await mergeWavs(firstBlob, restPartBlob);
+        const mergedUrl = URL.createObjectURL(restBlob);
+        restLoaded = true;
+
+        if (firstEnded) {
+          // Player already done with first part
+          const ct = playingRest ? firstDurationSec + player.currentTime : firstDurationSec;
+          player.src = mergedUrl;
+          player.currentTime = ct;
+          player.play();
+          playingRest = true;
+        } else {
+          // Still playing first part — queue seamless swap on ended
+          player.addEventListener("ended", () => {
+            const ct = firstDurationSec;
+            player.src = mergedUrl;
+            player.currentTime = ct;
+            player.play();
+            playingRest = true;
+          }, { once: true });
+        }
+        status.textContent = "Playing (full audio ready)";
+      }).catch(err => {
+        status.textContent = "Rest audio failed, first part still playing: " + err.message;
+      });
+    } catch (err) {
+      status.textContent = "Error: " + err.message;
+      btn.disabled = false;
+    }
+  }
+
+  function base64ToBlob(b64, mime) {
+    const byteChars = atob(b64);
+    const arr = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) arr[i] = byteChars.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  }
+
+  function togglePlay() {
+    const btn = document.getElementById("play-btn");
+    if (!btn) return;
+    if (speechSynthesis.speaking && !speechSynthesis.paused) {
+      speechSynthesis.pause();
+      btn.textContent = "▶ Resume";
+      return;
+    }
+    if (speechSynthesis.paused) {
+      speechSynthesis.resume();
+      btn.textContent = "⏸ Pause";
+      return;
+    }
+    const text = document.getElementById("story-output")?.textContent || "";
+    if (!text) return;
+    speechSynthesis.cancel();
+    utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "ml-IN";
+    utterance.rate = 0.9;
+    utterance.onend = () => { btn.textContent = "▶ Play story"; };
+    utterance.onpause = () => { btn.textContent = "▶ Resume"; };
+    utterance.onresume = () => { btn.textContent = "⏸ Pause"; };
+    speechSynthesis.speak(utterance);
+    btn.textContent = "⏸ Pause";
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("generate-btn")?.addEventListener("click", generateStory);
+    document.getElementById("play-btn")?.addEventListener("click", togglePlay);
+    document.getElementById("audio-btn")?.addEventListener("click", generateAudio);
+    document.getElementById("reset-btn")?.addEventListener("click", resetAll);
+    loadCurricula();
+  });
+})();
+</script>
+{% endblock %}

@@ -23,9 +23,20 @@ NeuroLearn focuses on student-centered learning support with adaptive explanatio
 - **Mastery Tracking:** Persists learning milestones and mastery events (via SQLite) to continuously improve the AI's understanding of the student over time.
 - **Personalized Check Questions:** Generates follow-up checks to confirm understanding before moving to the next concept.
 - **Source-Grounded Answers:** Keeps traceable links to learning content so explanations can be tied back to where the concept came from.
-- **Smalltalk-Aware Routing:** Recognizes greetings/thanks and responds via the LLM without hitting retrieval.
+- **Smalltalk-Aware Routing:** Recognizes greetings/thanks and responds via the LLM without hitting retrieval. If a check question is pending, answers the smalltalk then reprints the reminder.
 - **No-Docs Guardrail:** Suppresses answers when retrieval returns no passages and returns a clear error message.
 - **Retrieval Hardening:** Filters weak chunks, deduplicates near-duplicates, and reranks candidates before they reach the prompt.
+- **Topicality Guard:** Suppresses check questions when retrieved passages are too weak or off-topic. Uses embedding similarity + lexical overlap thresholds.
+- **Answer Evaluation Fast Path:** Heuristic concept-key mapping and overlap-based correct-answer detection skip LLM calls for obvious cases.
+- **Retrieval Caching:** Repeated queries reuse prior retrieval results, with invalidation tied to vector index state.
+- **Incremental Indexing:** OCR pipeline and vector index builds skip unchanged PDFs/chunks, making refreshes fast.
+- **Per-Node Timing:** Each graph node reports its execution time, making it easy to spot bottlenecks.
+- **Interactive CLI Routing Fix:** Detects whether user input is a new question vs. an answer to a pending check question, preventing confusing misroutes.
+- **Fallback Answers:** When retrieval is thin or the model refuses, a general fallback answer is returned instead of a dead end.
+- **Story Mode:** Type `story` after any answer to get a child-friendly Malayalam story version. Also available via `--story` flag and API endpoint `GET /api/conversations/{sid}/{cid}/{tid}/story`.
+- **Chapter Mode:** Lets students pick a PDF chapter and optionally drill into a specific module (മൊഡ്യൂള്). Loads only relevant chunks for focused practice.
+- **Story Generation:** In learn mode, generates a single continuous Malayalam story from all module chunks with a moral paragraph (കഥയുടെ പാഠം). Uses `max_tokens=5000` for longer narratives.
+- **Manual Module Override:** `chapter_modules.csv` lets you hand-edit page ranges per module, overriding auto-detection when needed.
 
 ## 🧭 Visual Architecture Diagram
 
@@ -179,6 +190,10 @@ python main.py --student-id s100 \
    --retrieval-min-similarity 0.35
 ```
 
+**Opt-in features:**
+- **Story Mode:** After any answer, type `story` at the prompt to get a child-friendly Malayalam story version. Also available via `--story` flag for single-query mode.
+- **Chapter Mode:** Type `chapter` at the prompt to enter a drill harness grounded in a specific PDF chapter (and optionally a module within it). Also available via `--chapter-mode` flag.
+
 **Behavior notes:**
 - Greetings/thanks are treated as smalltalk and answered without retrieval.
 - If no sources are found, the CLI returns an explicit no-sources error instead of a generated answer.
@@ -209,12 +224,27 @@ python pipeline/pdf_content_pipeline.py \
 python pipeline/build_vector_index.py
 ```
 
+### 3. Run with Docker
+```bash
+docker compose -f docker/docker-compose.yml up --build
+```
+
+### 4. Verify the app
+```bash
+# Health check
+curl http://localhost:8000/api/health
+
+# Smoke test
+python test_api.py
+```
+
 ![NeuroLearn Demo](docs/demo.png)
 
 ## 📄 License
 
 ## 📚 Guides and Concepts
 To understand the project and how to work with it, start with these docs:
+- **[how_to.md](how_to.md)**: Complete run guide covering CLI, API, web app, Docker, verification, data pipelines, Story Mode, and Chapter Mode with module selection.
 - **[SETUP.md](docs/SETUP.md)**: Local installation, environment variables, and smoke test steps.
 - **[WEB_PRODUCT_DESIGN.md](docs/WEB_PRODUCT_DESIGN.md)**: Product boundary, API contracts, frontend logic, and deployment architecture for web migration (student tutor UI + admin dashboard + single-VPS target).
 - **[FRONTEND_API_INTEGRATION.md](docs/FRONTEND_API_INTEGRATION.md)**: Practical frontend integration guide with auth flow, request/response examples, and endpoint-by-endpoint usage.
@@ -226,6 +256,9 @@ To understand the project and how to work with it, start with these docs:
 - **[DEPLOYMENT.md](docs/DEPLOYMENT.md)**: Current CLI-first deployment notes and what would need to change for hosting.
 - **[EXAMPLES.md](docs/EXAMPLES.md)**: Example student flows and pipeline usage.
 - **[TESTING.md](docs/TESTING.md)**: Validation checklist and testing workflow.
+
+Chapter mode with module selection:
+- `chapter_modules.csv` — manually editable page ranges for each module (source, module, start_page, end_page). Overrides auto-detection when present. See [how_to.md](how_to.md) §10 for details.
 
 Internal notes and build history:
 - **[FLOW.md](docs/FLOW.md)**: Detailed mapping of the data flow and AI interactions.

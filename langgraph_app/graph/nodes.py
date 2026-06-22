@@ -3,6 +3,50 @@
 from langgraph_app.config import TOP_K
 from langgraph_app.graph.mastery import process_mastery_side_effects
 from langgraph_app.state import RAGState
+from collections import OrderedDict
+import hashlib
+import json
+
+
+# Simple in-memory LRU cache for personalizer outputs.
+# Keyed by sha256(question + doc ids + student_profile summary).
+_PERSONALIZER_CACHE: OrderedDict[str, str] = OrderedDict()
+_PERSONALIZER_CACHE_MAX = 1024
+
+# Simple in-memory LRU cache for judge results (label, reason)
+_JUDGE_CACHE: OrderedDict[str, tuple[str, str]] = OrderedDict()
+_JUDGE_CACHE_MAX = 4096
+
+
+def _looks_like_insufficient_answer(text: str) -> bool:
+    lowered = (text or "").lower()
+    return any(
+        phrase in lowered
+        for phrase in (
+            "not enough information",
+            "unable to answer",
+            "cannot answer",
+            "could not find",
+            "no relevant sources",
+            "provided passages",
+            "motham info",
+            "no direct passages",
+            "not directly stated",
+            "not available in the retrieved",
+            "not enough direct",
+            "no evidence",
+            "വിവരമില്ല",
+            "മതിയായ വിവര",
+            "ലഭ്യമല്ല",
+            "ഉത്തരം നൽകാൻ കഴിയില്ല",
+            "ഉത്തരം നൽകാൻ സാധ്യമല്ല",
+            "പ്രദത്തപ്പെട്ട രേഖകളിൽ",
+            "കൊടുത്തിരിക്കുന്ന രേഖകളിൽ",
+            "ലഭ്യമായ ഉറവിടങ്ങളിൽ നിന്ന്",
+            "രേഖകളിൽ വിവരമില്ല",
+            "വിവരണം ഇല്ലാത്തതിനാൽ",
+        )
+    )
 
 
 def make_parent_orchestrator():
@@ -42,27 +86,30 @@ def make_goal_drift_checker(llm, node_name: str = "goal_drift_checker"):
                 "active_node": node_name,
             }
 
-        student_db = state.get("student_db")
-        student_id = state.get("student_id")
         question = state.get("question", "")
         student_profile = state.get("student_profile")
+        goal_text = str(state.get("active_learning_goal") or "").strip()
 
-        if not student_db or not student_id:
-            return {
-                "drift_detected": False,
-                "drift_reason": "no_student_context",
-                "active_node": node_name,
-            }
+        if not goal_text:
+            student_db = state.get("student_db")
+            student_id = state.get("student_id")
+            if not student_db or not student_id:
+                return {
+                    "drift_detected": False,
+                    "drift_reason": "no_student_context",
+                    "active_node": node_name,
+                }
 
-        goal = student_db.get_active_learning_goal(student_id)
-        if not goal:
-            return {
-                "drift_detected": False,
-                "drift_reason": "no_active_goal",
-                "active_node": node_name,
-            }
+            goal = student_db.get_active_learning_goal(student_id)
+            if not goal:
+                return {
+                    "drift_detected": False,
+                    "drift_reason": "no_active_goal",
+                    "active_node": node_name,
+                }
 
-        goal_text = str(goal.get("goal_text") or "").strip()
+            goal_text = str(goal.get("goal_text") or "").strip()
+
         if not goal_text:
             return {
                 "drift_detected": False,
@@ -156,23 +203,75 @@ def make_personalizer(llm, node_name: str = "personalizer"):
         # Short-circuit if retriever found no documents
         if state.get("no_docs_found") or not (state.get("docs") or []):
             print(f"   Personalizer short-circuited for node: {node_name} (no docs)")
+            question = state.get("question", "")
+            profile = state.get("student_profile") or {}
+            explanation = llm.generate_general_answer(question, profile)
             return {
-                "personalized_explanation": "",
-                "answer": "",
+                "personalized_explanation": explanation,
+                "answer": explanation,
                 "no_docs_found": True,
+                "general_answer_fallback": True,
                 "active_node": node_name,
             }
 
+        # Compute a stable cache key based on question, docs ids, and a small
+        # fingerprint of the student profile to avoid repeated LLM calls.
+        question = state.get("question", "")
+        docs = state.get("docs", [])
+        profile = state.get("student_profile") or {}
+
+        doc_ids = [str(d.get("chunk_id") or d.get("id") or d.get("source") or "") for d in docs]
+        key_payload = {"q": question, "docs": doc_ids, "profile": {k: profile.get(k) for k in sorted(profile) if k in ("learning_style", "reading_age")}}
+        key_raw = json.dumps(key_payload, sort_keys=True, ensure_ascii=False)
+        key = hashlib.sha256(key_raw.encode("utf-8")).hexdigest()
+
+        # Check cache
+        if key in _PERSONALIZER_CACHE:
+            explanation = _PERSONALIZER_CACHE[key]
+            # move to end to mark recent use
+            _PERSONALIZER_CACHE.move_to_end(key)
+            print(f"   Personalizer cache hit for node: {node_name}")
+            return {"personalized_explanation": explanation, "answer": explanation, "active_node": node_name}
+
         print(f"   Personalizer running for node: {node_name}")
         explanation = llm.personalize(
-            state["question"],
-            state.get("docs", []),
-            state.get("student_profile"),
+            question,
+            docs,
+            profile,
         )
+        if _looks_like_insufficient_answer(explanation):
+            print(f"   Personalizer fallback triggered for node: {node_name} (insufficient grounding)")
+            explanation = llm.generate_general_answer(question, profile)
+            return {
+                "personalized_explanation": explanation,
+                "answer": explanation,
+                "general_answer_fallback": True,
+                "active_node": node_name,
+            }
+
+        # If the general answer itself still looks like a refusal, force one more fallback.
+        if _looks_like_insufficient_answer(explanation):
+            explanation = (
+                "ഈ വിഷയം പൊതുവായി പറഞ്ഞാൽ, മനസ്സിലാക്കാൻ ലളിതമായ രീതിയിൽ മറുപടി നൽകാം. "
+                "കൂടുതൽ വിശദമായ explanation വേണമെങ്കിൽ ചോദ്യം അല്പം വ്യക്തമായി ചോദിക്കൂ."
+            )
+            return {
+                "personalized_explanation": explanation,
+                "answer": explanation,
+                "general_answer_fallback": True,
+                "active_node": node_name,
+            }
         print("   Personalizer produced explanation")
+
+        # Store in cache with simple size cap
+        _PERSONALIZER_CACHE[key] = explanation
+        if len(_PERSONALIZER_CACHE) > _PERSONALIZER_CACHE_MAX:
+            _PERSONALIZER_CACHE.popitem(last=False)
+
         return {
             "personalized_explanation": explanation,
             "answer": explanation,
+            "general_answer_fallback": False,
             "active_node": node_name,
         }
 
@@ -183,9 +282,6 @@ def make_personalization_gate(llm, node_name: str = "personalization_gate"):
     def personalization_gate(state: RAGState) -> RAGState:
         explanation = (state.get("personalized_explanation") or state.get("answer") or "").strip()
         retry_count = int(state.get("complexity_retry_count", 0))
-        label, judge_reason = llm.judge_personalization_complexity(explanation)
-        judge_source = "LLM" if judge_reason.startswith("llm:") else "FALLBACK"
-        print(f"   Gate A judge source: {judge_source}")
         words = explanation.split()
         word_count = len(words)
         avg_word_len = (sum(len(w) for w in words) / word_count) if word_count else 0.0
@@ -197,13 +293,39 @@ def make_personalization_gate(llm, node_name: str = "personalization_gate"):
             or explanation.count(";") >= 3
             or explanation.count(":") >= 3
         )
-        if label == "revise" and not clearly_over_complex:
-            print(
-                "   Gate A override: revise -> deliver "
-                f"(not clearly over-complex: words={word_count}, avg_word_len={avg_word_len:.2f})"
-            )
+
+        # Fast path: short, plain explanations do not need an LLM judge.
+        clearly_simple = not clearly_over_complex and word_count < 80 and avg_word_len < 7.5 and explanation.count(".") <= 3
+        if clearly_simple:
             label = "deliver"
-            judge_reason = f"{judge_reason}:override_not_overcomplex"
+            judge_reason = f"heuristic:deliver:words={word_count}:avg={avg_word_len:.2f}"
+            print("   Gate A judge source: HEURISTIC")
+        else:
+            # Use a cached judge result when possible to avoid repeated LLM calls
+            explanation_key = hashlib.sha256(explanation.encode("utf-8")).hexdigest()
+            cached = _JUDGE_CACHE.get(explanation_key)
+            if cached is not None:
+                label, judge_reason = cached
+                judge_source = "CACHE"
+                # move to end to mark recent use
+                _JUDGE_CACHE.move_to_end(explanation_key)
+                print(f"   Gate A judge source: {judge_source}")
+            else:
+                label, judge_reason = llm.judge_personalization_complexity(explanation)
+                judge_source = "LLM" if judge_reason.startswith("llm:") else "FALLBACK"
+                print(f"   Gate A judge source: {judge_source}")
+                # store in cache
+                _JUDGE_CACHE[explanation_key] = (label, judge_reason)
+                if len(_JUDGE_CACHE) > _JUDGE_CACHE_MAX:
+                    _JUDGE_CACHE.popitem(last=False)
+
+            if label == "revise" and not clearly_over_complex:
+                print(
+                    "   Gate A override: revise -> deliver "
+                    f"(not clearly over-complex: words={word_count}, avg_word_len={avg_word_len:.2f})"
+                )
+                label = "deliver"
+                judge_reason = f"{judge_reason}:override_not_overcomplex"
 
         if label == "revise" and retry_count == 0:
             reason = f"too_complex: {judge_reason}; simplify once and retry"
@@ -235,6 +357,16 @@ def make_personalization_gate(llm, node_name: str = "personalization_gate"):
 
 def make_evaluator(llm, node_name: str = "evaluator"):
     def evaluator(state: RAGState) -> RAGState:
+        if state.get("general_answer_fallback"):
+            print(f"   Evaluator skipped for node: {node_name} (general answer fallback)")
+            return {
+                "evaluation_result": {
+                    "status": "general_answer_fallback",
+                    "is_correct": None,
+                },
+                "active_node": node_name,
+            }
+
         explanation = (state.get("personalized_explanation") or state.get("answer") or "").strip()
         question = state.get("question", "")
         student_profile = state.get("student_profile")

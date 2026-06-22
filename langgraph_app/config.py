@@ -3,7 +3,7 @@
 DEFAULT_DB_DIR = "./vectorstore"
 STUDENT_DB_PATH = "./data/student_profiles.db"
 DEFAULT_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-GROQ_MODEL = "openai/gpt-oss-120b"
+GROQ_MODEL = "llama-3.3-70b-versatile"
 INTENT_MODEL = "llama-3.1-8b-instant"
 COMPLEXITY_JUDGE_MODEL = "llama-3.1-8b-instant"
 TOP_K = 5
@@ -25,9 +25,10 @@ Only say there is not enough information when the retrieved passages are truly
 unrelated or do not support any grounded answer.
 
 Rules:
-- Always reply in Malayalam script (Unicode).
+- STRICTLY Malayalam script (Unicode range U+0D00–U+0D7F) only. NEVER use Korean,
+  Chinese, Japanese, Arabic, Cyrillic, or any other non-Malayalam script.
 - Be concise and accurate.
-- Cite which source document the information comes from when possible.
+- Do NOT cite source numbers or document names. Output like a tutor explaining naturally.
 - If the question is in Malayalam, answer in Malayalam.
 - If the question is in English, still answer in Malayalam but you may include
   the English term in parentheses for clarity.

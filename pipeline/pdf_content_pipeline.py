@@ -194,6 +194,8 @@ def process_single_pdf(
     Designed to be called inside a process-pool worker.
     """
     pdf_name = os.path.basename(pdf_path)
+    out_name = Path(pdf_name).stem + ".json"
+    out_path = os.path.join(output_dir, out_name)
     result = {
         "file": pdf_name,
         "status": "success",
@@ -204,6 +206,22 @@ def process_single_pdf(
         "short_chunks_skipped": 0,
         "error": None,
     }
+
+    try:
+        if os.path.exists(out_path) and os.path.getmtime(out_path) >= os.path.getmtime(pdf_path):
+            try:
+                with open(out_path, "r", encoding="utf-8") as fh:
+                    existing_chunks = json.load(fh)
+                if isinstance(existing_chunks, list):
+                    result["chunks"] = len(existing_chunks)
+                    result["cached"] = True
+                    log.info("Skipping unchanged PDF %s", pdf_name)
+                    return result
+            except Exception:
+                # Fall back to full OCR if the cached chunk file is unreadable.
+                pass
+    except OSError:
+        pass
 
     try:
         images = pdf_to_images(pdf_path, dpi=dpi)
@@ -247,8 +265,6 @@ def process_single_pdf(
             chunk_id += 1
 
     # Write JSON output
-    out_name = Path(pdf_name).stem + ".json"
-    out_path = os.path.join(output_dir, out_name)
     with open(out_path, "w", encoding="utf-8") as fh:
         json.dump(all_chunks, fh, ensure_ascii=False, indent=2)
 

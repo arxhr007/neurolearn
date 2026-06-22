@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Story Generator - NeuroLearn</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      .story-step { display: none; }
+      .story-step.is-active { display: block; }
+      .placeholder-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+      .story-output { white-space: pre-wrap; font-size: 1.1rem; line-height: 1.8; direction: rtl; text-align: right; }
+      .sel-card { cursor: pointer; padding: var(--space-3); border: 2px solid var(--border); border-radius: var(--radius); transition: border-color .15s; }
+      .sel-card:hover { border-color: var(--accent); }
+      .sel-card.is-selected { border-color: var(--accent); background: var(--accent-bg); }
+    </style>
+  </head>
+  <body data-role="student">
+    <div class="page">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">N</div>
+          <div>
+            <div class="brand-title">NeuroLearn</div>
+            <div class="brand-subtitle">Story Generator</div>
+          </div>
+        </div>
+        <nav class="nav">
+          <a href="index.html">Home</a>
+          <a href="student-dashboard.html">Dashboard</a>
+          <a href="admin-dashboard.html">Admin</a>
+          <a href="teacher-dashboard.html">Teacher</a>
+          <a class="active" href="story.html">Story</a>
+        </nav>
+        <div class="header-right">
+          <div id="auth-indicator" class="auth-indicator">Not signed in</div>
+          <div class="button-row">
+            <button id="sign-out" class="btn ghost" type="button">Sign out</button>
+          </div>
+          <div class="base-controls">
+            <label for="base-url">Base URL</label>
+            <div class="inline">
+              <input id="base-url" type="text" value="http://localhost:8000" />
+              <button id="health-btn" class="btn ghost" type="button">Health</button>
+            </div>
+            <div id="health-status" class="status">Status: unknown</div>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section class="page-header">
+          <div>
+            <div class="eyebrow">Student</div>
+            <h1>Generate personalized stories from curriculum activities.</h1>
+            <p class="subtitle">Pick a curriculum, module, and activity, then fill in details about the child.</p>
+          </div>
+        </section>
+
+        <div id="status-banner" class="status-banner is-hidden" data-tone="info" aria-live="polite"></div>
+
+        <section class="grid grid-3">
+          <article class="card">
+            <div class="card-header">
+              <h2 class="card-title">1. Choose curriculum</h2>
+              <p class="card-subtitle">Select a curriculum package.</p>
+            </div>
+            <div id="curricula-list" class="field">
+              <p class="status">Loading curricula...</p>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-header">
+              <h2 class="card-title">2. Choose module</h2>
+              <p class="card-subtitle">Select a module within the curriculum.</p>
+            </div>
+            <div id="modules-list" class="field">
+              <p class="status">Select a curriculum first.</p>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-header">
+              <h2 class="card-title">3. Choose activity</h2>
+              <p class="card-subtitle">Select an activity to generate a story for.</p>
+            </div>
+            <div id="activities-list" class="field">
+              <p class="status">Select a module first.</p>
+            </div>
+          </article>
+        </section>
+
+        <section id="step-placeholders" class="story-step">
+          <article class="card">
+            <div class="card-header">
+              <h2 class="card-title">4. Personalize the story</h2>
+              <p class="card-subtitle">Fill in details about the child to personalize the story.</p>
+            </div>
+            <form id="placeholder-form" class="form-grid" autocomplete="off">
+              <div id="placeholder-fields" class="placeholder-grid"></div>
+              <div class="button-row">
+                <button id="generate-btn" class="btn" type="submit">Generate story</button>
+              </div>
+            </form>
+          </article>
+        </section>
+
+        <section id="step-result" class="story-step">
+          <article class="card">
+            <div class="card-header">
+              <h2 class="card-title">Generated story</h2>
+              <p id="story-meta" class="card-subtitle"></p>
+            </div>
+            <div id="story-output" class="story-output status-banner" data-tone="info">Story will appear here after generation.</div>
+            <div class="button-row" style="margin-top: var(--space-3);">
+              <button id="reset-btn" class="btn ghost" type="button">Start over</button>
+            </div>
+          </article>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span>Story Generator</span>
+        <span>Tokens stored in localStorage</span>
+      </footer>
+    </div>
+
+    <script src="app.js" defer></script>
+    <script src="story.js" defer></script>
+  </body>
+</html>

@@ -25,6 +25,33 @@ from langgraph_app.state import RAGState
 
 
 logger = logging.getLogger(__name__)
+import time
+
+
+def _wrap_node_with_timing(node_callable, node_name: str):
+    """Wrap a node callable so it records per-node elapsed time into the state.
+
+    The wrapped node returns the same state dict as the original node, but with
+    an appended `node_timings` list containing dicts: {"node": name, "elapsed_ms": float}.
+    """
+
+    def wrapped(state: RAGState) -> RAGState:
+        start = time.perf_counter()
+        result = node_callable(state)
+        elapsed_ms = (time.perf_counter() - start) * 1000.0
+        try:
+            # Ensure we have a mutable dict
+            out = dict(result or {})
+        except Exception:
+            out = {"_raw_result": result}
+
+        prev = list(state.get("node_timings", [])) if isinstance(state.get("node_timings"), list) else []
+        prev.append({"node": node_name, "elapsed_ms": elapsed_ms})
+        out["node_timings"] = prev
+        logger.debug("Node %s took %.1f ms", node_name, elapsed_ms)
+        return out
+
+    return wrapped
 
 
 def _normalize_sqlite_conn_string(checkpoint_path: str) -> str:
@@ -43,6 +70,8 @@ def build_graph_app(
     checkpoint_path: str | None = None,
 ) -> Any:
     def route_by_intent_with_drift(state: RAGState) -> str:
+        if state.get("check_answer_hint"):
+            return "answer_retriever"
         intent = state.get("intent", "new_concept")
         if intent == "smalltalk":
             return "smalltalk_responder"
@@ -58,47 +87,47 @@ def build_graph_app(
         return {"complexity_retry_count": int(state.get("complexity_retry_count", 0))}
 
     graph = StateGraph(RAGState)
-    graph.add_node("parent_orchestrator", make_parent_orchestrator())
-    graph.add_node("intent_classifier", make_llm_intent_classifier(intent_classifier))
+    graph.add_node("parent_orchestrator", _wrap_node_with_timing(make_parent_orchestrator(), "parent_orchestrator"))
+    graph.add_node("intent_classifier", _wrap_node_with_timing(make_llm_intent_classifier(intent_classifier), "intent_classifier"))
     graph.add_node(
         "goal_drift_checker",
-        make_goal_drift_checker(llm, node_name="goal_drift_checker"),
+        _wrap_node_with_timing(make_goal_drift_checker(llm, node_name="goal_drift_checker"), "goal_drift_checker"),
     )
     graph.add_node(
         "drift_redirect",
-        make_drift_redirect(node_name="drift_redirect"),
+        _wrap_node_with_timing(make_drift_redirect(node_name="drift_redirect"), "drift_redirect"),
     )
     graph.add_node(
         "new_concept_retriever",
-        make_knowledge_retriever(retriever, node_name="new_concept_retriever"),
+        _wrap_node_with_timing(make_knowledge_retriever(retriever, node_name="new_concept_retriever"), "new_concept_retriever"),
     )
     graph.add_node(
         "answer_retriever",
-        make_knowledge_retriever(retriever, node_name="answer_retriever"),
+        _wrap_node_with_timing(make_knowledge_retriever(retriever, node_name="answer_retriever"), "answer_retriever"),
     )
     graph.add_node(
         "smalltalk_responder",
-        make_smalltalk_responder(llm, node_name="smalltalk_responder"),
+        _wrap_node_with_timing(make_smalltalk_responder(llm, node_name="smalltalk_responder"), "smalltalk_responder"),
     )
     graph.add_node(
         "new_concept_personalizer",
-        make_personalizer(llm, node_name="new_concept_personalizer"),
+        _wrap_node_with_timing(make_personalizer(llm, node_name="new_concept_personalizer"), "new_concept_personalizer"),
     )
     graph.add_node(
         "personalization_gate",
-        make_personalization_gate(llm, node_name="personalization_gate"),
+        _wrap_node_with_timing(make_personalization_gate(llm, node_name="personalization_gate"), "personalization_gate"),
     )
     graph.add_node(
         "answer_evaluator",
-        make_answer_evaluator(llm, node_name="answer_evaluator"),
+        _wrap_node_with_timing(make_answer_evaluator(llm, node_name="answer_evaluator"), "answer_evaluator"),
     )
     graph.add_node(
         "evaluator",
-        make_evaluator(llm, node_name="evaluator"),
+        _wrap_node_with_timing(make_evaluator(llm, node_name="evaluator"), "evaluator"),
     )
     graph.add_node(
         "remediation",
-        make_remediation_node(llm, node_name="remediation"),
+        _wrap_node_with_timing(make_remediation_node(llm, node_name="remediation"), "remediation"),
     )
 
     def route_by_complexity(state: RAGState) -> str:
