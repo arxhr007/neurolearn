@@ -45,6 +45,14 @@ def _migrate_schema() -> None:
             for row in conn.execute(text("PRAGMA table_info(students)")).fetchall()
         }
         additions = {
+            "father_name": "VARCHAR(120)",
+            "mother_name": "VARCHAR(120)",
+            "grandfather_name": "VARCHAR(120)",
+            "grandmother_name": "VARCHAR(120)",
+            "favorite_color": "VARCHAR(60)",
+            "teacher_name": "VARCHAR(120)",
+            "place": "VARCHAR(200)",
+            "friends": "VARCHAR(500)",
             "favorite_food": "VARCHAR(120)",
             "favorite_animal": "VARCHAR(120)",
             "favorite_interest": "VARCHAR(120)",
