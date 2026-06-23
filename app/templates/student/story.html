@@ -70,7 +70,6 @@
   <div id="story-output" class="story-content"></div>
   <div class="form-actions" style="margin-top: var(--space-3); gap: var(--space-2);">
     <button id="play-btn" class="btn btn-outline" type="button" style="display:none">▶ Play story</button>
-    <button id="reset-btn" class="btn btn-outline" type="button">Start over</button>
   </div>
   <details id="audio-section" style="display:none; margin-top: var(--space-3);">
     <summary style="cursor:pointer; font-weight:600;">Generate audio narration (Gemini TTS)</summary>
@@ -373,30 +372,6 @@
 
   let progressTimer = null;
 
-  function resetAll() {
-    if (progressTimer) clearInterval(progressTimer);
-    speechSynthesis.cancel();
-    const player = document.getElementById("audio-player");
-    if (player) { player.pause(); player.style.display = "none"; player.src = ""; }
-    const audioSec = document.getElementById("audio-section");
-    if (audioSec) audioSec.style.display = "none";
-    document.getElementById("audio-status").textContent = "";
-    const playBtn = document.getElementById("play-btn");
-    if (playBtn) { playBtn.style.display = "none"; playBtn.textContent = "▶ Play story"; }
-    selectedCurriculum = null;
-    selectedModule = null;
-    selectedActivity = null;
-    curriculaData = null;
-    document.querySelectorAll(".is-selected").forEach(el => el.classList.remove("is-selected"));
-    document.getElementById("modules-list").innerHTML = '<p class="status">Select a curriculum first.</p>';
-    document.getElementById("activities-list").innerHTML = '<p class="status">Select a module first.</p>';
-    document.getElementById("placeholder-fields").innerHTML = "";
-    document.getElementById("story-output").textContent = "";
-    document.getElementById("story-meta").textContent = "";
-    showStep("step-placeholders");
-    loadCurricula();
-  }
-
   let utterance = null;
 
   async function generateAudio() {
@@ -515,16 +490,6 @@
   function togglePlay() {
     const btn = document.getElementById("play-btn");
     if (!btn) return;
-    if (speechSynthesis.speaking && !speechSynthesis.paused) {
-      speechSynthesis.pause();
-      btn.textContent = "▶ Resume";
-      return;
-    }
-    if (speechSynthesis.paused) {
-      speechSynthesis.resume();
-      btn.textContent = "⏸ Pause";
-      return;
-    }
     const text = document.getElementById("story-output")?.textContent || "";
     if (!text) return;
     speechSynthesis.cancel();
@@ -532,17 +497,15 @@
     utterance.lang = "ml-IN";
     utterance.rate = 0.9;
     utterance.onend = () => { btn.textContent = "▶ Play story"; };
-    utterance.onpause = () => { btn.textContent = "▶ Resume"; };
-    utterance.onresume = () => { btn.textContent = "⏸ Pause"; };
     speechSynthesis.speak(utterance);
-    btn.textContent = "⏸ Pause";
+    btn.textContent = "▶ Play story";
   }
 
   document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("generate-btn")?.addEventListener("click", generateStory);
     document.getElementById("play-btn")?.addEventListener("click", togglePlay);
     document.getElementById("audio-btn")?.addEventListener("click", generateAudio);
-    document.getElementById("reset-btn")?.addEventListener("click", resetAll);
+
     loadCurricula();
   });
 })();
