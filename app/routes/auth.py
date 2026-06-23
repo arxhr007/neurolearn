@@ -101,6 +101,17 @@ async def student_login(
             "age": student.age,
             "interests": student.interests,
             "neuro_profile": student.neuro_profile,
+            "father_name": student.father_name,
+            "mother_name": student.mother_name,
+            "grandfather_name": student.grandfather_name,
+            "grandmother_name": student.grandmother_name,
+            "favorite_color": student.favorite_color,
+            "teacher_name": student.teacher_name,
+            "place": student.place,
+            "friends": student.friends,
+            "favorite_food": student.favorite_food,
+            "favorite_animal": student.favorite_animal,
+            "favorite_interest": student.favorite_interest,
         },
     )
     return _redirect("/student/dashboard")

@@ -410,11 +410,6 @@
     status.textContent = "Generating first part of audio...";
     if (player) { player.style.display = "none"; }
 
-    let restLoaded = false;
-    let restBlob = null;
-    let firstEnded = false;
-    let playingRest = false;
-
     try {
       const tokenRes = await fetch("/auth/session-token");
       if (!tokenRes.ok) throw new Error("Not authenticated");
@@ -428,43 +423,9 @@
         }).then(r => r.json().then(d => { if (!r.ok) throw new Error(d.detail || "TTS failed"); return d; }));
       }
 
-      async function mergeWavs(b1, b2) {
-        const [buf1, buf2] = await Promise.all([b1.arrayBuffer(), b2.arrayBuffer()]);
-        const pcm1 = new Uint8Array(buf1, 44);
-        const pcm2 = new Uint8Array(buf2, 44);
-        const mergedPcm = new Uint8Array(pcm1.length + pcm2.length);
-        mergedPcm.set(pcm1, 0);
-        mergedPcm.set(pcm2, pcm1.length);
-        const sr = 24000, bps = 16, ch = 1;
-        const br = sr * ch * bps / 8, ba = ch * bps / 8;
-        const ds = mergedPcm.length;
-        const h = new ArrayBuffer(44);
-        const dv = new DataView(h);
-        dv.setUint32(0, 0x52494646, false); dv.setUint32(4, 36 + ds, true);
-        dv.setUint32(8, 0x57415645, false); dv.setUint32(12, 0x666D7420, false);
-        dv.setUint16(20, 1, true); dv.setUint16(22, ch, true);
-        dv.setUint32(24, sr, true); dv.setUint32(28, br, true);
-        dv.setUint16(32, ba, true); dv.setUint16(34, bps, true);
-        dv.setUint32(40, ds, true);
-        const out = new Uint8Array(44 + ds);
-        out.set(new Uint8Array(h), 0); out.set(mergedPcm, 44);
-        return new Blob([out], { type: "audio/wav" });
-      }
-
       const first = await tts({ text, part: "first" });
       const firstBlob = base64ToBlob(first.audioContent, "audio/wav");
       const firstUrl = URL.createObjectURL(firstBlob);
-      const firstDurationSec = Math.round(firstBlob.size / 48000);
-
-      player.addEventListener("ended", () => {
-        firstEnded = true;
-        if (restLoaded) {
-          const mergedUrl = URL.createObjectURL(restBlob);
-          player.src = mergedUrl;
-          player.play();
-          playingRest = true;
-        }
-      }, { once: true });
 
       status.textContent = "Playing first part, generating rest...";
       btn.disabled = false;
@@ -474,31 +435,13 @@
         player.play();
       }
 
-      tts({ text, part: "rest", split_offset: first.splitOffset }).then(async (rest) => {
-        const restPartBlob = base64ToBlob(rest.audioContent, "audio/wav");
-
-        // Merge both parts into one fully-seekable WAV
-        restBlob = await mergeWavs(firstBlob, restPartBlob);
-        const mergedUrl = URL.createObjectURL(restBlob);
-        restLoaded = true;
-
-        if (firstEnded) {
-          // Player already done with first part
-          const ct = playingRest ? firstDurationSec + player.currentTime : firstDurationSec;
-          player.src = mergedUrl;
-          player.currentTime = ct;
+      tts({ text, part: "rest", split_offset: first.splitOffset }).then(rest => {
+        const restBlob = base64ToBlob(rest.audioContent, "audio/wav");
+        const restUrl = URL.createObjectURL(restBlob);
+        player.addEventListener("ended", () => {
+          player.src = restUrl;
           player.play();
-          playingRest = true;
-        } else {
-          // Still playing first part — queue seamless swap on ended
-          player.addEventListener("ended", () => {
-            const ct = firstDurationSec;
-            player.src = mergedUrl;
-            player.currentTime = ct;
-            player.play();
-            playingRest = true;
-          }, { once: true });
-        }
+        }, { once: true });
         status.textContent = "Playing (full audio ready)";
       }).catch(err => {
         status.textContent = "Rest audio failed, first part still playing: " + err.message;
