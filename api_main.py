@@ -984,29 +984,11 @@ def get_conversation_turn_story(
     return {"conversation_id": conversation_id, "turn_id": turn_id, "story": story}
 
 
-@app.get("/api/chapters", tags=["Tutor"])
-def list_chapters(
-    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
-    service: TutorService = Depends(get_tutor_service),
-) -> dict[str, Any]:
-    del current_user
-    return {"chapters": service.list_available_chapters()}
-
-
 class ChapterLearnRequest(BaseModel):
-    source: str
-    module_number: int | None = None
-
-
-@app.get("/api/chapters/{source}/modules", tags=["Tutor"])
-def list_chapter_modules(
-    source: str,
-    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
-    service: TutorService = Depends(get_tutor_service),
-) -> dict[str, Any]:
-    del current_user
-    modules = service.get_chapter_modules(source)
-    return {"modules": modules, "source": source}
+    curriculum: str
+    module_number: int
+    activity_id: str
+    placeholder_values: dict[str, str] = {}
 
 
 @app.post("/api/chapters/learn", tags=["Tutor"])
@@ -1015,53 +997,114 @@ def chapter_learn(
     current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
     service: TutorService = Depends(get_tutor_service),
 ) -> dict[str, Any]:
-    student_id = current_user.student_id
+    """Generate a story from a curriculum template + drill questions."""
+    path = STORY_JSON_DIR / f"{req.curriculum}.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"Curriculum '{req.curriculum}' not found")
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to parse curriculum: {exc}")
+
     module = None
-    if req.module_number:
-        modules = service.get_chapter_modules(req.source)
-        for m in modules:
-            if m["number"] == req.module_number:
-                module = m
-                break
-        chapter_docs = service.load_module_docs(req.source, req.module_number)
-    else:
-        chapter_docs = service.load_chapter_docs(req.source)
+    activity = None
+    for m in data.get("modules", []):
+        if m.get("module_number") == req.module_number:
+            module = m
+            for a in m.get("activities", []):
+                if a.get("activity_id") == req.activity_id:
+                    activity = a
+                    break
+            break
 
-    if not chapter_docs:
-        raise HTTPException(status_code=404, detail="No content found for this chapter/module")
+    if not activity:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Activity '{req.activity_id}' not found in module {req.module_number}",
+        )
 
-    topic = module["title"] if module else req.source
+    story_blueprint = activity.get("story_blueprint") or {}
+    template = story_blueprint.get("story_template_malayalam", "")
+    if not template:
+        raise HTTPException(status_code=400, detail="Activity has no story template")
 
-    from langgraph_app.services.chapter_mode import plan_chapter_session
-    session_plan = plan_chapter_session(topic, chapter_docs)
-    question_count = session_plan.get("question_count", 3)
-
-    combined_text = "\n\n".join(str(d.get("text") or "") for d in chapter_docs if d)
+    student_id = current_user.student_id
     student_profile = None
     try:
         student_profile = service.student_db.get_student_profile(student_id)
     except Exception:
         pass
 
+    auto_values: dict[str, str] = {}
+    if student_profile:
+        relevant_fields = activity.get("relevant_student_fields", [])
+        field_to_placeholder = {
+            "full_name": "child_name",
+            "friends": "friend_name",
+            "favorite_food": "favorite_food",
+            "favorite_animal": "favorite_animal",
+            "favorite_color": "favorite_color",
+            "favorite_interest": "favorite_interest",
+            "place": "place",
+            "mother_name": "mother_name",
+            "father_name": "father_name",
+            "grandmother_name": "grandmother_name",
+            "grandfather_name": "grandfather_name",
+            "teacher_name": "teacher_name",
+        }
+        for field in relevant_fields:
+            placeholder = field_to_placeholder.get(field)
+            if placeholder and f"{{{placeholder}}}" in template:
+                val = student_profile.get(field)
+                if val:
+                    auto_values[placeholder] = str(val)
+
+    merged_values = {**auto_values, **req.placeholder_values}
+
+    filled_template = template
+    for key, value in merged_values.items():
+        filled_template = filled_template.replace("{" + key + "}", value)
+
+    if "{child_name}" in filled_template:
+        profile_name = (student_profile or {}).get("name", "")
+        if profile_name:
+            filled_template = filled_template.replace("{child_name}", profile_name)
+
+    context_docs = [
+        {"source": data.get("curriculum_title", ""), "page": 0, "text": f"Theme: {story_blueprint.get('story_theme', '')}"},
+        {"source": data.get("curriculum_title", ""), "page": 0, "text": f"Concept: {activity.get('main_concept', '')}"},
+        {"source": data.get("curriculum_title", ""), "page": 0, "text": f"Challenge: {'; '.join(activity.get('possible_challenges', [])[:3])}"},
+    ]
+
+    memory_categories = activity.get("relevant_memory_categories")
+
     story = ""
     try:
         story = service.llm.generate_story_from_answer(
-            answer=combined_text or topic,
-            question=f"{req.source} | Module {req.module_number}" if req.module_number else req.source,
-            context_docs=chapter_docs[:3],
+            answer=filled_template,
+            question=f"{activity.get('activity_name', '')} – {module.get('module_title', '')}",
+            context_docs=context_docs,
             student_profile=student_profile,
-            max_tokens=4096,
+            memory_categories=memory_categories,
+            max_tokens=16384,
         )
     except Exception:
         logger.exception("Failed to generate story for chapter learn")
 
+    question_count = 3
     questions = []
     for qi in range(1, question_count + 1):
         try:
             bundle = service.generate_chapter_drill_bundle(
-                chapter_name=req.source,
-                topic=topic,
-                chapter_docs=chapter_docs,
+                chapter_name=data.get("curriculum_title", req.curriculum),
+                topic=story_blueprint.get("story_theme", activity.get("activity_name", "")),
+                chapter_docs=[
+                    {"source": "story", "page": 0, "text": story[:2000]},
+                    {"source": data.get("curriculum_title", ""), "page": 0, "text": f"Theme: {story_blueprint.get('story_theme', '')}"},
+                    {"source": data.get("curriculum_title", ""), "page": 0, "text": f"Goal: {story_blueprint.get('story_goal', '')}"},
+                    {"source": data.get("curriculum_title", ""), "page": 0, "text": f"Moral: {story_blueprint.get('moral', '')}"},
+                ],
                 student_profile=student_profile,
                 question_index=qi,
                 total_questions=question_count,
@@ -1078,10 +1121,69 @@ def chapter_learn(
     return {
         "story": story,
         "questions": questions,
-        "session_plan": session_plan,
-        "module": module,
-        "topic": topic,
+        "activity": {
+            "id": activity.get("activity_id"),
+            "name": activity.get("activity_name"),
+            "theme": story_blueprint.get("story_theme"),
+            "moral": story_blueprint.get("moral"),
+            "educational_concepts": activity.get("educational_concepts", []),
+        },
+        "module_title": module.get("module_title") if module else "",
+        "curriculum_title": data.get("curriculum_title", ""),
     }
+
+
+class ChapterAnswerRequest(BaseModel):
+    curriculum: str
+    module_number: int
+    activity_id: str
+    question: str
+    answer: str
+    expected_answer: str
+    is_correct: bool
+    misconception: str = ""
+
+
+@app.post("/api/chapters/answer", tags=["Tutor"])
+def chapter_answer(
+    req: ChapterAnswerRequest,
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    service: TutorService = Depends(get_tutor_service),
+) -> dict[str, Any]:
+    """Record a drill question answer as a mastery event."""
+    student_id = current_user.student_id
+    path = STORY_JSON_DIR / f"{req.curriculum}.json"
+    concepts = []
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            for m in data.get("modules", []):
+                if m.get("module_number") == req.module_number:
+                    for a in m.get("activities", []):
+                        if a.get("activity_id") == req.activity_id:
+                            concepts = a.get("educational_concepts", [])
+                            break
+                    break
+        except Exception:
+            pass
+    concept_key = f"{req.curriculum}.{req.module_number}.{req.activity_id}"
+    if concepts:
+        concept_key += "." + concepts[0].replace(" ", "_")
+    try:
+        event_id = service.student_db.record_mastery_event(
+            student_id=student_id,
+            concept_key=concept_key,
+            is_correct=req.is_correct,
+            misconception=req.misconception or ("" if req.is_correct else f"Expected: {req.expected_answer}"),
+            confidence=0.95 if req.is_correct else 0.4,
+            source_doc=req.curriculum,
+            source_page=req.module_number,
+            source_chunk_id=None,
+        )
+        return {"mastery_event_id": event_id}
+    except Exception as exc:
+        logger.exception("Failed to record mastery event")
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @app.delete("/api/conversations/{conversation_id}", tags=["Conversations"])
@@ -1737,9 +1839,11 @@ def story_tts(req: TTSRequest):
     """Generate TTS audio.
 
     part=full (default): entire story at once.
-    part=first: first ~1/3 at sentence boundary.
-                Returns {audioContent, splitOffset} so client can call part=rest.
-    part=rest: remaining text from split_offset onward.
+    part=first: first ~1/5 at sentence boundary.
+                Returns {audioContent, splitOffset}.
+    part=second: next ~1/5 (from split_offset onward, ~1/4 of remaining).
+                Returns {audioContent, splitOffset}.
+    part=rest: remaining ~3/5 text from split_offset onward.
                Returns {audioContent}.
     """
     if req.part == "full":
@@ -1754,9 +1858,18 @@ def story_tts(req: TTSRequest):
         return {"audioContent": _pcm_to_wav_b64(pcm)}
 
     if req.part == "first":
-        split_at = _find_split_offset(req.text, 0.33)
+        split_at = _find_split_offset(req.text, 0.20)
         first_text = req.text[:split_at]
         pcm = _tts_generate(first_text)
+        return {"audioContent": _pcm_to_wav_b64(pcm), "splitOffset": split_at}
+
+    if req.part == "second":
+        if req.split_offset <= 0 or req.split_offset >= len(req.text):
+            raise HTTPException(status_code=400, detail="Invalid split_offset for part=second")
+        remaining = req.text[req.split_offset:]
+        split_at = req.split_offset + _find_split_offset(remaining, 0.25)
+        second_text = req.text[req.split_offset:split_at]
+        pcm = _tts_generate(second_text)
         return {"audioContent": _pcm_to_wav_b64(pcm), "splitOffset": split_at}
 
     raise HTTPException(status_code=400, detail=f"Unknown part: {req.part}")
