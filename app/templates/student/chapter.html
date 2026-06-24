@@ -69,16 +69,10 @@
   <div class="form-actions" style="margin-top: var(--space-3); gap: var(--space-2);">
     <button id="play-btn" class="btn btn-outline" type="button" style="display:none">▶ Play story</button>
   </div>
-  <details id="audio-section" style="display:none; margin-top: var(--space-3);">
-    <summary style="cursor:pointer; font-weight:600;">Generate audio narration (Gemini TTS)</summary>
-    <div class="form" style="margin-top: var(--space-2);">
-      <div class="form-actions" style="gap: var(--space-2);">
-        <button id="audio-btn" class="btn" type="button">Generate &amp; play audio</button>
-        <audio id="audio-player" controls style="display:none; width:100%; margin-top: var(--space-2);"></audio>
-      </div>
-      <div id="audio-status" class="status" style="margin-top: var(--space-1);"></div>
-    </div>
-  </details>
+  <div id="audio-section" style="display:none; margin-top: var(--space-3);">
+    <audio id="audio-player" controls style="width:100%;"></audio>
+    <div id="audio-status" class="status" style="margin-top: var(--space-1);"></div>
+  </div>
 </div>
 
 <div id="step-questions" class="card" style="display:none">
@@ -376,8 +370,6 @@
       hideLoading();
       const playBtn = document.getElementById("play-btn");
       if (playBtn) { playBtn.style.display = ""; playBtn.textContent = "▶ Play story"; }
-      const audioSec = document.getElementById("audio-section");
-      if (audioSec) audioSec.style.display = "block";
 
       questions = result.questions || [];
       questionIndex = 0;
@@ -386,7 +378,8 @@
         showQuestion();
       }
 
-      setStatus("Story and questions generated successfully.", "success", 5000);
+      setStatus("Story generated, generating audio...", "info");
+      generateAudio();
     } catch (err) {
       clearInterval(progressTimer);
       showLoading("Error", err.message);
@@ -477,13 +470,13 @@
   async function generateAudio() {
     const status = document.getElementById("audio-status");
     const player = document.getElementById("audio-player");
-    const btn = document.getElementById("audio-btn");
+    const section = document.getElementById("audio-section");
     const text = document.getElementById("story-output")?.textContent || "";
     if (!text) { status.textContent = "No story to read."; return; }
 
-    btn.disabled = true;
     status.textContent = "Generating first part of audio...";
-    if (player) { player.style.display = "none"; }
+    if (section) section.style.display = "block";
+    if (player) player.style.display = "none";
 
     try {
       const tokenRes = await fetch("/auth/session-token");
@@ -528,14 +521,11 @@
 
       const first = await tts({ text, part: "first" });
       const firstBuf = base64ToArrayBuffer(first.audioContent);
-      const firstBlob = new Blob([firstBuf], { type: "audio/wav" });
-      const firstUrl = URL.createObjectURL(firstBlob);
-      const firstDur = (firstBuf.byteLength - 44) / 48000;
+      let mergedBuf = firstBuf;
+      const firstUrl = URL.createObjectURL(new Blob([firstBuf], { type: "audio/wav" }));
       let firstEnded = false;
-      let playingRest = false;
 
-      status.textContent = "Playing first part, generating rest...";
-      btn.disabled = false;
+      status.textContent = "Playing first part, generating more...";
       if (player) {
         player.addEventListener("ended", () => { firstEnded = true; }, { once: true });
         player.src = firstUrl;
@@ -543,31 +533,41 @@
         player.play();
       }
 
-      tts({ text, part: "rest", split_offset: first.splitOffset }).then(async (rest) => {
-        const restBuf = base64ToArrayBuffer(rest.audioContent);
-        const mergedBuf = concatWavs(firstBuf, restBuf);
+      tts({ text, part: "second", split_offset: first.splitOffset }).then(async (second) => {
+        const secondBuf = base64ToArrayBuffer(second.audioContent);
+        mergedBuf = concatWavs(mergedBuf, secondBuf);
         const mergedBlob = new Blob([mergedBuf], { type: "audio/wav" });
         const mergedUrl = URL.createObjectURL(mergedBlob);
-        let ct;
-        if (firstEnded) {
-          ct = firstDur + (playingRest && player ? player.currentTime : 0);
-        } else {
-          ct = player ? player.currentTime : 0;
-        }
+        const pausedAt = player ? player.currentTime : 0;
         if (player) {
           player.src = mergedUrl;
           await new Promise(r => player.addEventListener("loadedmetadata", r, { once: true }));
-          player.currentTime = Math.min(ct, (mergedBuf.byteLength - 44) / 48000);
+          player.currentTime = Math.min(pausedAt, (mergedBuf.byteLength - 44) / 48000);
           player.play();
-          playingRest = true;
         }
-        status.textContent = "Playing (full audio ready)";
+        status.textContent = "Playing (half ready), generating rest...";
+
+        tts({ text, part: "rest", split_offset: second.splitOffset }).then(async (rest) => {
+          const restBuf = base64ToArrayBuffer(rest.audioContent);
+          mergedBuf = concatWavs(mergedBuf, restBuf);
+          const fullBlob = new Blob([mergedBuf], { type: "audio/wav" });
+          const fullUrl = URL.createObjectURL(fullBlob);
+          const ct2 = player ? player.currentTime : 0;
+          if (player) {
+            player.src = fullUrl;
+            await new Promise(r => player.addEventListener("loadedmetadata", r, { once: true }));
+            player.currentTime = Math.min(ct2, (mergedBuf.byteLength - 44) / 48000);
+            player.play();
+          }
+          status.textContent = "Playing (full audio ready)";
+        }).catch(err => {
+          status.textContent = "Rest audio failed, partial playing: " + err.message;
+        });
       }).catch(err => {
-        status.textContent = "Rest audio failed, first part still playing: " + err.message;
+        status.textContent = "Second audio failed: " + err.message;
       });
     } catch (err) {
       status.textContent = "Error: " + err.message;
-      btn.disabled = false;
     }
   }
 
@@ -600,7 +600,7 @@
     document.getElementById("generate-btn")?.addEventListener("click", generateStory);
     document.getElementById("play-btn")?.addEventListener("click", togglePlay);
     document.getElementById("question-play-btn")?.addEventListener("click", playQuestion);
-    document.getElementById("audio-btn")?.addEventListener("click", generateAudio);
+
 
     document.getElementById("answer-form")?.addEventListener("submit", (e) => { e.preventDefault(); submitAnswer(); });
     loadCurricula();

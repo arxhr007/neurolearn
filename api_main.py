@@ -1839,9 +1839,11 @@ def story_tts(req: TTSRequest):
     """Generate TTS audio.
 
     part=full (default): entire story at once.
-    part=first: first ~1/3 at sentence boundary.
-                Returns {audioContent, splitOffset} so client can call part=rest.
-    part=rest: remaining text from split_offset onward.
+    part=first: first ~1/5 at sentence boundary.
+                Returns {audioContent, splitOffset}.
+    part=second: next ~1/5 (from split_offset onward, ~1/4 of remaining).
+                Returns {audioContent, splitOffset}.
+    part=rest: remaining ~3/5 text from split_offset onward.
                Returns {audioContent}.
     """
     if req.part == "full":
@@ -1856,9 +1858,18 @@ def story_tts(req: TTSRequest):
         return {"audioContent": _pcm_to_wav_b64(pcm)}
 
     if req.part == "first":
-        split_at = _find_split_offset(req.text, 0.33)
+        split_at = _find_split_offset(req.text, 0.20)
         first_text = req.text[:split_at]
         pcm = _tts_generate(first_text)
+        return {"audioContent": _pcm_to_wav_b64(pcm), "splitOffset": split_at}
+
+    if req.part == "second":
+        if req.split_offset <= 0 or req.split_offset >= len(req.text):
+            raise HTTPException(status_code=400, detail="Invalid split_offset for part=second")
+        remaining = req.text[req.split_offset:]
+        split_at = req.split_offset + _find_split_offset(remaining, 0.25)
+        second_text = req.text[req.split_offset:split_at]
+        pcm = _tts_generate(second_text)
         return {"audioContent": _pcm_to_wav_b64(pcm), "splitOffset": split_at}
 
     raise HTTPException(status_code=400, detail=f"Unknown part: {req.part}")
