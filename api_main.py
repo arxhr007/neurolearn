@@ -110,7 +110,7 @@ class Settings(BaseSettings):
     story_provider: str = "gemini"
     allow_dev_users: bool = True
 
-    cors_origins_raw: str = "http://localhost:3000,http://localhost:5173,http://localhost:8000"
+    cors_origins_raw: str = "http://localhost:3000,http://localhost:5173,http://localhost:8000,http://localhost:8800"
 
     graph_checkpoint_dir: str = "./checkpoints"
     tutor_response_timeout: int = 30
@@ -1784,7 +1784,7 @@ class TTSRequest(BaseModel):
 
 TTS_FALLBACK_MODELS = [
     "gemini-2.5-flash-preview-tts",
-    "gemini-2.0-flash-exp",
+    "gemini-2.5-pro-preview-tts",
 ]
 
 
@@ -1808,17 +1808,33 @@ def _tts_generate(prompt_text: str) -> bytes:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
             payload = {
                 "contents": [{
-                    "parts": [{"text": f"Generate spoken Malayalam audio narration for this children's story:\n\n{prompt_text}"}]
+                    "parts": [{"text": prompt_text}]
                 }],
-                "generationConfig": {"responseModalities": ["AUDIO"]},
+                "generationConfig": {
+                    "responseModalities": ["AUDIO"],
+                    "speechConfig": {
+                        "voiceConfig": {
+                            "prebuiltVoiceConfig": {"voiceName": "Aoede"}
+                        }
+                    },
+                },
             }
             data = json.dumps(payload).encode("utf-8")
             http_req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
-            resp = urllib.request.urlopen(http_req, timeout=120)
+            try:
+                resp = urllib.request.urlopen(http_req, timeout=120)
+            except urllib.error.HTTPError as http_err:
+                body_bytes = http_err.read()
+                try:
+                    err_body = json.loads(body_bytes)
+                    gemini_msg = err_body.get("error", {}).get("message", body_bytes.decode()[:200])
+                except Exception:
+                    gemini_msg = body_bytes.decode()[:200]
+                raise RuntimeError(f"HTTP {http_err.code}: {gemini_msg}")
             body = json.loads(resp.read())
             candidates = body.get("candidates", [])
             if not candidates:
-                raise RuntimeError("No response from TTS model")
+                raise RuntimeError("No candidates in TTS response")
             parts = candidates[0].get("content", {}).get("parts", [])
             inline = next((p.get("inlineData") for p in parts if "inlineData" in p), None)
             if not inline:
@@ -1826,12 +1842,13 @@ def _tts_generate(prompt_text: str) -> bytes:
             return base64.b64decode(inline["data"])
         except Exception as exc:
             err_str = str(exc)
-            print(f"   TTS model {model} failed: {err_str[:100]}")
-            last_error = exc
-            if "429" not in err_str and "quota" not in err_str.lower():
+            print(f"   TTS model {model} failed: {err_str[:300]}")
+            is_rate_limit = "429" in err_str or "quota" in err_str.lower() or "Too Many Requests" in err_str
+            last_error = "Rate limited — wait a moment and try again" if is_rate_limit else err_str
+            if not is_rate_limit:
                 break
 
-    raise HTTPException(status_code=502, detail=f"TTS failed across all models: {last_error}")
+    raise HTTPException(status_code=502, detail=f"TTS unavailable: {last_error}")
 
 
 @app.post("/api/story/tts", tags=["Story"])
