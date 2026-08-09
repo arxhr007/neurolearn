@@ -352,7 +352,7 @@ cd backend && python test_api.py
 ## 📚 Guides and Concepts
 To understand the project and how to work with it, start with these docs:
 - **[RUNNING.md](docs/RUNNING.md)**: Start here. Docker quick start, local development, API keys, and common issues.
-- **[how_to.md](docs/how_to.md)**: The extras — CLI tutor, the server-rendered Jinja app, and the data pipeline.
+- **[how_to.md](docs/how_to.md)**: The extras — CLI tutor and the data pipeline.
 - **[SETUP.md](docs/SETUP.md)**: Local installation, environment variables, and smoke test steps.
 - **[WEB_PRODUCT_DESIGN.md](docs/WEB_PRODUCT_DESIGN.md)**: Product boundary, API contracts, frontend logic, and deployment architecture for web migration (student tutor UI + admin dashboard + single-VPS target).
 - **[FRONTEND_API_INTEGRATION.md](docs/FRONTEND_API_INTEGRATION.md)**: Practical frontend integration guide with auth flow, request/response examples, and endpoint-by-endpoint usage.

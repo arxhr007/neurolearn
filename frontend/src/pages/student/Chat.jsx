@@ -52,7 +52,7 @@ export default function Chat() {
         if (t.remediation) out.push({ id: uid(), role: 'tutor', text: t.remediation });
       } else {
         if (t.question) out.push({ id: uid(), role: 'student', text: t.question });
-        if (t.answer) out.push({ id: uid(), role: 'tutor', text: t.answer });
+        if (t.answer) out.push({ id: uid(), role: 'tutor', text: t.answer, sources: t.sources });
         if (t.check_question) out.push({ id: uid(), role: 'tutor', text: t.check_question });
       }
     }
@@ -92,7 +92,8 @@ export default function Chat() {
     }
   };
 
-  const addMsg = (role, text) => setMessages(prev => [...prev, { id: uid(), role, text }]);
+  const addMsg = (role, text, sources) =>
+    setMessages(prev => [...prev, { id: uid(), role, text, sources }]);
 
   const sendQuestion = async () => {
     if (!input.trim() || loading) return;
@@ -107,7 +108,7 @@ export default function Chat() {
         context: {},
       });
       if (res?.answer) {
-        addMsg('tutor', res.answer);
+        addMsg('tutor', res.answer, res.sources);
         if (res.check_question) {
           setCheckQ(res.check_question);
           setLastTurnId(res.turn_id);
@@ -212,6 +213,21 @@ export default function Chat() {
                       {m.text}
                     </ReactMarkdown>
                   ) : m.text}
+
+                  {/* Retrieval citations: which curriculum page the answer came from. */}
+                  {m.role === 'tutor' && m.sources?.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-ink/10 flex flex-wrap gap-1.5">
+                      {m.sources.map((s, i) => (
+                        <span
+                          key={`${m.id}-src-${i}`}
+                          title={s.excerpt || ''}
+                          className="text-[10px] leading-none px-2 py-1 rounded-full bg-sage-soft text-sage-dark font-medium"
+                        >
+                          {s.source}{s.page != null ? ` · p.${s.page}` : ''}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

@@ -1,8 +1,8 @@
 # Run Guide
 
 For the normal setup — Docker, or running the API and web app locally — see
-[RUNNING.md](RUNNING.md). This file covers the extras: the CLI tutor, the
-server-rendered Jinja app, and the data pipeline.
+[RUNNING.md](RUNNING.md). This file covers the extras: the CLI tutor and the
+data pipeline.
 
 All Python commands below are run from the `backend/` directory.
 
@@ -68,20 +68,9 @@ http://localhost:8000/api/redoc
 
 This is what the React app and the Docker image use.
 
-## 4. Run the server-rendered Jinja app
-
-`web_main` wraps the same API and adds the older server-rendered pages, which
-use cookie sessions rather than JWTs. It is a separate UI from the React app in
-`frontend/` and is not part of the Docker stack.
-
-```bash
-python -m uvicorn web_main:app --host 0.0.0.0 --port 8000 --reload   # development
-python -m uvicorn web_main:app --host 0.0.0.0 --port 8000            # production
-```
-
 If `uvicorn` is not on your PATH, use the `python -m uvicorn ...` form.
 
-## 5. Verify
+## 4. Verify
 
 ```bash
 curl -sS http://localhost:8000/api/health
@@ -89,7 +78,7 @@ python test_api.py
 pytest tests/
 ```
 
-## 6. Data and pipeline commands
+## 5. Data and pipeline commands
 
 Inspect or create a student profile:
 
@@ -111,7 +100,7 @@ python pipeline/pdf_content_pipeline.py
 python pipeline/build_vector_index.py
 ```
 
-## 7. Shortest path to a running stack
+## 6. Shortest path to a running stack
 
 ```bash
 cp .env.example .env      # add your API keys

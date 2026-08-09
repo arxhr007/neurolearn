@@ -6,7 +6,6 @@
 neurolearn/
 ├── backend/          FastAPI API, LangGraph tutor, RAG pipeline, curriculum data
 ├── frontend/         React + Vite single-page app
-├── website/          legacy static API console (not part of the running stack)
 ├── docs/
 ├── compose.yaml      production stack
 └── compose.dev.yaml  development overlay (hot reload)

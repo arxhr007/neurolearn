@@ -1,13 +1,16 @@
 # NeuroLearn API Reference
 
-This document covers the JSON API in `api_main.py` and the session-based web routes in `web_main.py`.
+This document covers the JSON API in `backend/api_main.py`. It is the only
+server interface — the React app in `frontend/` is its sole client.
 
 ## Base URLs
 
 - API base URL: `http://localhost:8000`
 - Swagger UI: `http://localhost:8000/api/docs`
 - Redoc: `http://localhost:8000/api/redoc`
-- Web UI base URL (when running `web_main.py`): `http://localhost:8000`
+
+Under Docker the web app is served on `http://localhost:3000` and proxies
+`/api` to this backend, so browser requests are same-origin.
 
 ## Authentication
 
@@ -22,12 +25,6 @@ Content-Type: application/json
 
 Tokens are short-lived (see `expires_in`); refresh tokens are longer-lived.
 
-### Session auth (Web UI)
-
-The web UI uses session cookies plus a CSRF token. Any POST form in the web UI must include `csrf_token`.
-
-Use `GET /auth/session-token` to exchange the current session for an API access token.
-
 ## Roles and Access
 
 - `student`: tutor endpoints + read-only student profile, mastery, goals, conversations.
@@ -38,12 +35,6 @@ Use `GET /auth/session-token` to exchange the current session for an API access 
 
 ```bash
 uvicorn api_main:app --host 0.0.0.0 --port 8000
-```
-
-To run the server-rendered web UI:
-
-```bash
-uvicorn web_main:app --host 0.0.0.0 --port 8000
 ```
 
 Dev users (local):
@@ -304,64 +295,6 @@ Dev users (local):
 - `GET /api/admin/system/stats`
   - Role: `teacher`, `admin`
   - Returns service stats and health.
-
-## Web UI Routes (Server-rendered)
-
-These routes render HTML templates and require a session cookie.
-
-### Login Pages (GET)
-
-- `GET /admin/login`
-- `GET /teacher/login`
-- `GET /student/login`
-
-### Dashboards and Pages (GET)
-
-- `GET /admin/dashboard`
-- `GET /admin/teachers`
-- `GET /admin/teachers/create`
-- `GET /admin/analytics`
-- `GET /admin/settings`
-- `GET /teacher/dashboard`
-- `GET /teacher/students`
-- `GET /teacher/students/create`
-- `GET /teacher/students/{student_id}`
-- `GET /teacher/goals`
-- `GET /teacher/analytics`
-- `GET /student/dashboard`
-- `GET /student/chat`
-- `GET /student/goals`
-- `GET /student/progress`
-- `GET /student/profile`
-
-### Form Actions (POST)
-
-- `POST /auth/admin/login`
-  - Form fields: `username`, `password`, `csrf_token`
-
-- `POST /auth/teacher/login`
-  - Form fields: `username`, `password`, `csrf_token`
-
-- `POST /auth/student/login`
-  - Form fields: `username`, `password`, `csrf_token`
-
-- `POST /admin/teachers/create`
-  - Form fields: `username`, `full_name`, `password`, `csrf_token`
-
-- `POST /teacher/students/create`
-  - Form fields: `student_id`, `username`, `full_name`, `password`, `age`, `reading_age`, `learning_style`, `interests`, `neuro_profile`, `csrf_token`
-
-- `POST /teacher/goals`
-  - Form fields: `student_id`, `goal_text`, `csrf_token`
-
-- `POST /auth/logout`
-  - Form fields: `csrf_token`
-
-### Session Token (GET)
-
-- `GET /auth/session-token`
-  - Requires a logged-in session.
-  - Returns: `{ "access_token": "<jwt>" }`
 
 ## Example Flow (curl)
 

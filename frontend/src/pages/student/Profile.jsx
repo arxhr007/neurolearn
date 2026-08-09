@@ -3,9 +3,7 @@ import AppShell from '../../components/AppShell';
 import Card from '../../components/Card';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
-
-const STYLES = ['analogy-heavy', 'visual', 'story-based', 'step-by-step', 'repetition'];
-const PROFILES = ['adhd', 'dyslexia', 'autism', 'dyscalculia'];
+import { LEARNING_STYLES as STYLES, NEURO_PROFILES as PROFILES } from '../../constants';
 
 export default function Profile() {
   const { user } = useAuth();
