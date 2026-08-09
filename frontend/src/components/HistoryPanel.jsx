@@ -70,17 +70,18 @@ export default function HistoryPanel({ open, onClose }) {
     lastFetchRef.current = now;
     setLoading(true);
     Promise.all([
-      api.get(`/api/conversations/${user.student_id}?limit=8`),
+      api.get(`/api/students/${user.student_id}/conversations?limit=8`),
       api.get('/api/story/memories'),
       api.get(`/api/students/${user.student_id}/mastery?limit=8`),
     ]).then(([c, m, ma]) => {
       setData({
-        convs: c?.conversations || [],
+        convs: Array.isArray(c) ? c : [],
         memories: m?.memories || [],
         mastery: ma?.events || [],
       });
-      setLoading(false);
-    });
+    }).catch(() => {
+      // Leave whatever was already loaded; the panel is read-only.
+    }).finally(() => setLoading(false));
   }, [open, user]);
 
   return (

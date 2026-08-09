@@ -6,6 +6,10 @@ from langgraph_app.state import RAGState
 from collections import OrderedDict
 import hashlib
 import json
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 # Simple in-memory LRU cache for personalizer outputs.
@@ -411,13 +415,34 @@ def make_answer_evaluator(llm, node_name: str = "answer_evaluator"):
                 "active_node": node_name,
             }
 
-        evaluation = llm.evaluate_student_answer(
-            state.get("question", ""),
-            student_response,
-            state.get("docs", []),
-            state.get("student_profile"),
-            state.get("check_answer_hint"),
-        )
+        try:
+            evaluation = llm.evaluate_student_answer(
+                state.get("question", ""),
+                student_response,
+                state.get("docs", []),
+                state.get("student_profile"),
+                state.get("check_answer_hint"),
+            )
+        except Exception as exc:
+            logger.exception("Answer evaluation failed for node %s", node_name)
+            evaluation = {
+                "is_correct": False,
+                "feedback": "ഉത്തരം പരിശോധിക്കാൻ കഴിഞ്ഞില്ല. വീണ്ടും ശ്രമിക്കാം.",
+                "confidence": 0.0,
+                "source": "evaluation_error",
+                "error": str(exc),
+            }
+
+        # An unusable result must be an explicit failure, never an implicit pass.
+        if not isinstance(evaluation, dict) or evaluation.get("is_correct") is None:
+            logger.warning("Answer evaluator returned an unusable result: %r", evaluation)
+            evaluation = {
+                "is_correct": False,
+                "feedback": "ഉത്തരം പരിശോധിക്കാൻ കഴിഞ്ഞില്ല. വീണ്ടും ശ്രമിക്കാം.",
+                "confidence": 0.0,
+                "source": "evaluation_unavailable",
+            }
+
         print(f"   Answer evaluator result: is_correct={evaluation.get('is_correct')} feedback={evaluation.get('feedback')}")
         mastery_event = process_mastery_side_effects(state, evaluation)
 
@@ -432,7 +457,7 @@ def make_answer_evaluator(llm, node_name: str = "answer_evaluator"):
 
 def make_remediation_node(llm, node_name: str = "remediation"):
     def remediation(state: RAGState) -> RAGState:
-        is_correct = state.get("evaluation_result", {}).get("is_correct", True)
+        is_correct = (state.get("evaluation_result") or {}).get("is_correct", False)
         if is_correct:
             return {"active_node": node_name}
 

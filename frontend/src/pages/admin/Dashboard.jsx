@@ -10,10 +10,10 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/api/admin/teachers').then(d => {
-      setTeachers(d?.teachers || []);
-      setLoading(false);
-    });
+    api.get('/api/admin/teachers')
+      .then(d => setTeachers(d?.teachers || []))
+      .catch(() => setTeachers([]))
+      .finally(() => setLoading(false));
   }, []);
 
   const totalStudents = teachers.reduce((a, t) => a + (t.student_count || 0), 0);

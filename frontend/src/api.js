@@ -1,4 +1,7 @@
-const BASE = 'http://localhost:8000';
+// Empty by default: requests go to /api/... on the current origin, which the
+// Vite dev proxy and the nginx container both forward to the backend. Set
+// VITE_API_BASE_URL only when the API lives on a different origin.
+export const BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
 async function request(method, path, body, isFormData = false) {
   const token = localStorage.getItem('access_token');
@@ -29,7 +32,18 @@ async function request(method, path, body, isFormData = false) {
   }
 
   const text = await res.text();
-  try { return JSON.parse(text); } catch { return text; }
+  let parsed;
+  try { parsed = JSON.parse(text); } catch { parsed = text; }
+
+  if (!res.ok) {
+    const detail = (parsed && typeof parsed === 'object' && parsed.detail) || text || res.statusText;
+    const err = new Error(typeof detail === 'string' ? detail : `Request failed (${res.status})`);
+    err.status = res.status;
+    err.detail = detail;
+    throw err;
+  }
+
+  return parsed;
 }
 
 async function tryRefresh() {

@@ -15,16 +15,21 @@ export default function StudentCreate() {
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true); setError('');
-    const res = await api.post('/api/teacher/students', {
-      ...form,
-      age: Number(form.age),
-      reading_age: Number(form.reading_age),
-    });
-    setSaving(false);
-    if (res?.student_id || res?.id) {
-      navigate('/teacher/students');
-    } else {
-      setError(res?.detail || 'Failed to create student.');
+    try {
+      const res = await api.post('/api/teacher/students', {
+        ...form,
+        age: Number(form.age),
+        reading_age: Number(form.reading_age),
+      });
+      if (res?.student_id || res?.id) {
+        navigate('/teacher/students');
+      } else {
+        setError('Failed to create student.');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to create student.');
+    } finally {
+      setSaving(false);
     }
   };
 

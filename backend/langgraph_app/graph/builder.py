@@ -54,13 +54,37 @@ def _wrap_node_with_timing(node_callable, node_name: str):
     return wrapped
 
 
-def _normalize_sqlite_conn_string(checkpoint_path: str) -> str:
-    """Normalize checkpoint input into a SqliteSaver connection string."""
+DEFAULT_CHECKPOINT_FILENAME = "graph.sqlite"
+
+
+def _resolve_checkpoint_db_path(checkpoint_path: str) -> Path:
+    """Resolve checkpoint config into a sqlite *file* path, creating its parent.
+
+    The setting has historically pointed at a directory (`./checkpoints`), which
+    cannot be opened as a sqlite database. Anything that looks like a directory —
+    it already is one, or it has no file suffix — gets the database name appended.
+    """
     raw = str(checkpoint_path or "").strip()
-    if raw.startswith("sqlite:"):
-        return raw
-    path = Path(raw).expanduser().resolve()
-    return f"sqlite:///{path.as_posix()}"
+    if raw.startswith("sqlite:///"):
+        raw = raw[len("sqlite:///"):]
+    elif raw.startswith("sqlite:"):
+        raw = raw[len("sqlite:"):]
+
+    path = Path(raw).expanduser()
+    if path.is_dir() or not path.suffix:
+        path = path / DEFAULT_CHECKPOINT_FILENAME
+
+    path = path.resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _set_checkpoint_status(compiled: Any, enabled: bool) -> None:
+    """Tag the compiled graph so /api/health can report checkpointing state."""
+    try:
+        compiled.checkpointing_enabled = enabled
+    except Exception:
+        logger.debug("Could not tag compiled graph with checkpoint status", exc_info=True)
 
 
 def build_graph_app(
@@ -80,11 +104,10 @@ def build_graph_app(
         return "answer_retriever" if intent == "answer" else "new_concept_retriever"
 
     def route_by_correctness(state: RAGState) -> str:
-        is_correct = state.get("evaluation_result", {}).get("is_correct", True)
+        # Default False: a missing or failed evaluation must not be scored as a
+        # correct answer, which would silently inflate mastery.
+        is_correct = (state.get("evaluation_result") or {}).get("is_correct", False)
         return "END" if is_correct else "remediation"
-
-    def initialize_gate_state(state: RAGState) -> RAGState:
-        return {"complexity_retry_count": int(state.get("complexity_retry_count", 0))}
 
     graph = StateGraph(RAGState)
     graph.add_node("parent_orchestrator", _wrap_node_with_timing(make_parent_orchestrator(), "parent_orchestrator"))
@@ -173,14 +196,30 @@ def build_graph_app(
 
     if checkpoint_path:
         try:
+            import sqlite3
+
             from langgraph.checkpoint.sqlite import SqliteSaver
 
-            conn_string = _normalize_sqlite_conn_string(checkpoint_path)
-            checkpointer = SqliteSaver.from_conn_string(conn_string)
-            return graph.compile(checkpointer=checkpointer)
-        except Exception as exc:
-            logger.warning("Checkpointing disabled due to error: %s", exc)
-    return graph.compile()
+            db_path = _resolve_checkpoint_db_path(checkpoint_path)
+            # SqliteSaver.from_conn_string() is a context manager, so its return
+            # value is not a saver. Build one directly against a connection that
+            # outlives this call; graph nodes run on a worker thread.
+            conn = sqlite3.connect(str(db_path), check_same_thread=False)
+            compiled = graph.compile(checkpointer=SqliteSaver(conn))
+            _set_checkpoint_status(compiled, True)
+            logger.info("Graph checkpointing enabled at %s", db_path)
+            return compiled
+        except Exception:
+            # Losing checkpointing silently costs cross-turn memory, so this is
+            # an error, not a debug note.
+            logger.error(
+                "Graph checkpointing disabled: failed to initialize SqliteSaver",
+                exc_info=True,
+            )
+
+    compiled = graph.compile()
+    _set_checkpoint_status(compiled, False)
+    return compiled
 
 
 def invoke_graph_safe(
@@ -196,15 +235,22 @@ def invoke_graph_safe(
     def _invoke() -> dict:
         return app.invoke(payload, config=config)
 
+    # Deliberately not a `with` block: ThreadPoolExecutor.__exit__ calls
+    # shutdown(wait=True), which blocks until the in-flight LLM call returns and
+    # so defeats the timeout entirely. Shut down without waiting instead. The
+    # worker thread cannot be killed while blocked on a socket, so the real cap
+    # comes from the per-request timeouts on the LLM clients.
+    executor = ThreadPoolExecutor(max_workers=1)
     try:
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(_invoke)
-            return future.result(timeout=max(int(timeout_seconds), 1))
+        future = executor.submit(_invoke)
+        return future.result(timeout=max(int(timeout_seconds), 1))
     except FuturesTimeoutError as exc:
         raise TimeoutError(f"Graph invocation timed out after {timeout_seconds}s") from exc
     except Exception as exc:
         logger.exception("Graph invocation failed")
         raise RuntimeError(f"Graph invocation failed: {exc}") from exc
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
 
 
 async def invoke_graph_async(

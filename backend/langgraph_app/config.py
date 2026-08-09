@@ -7,6 +7,9 @@ GROQ_MODEL = "llama-3.3-70b-versatile"
 INTENT_MODEL = "llama-3.1-8b-instant"
 COMPLEXITY_JUDGE_MODEL = "llama-3.1-8b-instant"
 TOP_K = 5
+# Per-request cap on LLM calls. A worker thread blocked on a socket cannot be
+# cancelled, so this is what actually bounds a tutor request end to end.
+LLM_REQUEST_TIMEOUT_SECONDS = 25
 RETRIEVAL_CANDIDATE_K = 25
 RETRIEVAL_MIN_SIMILARITY = 0.32
 RETRIEVAL_DEDUP_MAX_PER_SOURCE_PAGE = 1

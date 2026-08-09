@@ -11,12 +11,16 @@ export default function TeacherGoals() {
   const [msg, setMsg] = useState('');
 
   useEffect(() => {
-    api.get('/api/teacher/students').then(d => setStudents(d?.students || []));
+    api.get('/api/teacher/students')
+      .then(d => setStudents(d?.students || []))
+      .catch(() => setStudents([]));
   }, []);
 
   const loadGoals = (studentId) => {
     if (!studentId) return;
-    api.get(`/api/teacher/students/${studentId}/goals`).then(d => setGoals(d?.goals || []));
+    api.get(`/api/teacher/students/${studentId}/goals`)
+      .then(d => setGoals(d?.goals || []))
+      .catch(() => setGoals([]));
   };
 
   const setStudentId = (id) => { setForm(f => ({ ...f, student_id: id })); loadGoals(id); };
@@ -25,14 +29,19 @@ export default function TeacherGoals() {
     e.preventDefault();
     if (!form.student_id || !form.goal_text.trim()) return;
     setSaving(true); setMsg('');
-    const res = await api.post(`/api/students/${form.student_id}/goals`, { goal_text: form.goal_text });
-    setSaving(false);
-    if (res?.goal_text || res?.id) {
-      setMsg('Goal created!');
-      setForm(f => ({ ...f, goal_text: '' }));
-      loadGoals(form.student_id);
-    } else {
-      setMsg(res?.detail || 'Failed to create goal.');
+    try {
+      const res = await api.post(`/api/students/${form.student_id}/goals`, { goal_text: form.goal_text });
+      if (res?.goal_text || res?.id) {
+        setMsg('Goal created!');
+        setForm(f => ({ ...f, goal_text: '' }));
+        loadGoals(form.student_id);
+      } else {
+        setMsg('Failed to create goal.');
+      }
+    } catch (err) {
+      setMsg(err.message || 'Failed to create goal.');
+    } finally {
+      setSaving(false);
     }
   };
 

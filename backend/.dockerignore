@@ -1,0 +1,32 @@
+# Source PDFs are ~77 MB and are only consumed by the offline OCR pipeline,
+# never at runtime. The chunked JSON in output/rag_chunks is what the retriever
+# actually reads, so that stays.
+input/pdfs
+
+# Local runtime state — recreated in the container, and must not leak in.
+.env
+data/
+vectorstore/
+checkpoints/
+*.db
+*.sqlite
+*.sqlite3
+
+# Python build artifacts
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.venv/
+venv/
+myenv/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

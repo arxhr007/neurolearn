@@ -1,142 +1,129 @@
 # Running NeuroLearn
 
-## Requirements
+## Repository layout
 
-| Tool | Version |
-|------|---------|
-| Python | 3.10+ |
-| Node.js | 18+ |
-| npm | 9+ |
-
----
-
-## 1. Clone and set up environment
-
-```bash
-git clone <repo-url>
-cd neurolearn
 ```
-
-Copy the env template and fill in your API keys:
-
-```bash
-cp .env.example .env   # or create .env manually
-```
-
-**.env contents:**
-
-```env
-# Required — story/chapter generation
-GROQ_API_KEY=your_groq_api_key_here
-
-# Required — TTS audio (get from https://aistudio.google.com/apikey)
-gemini_api_key=your_gemini_api_key_here
-
-# Story generation provider (gemini or groq)
-story_provider=gemini
-gemini_model=gemini-2.0-flash
-
-# JWT secret — change this in production
-JWT_SECRET_KEY=change-this-in-production
-
-# CORS — add any frontend origins you use
-CORS_ORIGINS_RAW=http://localhost:3000,http://localhost:5173,http://localhost:8000
+neurolearn/
+├── backend/          FastAPI API, LangGraph tutor, RAG pipeline, curriculum data
+├── frontend/         React + Vite single-page app
+├── website/          legacy static API console (not part of the running stack)
+├── docs/
+├── compose.yaml      production stack
+└── compose.dev.yaml  development overlay (hot reload)
 ```
 
 ---
 
-## 2. Backend (FastAPI)
+## Quick start with Docker
 
-### Install dependencies
+Two commands, start to finish:
 
 ```bash
+cp .env.example .env      # then fill in GROQ_API_KEY and gemini_api_key
+docker compose up --build
+```
+
+| Service | URL |
+|---|---|
+| Web app | http://localhost:3000 |
+| API | http://localhost:8000 |
+| API docs | http://localhost:8000/api/docs |
+
+Sign in with `admin` / `admin`.
+
+The first build takes a while: it installs CPU-only PyTorch and bakes the
+multilingual embedding model into the image so that startup needs no network
+access. Later builds are cached.
+
+The backend answers questions using the pre-chunked corpus committed at
+`backend/output/rag_chunks/`, so retrieval works immediately — you do not need
+to run the OCR pipeline or build a vector index first.
+
+### Development with hot reload
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml up --build
+```
+
+Source directories are bind-mounted, `uvicorn` runs with `--reload`, and the
+web app is served by Vite on http://localhost:5173.
+
+### Data persistence
+
+SQLite databases and the Chroma index are bind-mounted to `backend/data/`,
+`backend/vectorstore/`, and `backend/checkpoints/`, so they survive
+`docker compose down`. To wipe them, delete those directories.
+
+---
+
+## Running without Docker
+
+Requirements: Python 3.10+, Node.js 18+, npm 9+.
+
+### Backend
+
+```bash
+cd backend
 pip install -r requirements.txt
-```
-
-### Run
-
-```bash
 python -m uvicorn api_main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-API runs at: `http://localhost:8000`
+The SQLite database is created automatically at `backend/data/neurolearn.db`
+on first run, along with a default `admin` / `admin` account.
 
-Interactive API docs: `http://localhost:8000/docs`
+`.env` is read from the repository root or from `backend/.env`; if both exist,
+`backend/.env` wins.
 
-### First-time database setup
-
-The SQLite database is created automatically at `data/neurolearn.db` on first run.
-
-To create an admin account:
-
-```bash
-python manage_student_db.py
-```
-
----
-
-## 3. Frontend (React + Vite)
-
-### Install dependencies
+### Frontend
 
 ```bash
 cd frontend
 npm install
-```
-
-### Run (development)
-
-```bash
 npm run dev
 ```
 
-Frontend runs at: `http://localhost:5173`
+Runs at http://localhost:5173 and proxies `/api` to http://localhost:8000, so
+there is no CORS configuration to do. Point it elsewhere with
+`VITE_DEV_API_TARGET` — see `frontend/.env.example`.
 
-### Build for production
+Production build:
 
 ```bash
-npm run build
+npm run build      # output in frontend/dist/
 ```
 
-Output goes to `frontend/dist/`. Serve it with any static file server or configure the FastAPI backend to serve it.
+The app issues same-origin requests to `/api/...`, so whatever serves `dist/`
+must also proxy `/api` to the backend. `frontend/nginx.conf` is a working
+example. Only set `VITE_API_BASE_URL` if the API is on a genuinely different
+origin, and add that origin to `CORS_ORIGINS_RAW` if you do.
 
 ---
 
-## 4. Default accounts
+## API keys
 
-| Role | Username | Password |
-|------|----------|----------|
-| Admin | admin | admin123 |
-| Teacher | (create via admin panel) | — |
-| Student | (create via teacher panel) | — |
+**Groq** — tutor answers and chapter generation. Sign up at
+https://console.groq.com, create a key, set `GROQ_API_KEY`.
 
----
+**Gemini** — story generation, TTS audio, and memory transcription. Get a key
+at https://aistudio.google.com/apikey (starts with `AIza...`), set
+`gemini_api_key`. The free tier allows roughly 15 TTS requests per minute.
 
-## 5. API Keys
-
-### Groq (story/chapter generation)
-- Sign up at https://console.groq.com
-- Create an API key
-- Add as `GROQ_API_KEY` in `.env`
-
-### Gemini (TTS audio)
-- Go to https://aistudio.google.com/apikey
-- Create an API key (starts with `AIza...`)
-- Add as `gemini_api_key` in `.env`
-- Free tier has rate limits (~15 requests/min for TTS). If you hit 429 errors, wait 60 seconds and retry.
+Without `GROQ_API_KEY` the app still starts and you can sign in, but tutor
+endpoints return 503.
 
 ---
 
-## 6. Common issues
+## Common issues
 
-**Backend 502 on TTS**
-Gemini API rate limit hit. Wait ~60 seconds and try generating audio again. Check your quota at https://aistudio.google.com.
+**502 on TTS** — Gemini rate limit. Wait ~60 seconds and retry.
 
-**CORS errors in browser**
-Add your frontend URL to `CORS_ORIGINS_RAW` in `.env`, then restart the backend.
+**404 after refreshing a page like `/student/chat`** — whatever is serving the
+SPA is missing the history-API fallback. It needs to return `index.html` for
+unknown paths; see the `try_files` line in `frontend/nginx.conf`.
 
-**`data/neurolearn.db` missing**
-Start the backend once — it auto-creates the database file.
+**CORS errors** — the Docker and Vite setups both serve the API on the app's
+own origin, so this should not happen. If you are hosting the frontend
+separately, add its origin to `CORS_ORIGINS_RAW` and restart the backend.
 
-**Frontend shows blank page**
-Make sure the backend is running on port 8000 before opening the frontend.
+**`unable to open database file`** — the backend is running from a directory
+without a writable `data/`. Run it from `backend/`, or create `backend/data/`.

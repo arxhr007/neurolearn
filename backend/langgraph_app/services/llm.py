@@ -7,7 +7,13 @@ import time
 
 from groq import Groq
 
-from langgraph_app.config import COMPLEXITY_JUDGE_MODEL, GROQ_MODEL, INTENT_MODEL, SYSTEM_PROMPT
+from langgraph_app.config import (
+    COMPLEXITY_JUDGE_MODEL,
+    GROQ_MODEL,
+    INTENT_MODEL,
+    LLM_REQUEST_TIMEOUT_SECONDS,
+    SYSTEM_PROMPT,
+)
 
 
 def _gemini_model() -> str:
@@ -21,7 +27,9 @@ class MalayalamLLM:
             raise RuntimeError(
                 "GROQ_API_KEY is required. Set it in the environment or .env file."
             )
-        self.client = Groq(api_key=self.groq_api_key)
+        # Without an explicit timeout a stalled Groq call blocks the worker
+        # thread indefinitely, which is what makes the graph timeout ineffective.
+        self.client = Groq(api_key=self.groq_api_key, timeout=LLM_REQUEST_TIMEOUT_SECONDS)
 
         self.gemini_api_key = os.environ.get("gemini_api_key") or ""
         self._gemini_model = None

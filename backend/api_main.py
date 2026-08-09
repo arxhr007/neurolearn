@@ -10,6 +10,7 @@ from functools import lru_cache
 from hmac import compare_digest
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile, status
@@ -47,6 +48,7 @@ from langgraph_app.config import DEFAULT_DB_DIR, DEFAULT_MODEL, STUDENT_DB_PATH,
 from langgraph_app.graph.builder import build_graph_app
 from langgraph_app.models import (
     ConversationResponse,
+    ConversationTurn,
     HealthResponse,
     LearningGoal,
     LearningGoalRequest,
@@ -58,6 +60,7 @@ from langgraph_app.models import (
     MasteryHistoryResponse,
     RefreshRequest,
     RetrieverConfig,
+    Source,
     StudentProfile,
     StudentProfileRequest,
     TutorAnswerRequest,
@@ -88,11 +91,20 @@ async def _lifespan(_: FastAPI):
     yield
 
 
+BACKEND_DIR = Path(__file__).resolve().parent
+REPO_ROOT = BACKEND_DIR.parent
+
+# Look for .env in the repo root first, then backend/. Listing both keeps
+# `docker compose` (root .env) and bare-metal dev (backend/.env) working, and
+# the later entry wins so a backend-local file overrides the shared one.
+ENV_FILES = (str(REPO_ROOT / ".env"), str(BACKEND_DIR / ".env"))
+
+
 class Settings(BaseSettings):
     """App settings loaded from environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=str(Path(__file__).parent / ".env"),
+        env_file=ENV_FILES,
         env_file_encoding="utf-8",
         extra="ignore"
     )
@@ -112,7 +124,14 @@ class Settings(BaseSettings):
 
     cors_origins_raw: str = "http://localhost:3000,http://localhost:5173,http://localhost:8000,http://localhost:8800"
 
-    graph_checkpoint_dir: str = "./checkpoints"
+    # Empty disables LangGraph checkpointing, which is currently the only
+    # workable setting. The graph payload carries live `student_db` and `llm`
+    # handles in state (see TutorService._build_payload), and a checkpointer has
+    # to msgpack-serialize the whole state — which fails with
+    # "Type is not msgpack serializable: SqlAlchemyStudentDB".
+    # Enabling this needs those handles moved out of state and into node
+    # closures first. Set to a path (e.g. "./checkpoints") once that is done.
+    graph_checkpoint_dir: str = ""
     tutor_response_timeout: int = 30
 
     student_db_path: str = STUDENT_DB_PATH
@@ -232,15 +251,16 @@ def get_settings() -> Settings:
 
 def _load_runtime_env() -> None:
     """Load local .env values into process environment for non-settings consumers."""
-    env_path = Path(__file__).parent / ".env"
-    if not env_path.exists():
-        return
     try:
         from dotenv import load_dotenv
-
-        load_dotenv(dotenv_path=env_path, override=False)
     except Exception:
         logger.warning("Unable to load .env via python-dotenv", exc_info=True)
+        return
+
+    # Same precedence as ENV_FILES: root first, backend/ last so it wins.
+    for env_path in ENV_FILES:
+        if Path(env_path).exists():
+            load_dotenv(dotenv_path=env_path, override=False)
 
 
 def _dev_users() -> dict[str, dict[str, Any]]:
@@ -371,7 +391,6 @@ def _service_bundle() -> tuple[TutorService, SqlAlchemyStudentDB, RAGRetriever]:
         config=TutorServiceConfig(
             default_top_k_retrieval=TOP_K,
             default_response_timeout_seconds=max(int(settings.tutor_response_timeout), 1),
-            enable_conversation_history=True,
         ),
     )
     return service, student_db, retriever
@@ -534,7 +553,9 @@ def _require_student_access(db: Session, user: TokenData, student_id: str) -> St
             raise HTTPException(status_code=403, detail="Insufficient permissions")
     elif user.role == "teacher":
         teacher_id = _as_int_user_id(user)
-        if int(student.teacher_id) != int(teacher_id):
+        # teacher_id is nullable: an unassigned student belongs to no teacher,
+        # which is a 403, not a crash.
+        if student.teacher_id is None or int(student.teacher_id) != int(teacher_id):
             raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     return student
@@ -646,6 +667,9 @@ def _persist_question_turn(
         )
     convo.updated_at = datetime.utcnow()
     db.add(convo)
+    # get_db() closes the session without committing, so the turn has to be
+    # committed here or the whole conversation is silently discarded.
+    db.commit()
 
 
 def _persist_answer_turn(
@@ -696,6 +720,160 @@ def _persist_answer_turn(
         )
     convo.updated_at = datetime.utcnow()
     db.add(convo)
+    # See _persist_question_turn: the request session is never auto-committed.
+    db.commit()
+
+
+def _dict_to_source(raw: Any) -> Source | None:
+    if not isinstance(raw, dict):
+        return None
+    try:
+        return Source(**raw)
+    except Exception:
+        logger.debug("Skipping malformed persisted source: %r", raw)
+        return None
+
+
+def _get_owned_conversation(db: Session, student: Student, conversation_id: str) -> Conversation | None:
+    """Look up a conversation, scoped to the student that owns it."""
+    return (
+        db.query(Conversation)
+        .filter(
+            Conversation.conversation_id == conversation_id,
+            Conversation.student_id == student.id,
+        )
+        .first()
+    )
+
+
+def _load_conversation_turns(db: Session, convo: Conversation) -> list[ConversationTurn]:
+    """Rebuild conversation turns from the persisted messages of a conversation.
+
+    Messages are written by `_persist_question_turn` / `_persist_answer_turn`, which
+    share a single `turn_id` between a question and the answer that follows it. So one
+    turn_id group can yield two turns, mirroring what `TutorService._build_question_turn`
+    and `_build_answer_turn` used to produce in memory.
+    """
+    messages = (
+        db.query(Message)
+        .filter(Message.conversation_id == convo.id)
+        .order_by(Message.created_at.asc(), Message.id.asc())
+        .all()
+    )
+
+    grouped: dict[str, list[Message]] = {}
+    order: list[str] = []
+    for msg in messages:
+        key = msg.turn_id or f"_msg_{msg.id}"
+        if key not in grouped:
+            grouped[key] = []
+            order.append(key)
+        grouped[key].append(msg)
+
+    turns: list[ConversationTurn] = []
+    for key in order:
+        group = grouped[key]
+
+        # message_type alone is ambiguous: "answer" is used both for the tutor's
+        # explanation and for the student's reply, so key on (type, role).
+        by_kind: dict[tuple[str, str], Message] = {}
+        for msg in group:
+            by_kind.setdefault((msg.message_type, msg.role), msg)
+
+        asked = by_kind.get(("question", "student"))
+        explained = by_kind.get(("answer", "assistant"))
+        checked = by_kind.get(("check_question", "assistant"))
+        replied = by_kind.get(("answer", "student"))
+        evaluated = by_kind.get(("evaluation", "assistant"))
+        remediated = by_kind.get(("remediation", "assistant"))
+
+        question_text = asked.content if asked else ""
+        check_hint = (checked.payload or {}).get("check_answer_hint") if checked else None
+
+        if asked or explained or checked:
+            anchor = explained or checked or asked
+            sources = [
+                src
+                for src in (
+                    _dict_to_source(raw)
+                    for raw in ((explained.payload or {}).get("sources") or [] if explained else [])
+                )
+                if src is not None
+            ]
+            turns.append(
+                ConversationTurn(
+                    turn_id=key,
+                    type="question",
+                    question=question_text,
+                    answer=explained.content if explained else None,
+                    check_question=checked.content if checked else None,
+                    check_answer_hint=check_hint,
+                    sources=sources,
+                    generated_at=anchor.created_at or datetime.utcnow(),
+                )
+            )
+
+        if replied or evaluated:
+            anchor = evaluated or replied
+            evaluation = (evaluated.payload or {}).get("evaluation_result") or {} if evaluated else {}
+            confidence = evaluation.get("confidence")
+            turns.append(
+                ConversationTurn(
+                    turn_id=key,
+                    type="answer",
+                    question=question_text,
+                    student_answer=replied.content if replied else None,
+                    answer=evaluated.content if evaluated else None,
+                    is_correct=(
+                        bool(evaluation.get("is_correct"))
+                        if evaluation.get("is_correct") is not None
+                        else None
+                    ),
+                    feedback=evaluation.get("feedback"),
+                    misconception=evaluation.get("misconception"),
+                    confidence=float(confidence) if confidence is not None else None,
+                    remediation=remediated.content if remediated else None,
+                    generated_at=anchor.created_at or datetime.utcnow(),
+                )
+            )
+
+    return turns
+
+
+def _load_conversation_response(
+    db: Session,
+    convo: Conversation,
+    student_id: str,
+    limit: int | None = None,
+) -> ConversationResponse:
+    turns = _load_conversation_turns(db, convo)
+    if limit is not None:
+        turns = turns[-max(int(limit), 1):]
+    return ConversationResponse(
+        conversation_id=convo.conversation_id,
+        student_id=student_id,
+        created_at=convo.created_at,
+        updated_at=convo.updated_at,
+        turns=turns,
+        learning_goal=convo.learning_goal,
+    )
+
+
+def _empty_conversation_response(
+    db: Session,
+    student: Student,
+    student_id: str,
+    conversation_id: str | None = None,
+) -> ConversationResponse:
+    now = datetime.utcnow()
+    return ConversationResponse(
+        conversation_id=conversation_id or str(uuid4()),
+        student_id=student_id,
+        created_at=now,
+        updated_at=now,
+        turns=[],
+        learning_goal=_get_active_goal_text(db, int(student.id)),
+    )
 
 
 def _find_question_context(conversation: ConversationResponse, turn_id: str) -> tuple[str, str | None]:
@@ -747,6 +925,7 @@ def health(service: TutorService | None = Depends(get_tutor_service_optional)) -
         checks = service.health_check()
         services["database"] = "ok" if checks.get("database") else "offline"
         services["vector_store"] = "ok" if checks.get("retriever") else "offline"
+        services["checkpointing"] = "ok" if checks.get("checkpointing") else "disabled"
     except Exception:
         services["llm_provider"] = "offline"
         overall = "degraded"
@@ -855,7 +1034,10 @@ def tutor_answer(
     if not profile:
         raise HTTPException(status_code=404, detail=f"Student not found: {payload.student_id}")
 
-    history = service.get_conversation_by_id(payload.conversation_id, payload.student_id)
+    convo = _get_owned_conversation(db, student, payload.conversation_id)
+    if not convo:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    history = _load_conversation_response(db, convo, payload.student_id)
     question, hint = _find_question_context(history, payload.turn_id)
     if not question:
         raise HTTPException(status_code=404, detail="Could not resolve source question for evaluation")
@@ -902,11 +1084,18 @@ def get_conversation_history(
     student_id: str,
     limit: int = Query(default=10, ge=1, le=100),
     current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
-    service: TutorService = Depends(get_tutor_service),
     db: Session = Depends(get_db),
 ) -> ConversationResponse:
-    _require_student_access(db, current_user, student_id)
-    return service.get_conversation_history(student_id=student_id, limit=limit)
+    student = _require_student_access(db, current_user, student_id)
+    convo = (
+        db.query(Conversation)
+        .filter(Conversation.student_id == student.id)
+        .order_by(Conversation.updated_at.desc())
+        .first()
+    )
+    if not convo:
+        return _empty_conversation_response(db, student, student_id)
+    return _load_conversation_response(db, convo, student_id, limit=limit)
 
 
 @app.get(
@@ -918,11 +1107,13 @@ def get_conversation_by_id(
     student_id: str,
     conversation_id: str,
     current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
-    service: TutorService = Depends(get_tutor_service),
     db: Session = Depends(get_db),
 ) -> ConversationResponse:
-    _require_student_access(db, current_user, student_id)
-    return service.get_conversation_by_id(conversation_id=conversation_id, student_id=student_id)
+    student = _require_student_access(db, current_user, student_id)
+    convo = _get_owned_conversation(db, student, conversation_id)
+    if not convo:
+        return _empty_conversation_response(db, student, student_id, conversation_id)
+    return _load_conversation_response(db, convo, student_id)
 
 
 @app.get(
@@ -944,18 +1135,19 @@ def get_conversation_turn_story(
     and delegates to `TutorService.generate_story_from_state`. It is intentionally
     a read-only, opt-in helper.
     """
-    _require_student_access(db, current_user, student_id)
+    student = _require_student_access(db, current_user, student_id)
     profile = student_db.get_student_profile(student_id)
     if not profile:
         raise HTTPException(status_code=404, detail=f"Student not found: {student_id}")
 
-    conversation = service.get_conversation_by_id(conversation_id=conversation_id, student_id=student_id)
-    # Find the requested turn
-    target = None
-    for t in conversation.turns:
-        if t.turn_id == turn_id:
-            target = t
-            break
+    convo = _get_owned_conversation(db, student, conversation_id)
+    if not convo:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Find the requested turn. A turn_id can map to both a question and an answer
+    # turn; prefer the question turn, which carries the tutor explanation.
+    turns = [t for t in _load_conversation_turns(db, convo) if t.turn_id == turn_id]
+    target = next((t for t in turns if t.type == "question"), None) or (turns[0] if turns else None)
     if target is None:
         raise HTTPException(status_code=404, detail="Turn not found")
 
@@ -1189,10 +1381,58 @@ def chapter_answer(
 @app.delete("/api/conversations/{conversation_id}", tags=["Conversations"])
 def clear_conversation(
     conversation_id: str,
-    _: TokenData = Depends(require_roles("student", "teacher", "admin")),
-    service: TutorService = Depends(get_tutor_service),
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    db: Session = Depends(get_db),
 ) -> dict[str, bool]:
-    return {"deleted": service.clear_conversation_history(conversation_id)}
+    convo = (
+        db.query(Conversation)
+        .filter(Conversation.conversation_id == conversation_id)
+        .first()
+    )
+    if not convo:
+        return {"deleted": False}
+
+    # Resolve the owner so the caller's access to *this* conversation is checked.
+    owner = db.query(Student).filter(Student.id == convo.student_id).first()
+    if not owner:
+        raise HTTPException(status_code=404, detail="Conversation owner not found")
+    _require_student_access(db, current_user, owner.student_id)
+
+    # Message rows go with it via the cascade on Conversation.messages.
+    db.delete(convo)
+    db.commit()
+    return {"deleted": True}
+
+
+@app.get(
+    "/api/students/{student_id}/conversations",
+    response_model=list[ConversationListItem],
+    tags=["Conversations"],
+)
+def list_student_conversations(
+    student_id: str,
+    limit: int = Query(default=20, ge=1, le=100),
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    db: Session = Depends(get_db),
+) -> list[ConversationListItem]:
+    student = _require_student_access(db, current_user, student_id)
+    conversations = (
+        db.query(Conversation)
+        .filter(Conversation.student_id == student.id)
+        .order_by(Conversation.updated_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        ConversationListItem(
+            conversation_id=convo.conversation_id,
+            student_id=student.student_id,
+            learning_goal=convo.learning_goal,
+            created_at=convo.created_at,
+            updated_at=convo.updated_at,
+        )
+        for convo in conversations
+    ]
 
 
 @app.get("/api/students/{student_id}", response_model=StudentProfile, tags=["Students"])
@@ -1662,8 +1902,11 @@ def update_retriever_config(
 def system_stats(
     _: TokenData = Depends(require_roles("teacher", "admin")),
     service: TutorService = Depends(get_tutor_service),
+    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    return service.get_stats()
+    stats = service.get_stats()
+    stats["conversation_count"] = db.query(Conversation).count()
+    return stats
 
 
 STORY_JSON_DIR = Path(__file__).parent / "input" / "story"

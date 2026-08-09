@@ -1,5 +1,7 @@
 """SQLAlchemy engine and session helpers."""
 
+from pathlib import Path
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -13,6 +15,21 @@ if settings.database_url.startswith("sqlite"):
     _connect_args = {"check_same_thread": False}
 
 engine = create_engine(settings.database_url, connect_args=_connect_args, future=True)
+
+
+def _ensure_sqlite_parent_dir() -> None:
+    """Create the directory holding the SQLite file if it is missing.
+
+    SQLite will create the database file but not its parent directory, so a
+    fresh checkout otherwise dies at startup with
+    `sqlite3.OperationalError: unable to open database file`.
+    """
+    if engine.dialect.name != "sqlite":
+        return
+    db_path = engine.url.database
+    if not db_path or db_path == ":memory:":
+        return
+    Path(db_path).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 Base = declarative_base()
 
@@ -28,6 +45,7 @@ def get_db():
 def init_db() -> None:
     from app import models  # noqa: F401
 
+    _ensure_sqlite_parent_dir()
     Base.metadata.create_all(bind=engine)
 
     _migrate_schema()

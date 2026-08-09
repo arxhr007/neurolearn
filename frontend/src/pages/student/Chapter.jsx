@@ -41,19 +41,26 @@ export default function Chapter() {
   const latestUrlRef = useRef('');
 
   useEffect(() => {
-    api.get('/api/story/curricula').then(d => setCurricula(d?.curricula || []));
+    api.get('/api/story/curricula')
+      .then(d => setCurricula(d?.curricula || []))
+      .catch(() => setCurricula([]));
   }, []);
 
   useEffect(() => {
     if (!user?.student_id) return;
-    api.get(`/api/students/${user.student_id}`).then(d => setProfile(d || {}));
+    api.get(`/api/students/${user.student_id}`)
+      .then(d => setProfile(d || {}))
+      .catch(() => setProfile({}));
   }, [user]);
 
   const handleCurriculumChange = async (name) => {
     setSelectedC(name); setSelectedM(''); setSelectedA(''); setCurriculumData(null);
     if (!name) return;
-    const data = await api.get(`/api/story/curricula/${name}`);
-    setCurriculumData(data);
+    try {
+      setCurriculumData(await api.get(`/api/story/curricula/${name}`));
+    } catch (err) {
+      setError(err.message || 'Failed to load curriculum.');
+    }
   };
 
   const modules = curriculumData?.modules || [];
@@ -81,12 +88,19 @@ export default function Chapter() {
     setLoading(true); setError('');
     const placeholder_values = {};
     placeholders.forEach(p => { if (p.value) placeholder_values[p.key] = p.value; });
-    const res = await api.post('/api/chapters/learn', {
-      curriculum: selectedC,
-      module_number: parseInt(selectedM),
-      activity_id: selectedA,
-      placeholder_values,
-    });
+    let res;
+    try {
+      res = await api.post('/api/chapters/learn', {
+        curriculum: selectedC,
+        module_number: parseInt(selectedM),
+        activity_id: selectedA,
+        placeholder_values,
+      });
+    } catch (err) {
+      setLoading(false);
+      setError(err.message || 'Failed to generate story.');
+      return;
+    }
     setLoading(false);
     if (res?.story) {
       setStory(res.story);
@@ -112,7 +126,7 @@ export default function Chapter() {
         }
       });
     } else {
-      setError(res?.detail || 'Failed to generate story. Check API/Groq key.');
+      setError('Failed to generate story. Check API/Groq key.');
     }
   };
 
@@ -123,21 +137,28 @@ export default function Chapter() {
     const userAns = answer.trim().toLowerCase();
     const isCorrect = expected ? (userAns.includes(expected) || expected.includes(userAns)) : false;
     setLoading(true);
-    await api.post('/api/chapters/answer', {
-      curriculum: selectedC,
-      module_number: parseInt(selectedM),
-      activity_id: selectedA,
-      question: q.question,
-      answer: answer.trim(),
-      expected_answer: q.expected_answer || '',
-      is_correct: isCorrect,
-      misconception: isCorrect ? '' : `Student said: ${answer.trim()}`,
-    });
-    setFeedback(isCorrect
-      ? `Correct! Expected: ${q.expected_answer}`
-      : `Not quite. Expected: ${q.expected_answer || '(see story)'}`);
-    setAnswer('');
-    setLoading(false);
+    try {
+      // Recording the attempt is best-effort; the learner still gets feedback
+      // below even if the mastery write fails.
+      await api.post('/api/chapters/answer', {
+        curriculum: selectedC,
+        module_number: parseInt(selectedM),
+        activity_id: selectedA,
+        question: q.question,
+        answer: answer.trim(),
+        expected_answer: q.expected_answer || '',
+        is_correct: isCorrect,
+        misconception: isCorrect ? '' : `Student said: ${answer.trim()}`,
+      });
+    } catch {
+      // Ignored on purpose; feedback is computed locally.
+    } finally {
+      setFeedback(isCorrect
+        ? `Correct! Expected: ${q.expected_answer}`
+        : `Not quite. Expected: ${q.expected_answer || '(see story)'}`);
+      setAnswer('');
+      setLoading(false);
+    }
   };
 
   const nextQuestion = () => {

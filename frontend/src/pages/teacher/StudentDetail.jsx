@@ -21,8 +21,9 @@ export default function StudentDetail() {
       setStudent(s?.student || s);
       setMastery(m?.events || []);
       setGoals(g?.goals || []);
-      setLoading(false);
-    });
+    }).catch(() => {
+      setStudent(null);
+    }).finally(() => setLoading(false));
   }, [id]);
 
   if (loading) return <AppShell title="Student"><p className="text-muted text-sm">Loading…</p></AppShell>;

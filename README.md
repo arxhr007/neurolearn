@@ -105,19 +105,27 @@ Optional (only if you run the PDF content pipeline):
 
 2. **Install Python dependencies:**
    ```bash
+   cd backend
    pip install -r requirements.txt
    ```
 
 3. **Configure the Environment:**
-   Create a `.env` file in the project root to store your Groq API Key (required for `main.py`):
-   ```env
-   GROQ_API_KEY=your_key_here
+   Copy `.env.example` to `.env` in the project root and add your Groq API key:
+   ```bash
+   cp .env.example .env
    ```
 
-4. **Build the local vector index (required once):**
+4. **Optional — build the local vector index:**
    ```bash
+   cd backend
    python pipeline/build_vector_index.py
    ```
+   Retrieval falls back to the pre-chunked corpus in `backend/output/rag_chunks/`,
+   so the app works without this step. Build the index for faster, higher-quality
+   semantic search.
+
+> **Prefer Docker?** `cp .env.example .env` then `docker compose up --build`
+> brings up the API and the web app together. See [RUNNING.md](RUNNING.md).
 
 ## 🎯 Usage
 
@@ -226,8 +234,10 @@ python pipeline/build_vector_index.py
 
 ### 3. Run with Docker
 ```bash
-docker compose -f docker/docker-compose.yml up --build
+cp .env.example .env      # add GROQ_API_KEY and gemini_api_key
+docker compose up --build
 ```
+Web app on `http://localhost:3000`, API on `http://localhost:8000`.
 
 ### 4. Verify the app
 ```bash
@@ -235,7 +245,7 @@ docker compose -f docker/docker-compose.yml up --build
 curl http://localhost:8000/api/health
 
 # Smoke test
-python test_api.py
+cd backend && python test_api.py
 ```
 
 ![NeuroLearn Demo](docs/demo.png)

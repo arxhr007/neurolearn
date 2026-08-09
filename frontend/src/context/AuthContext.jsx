@@ -9,7 +9,12 @@ export function AuthProvider({ children }) {
   });
 
   const login = useCallback(async (email, password, role) => {
-    const data = await api.post('/api/auth/login', { email, password, role });
+    let data;
+    try {
+      data = await api.post('/api/auth/login', { email, password, role });
+    } catch (err) {
+      return { ok: false, error: err.message || 'Login failed' };
+    }
     if (data?.access_token) {
       localStorage.setItem('access_token', data.access_token);
       localStorage.setItem('refresh_token', data.refresh_token);
@@ -17,7 +22,7 @@ export function AuthProvider({ children }) {
       setUser(data.user);
       return { ok: true, user: data.user };
     }
-    return { ok: false, error: data?.detail || 'Login failed' };
+    return { ok: false, error: 'Login failed' };
   }, []);
 
   const logout = useCallback(async () => {

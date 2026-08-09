@@ -19,8 +19,10 @@ export default function Progress() {
     ]).then(([m, s]) => {
       setMastery(m?.events || []);
       setStats(s);
-      setLoading(false);
-    });
+    }).catch(() => {
+      setMastery([]);
+      setStats(null);
+    }).finally(() => setLoading(false));
   }, [user]);
 
   const correct = mastery.filter(e => e.is_correct).length;

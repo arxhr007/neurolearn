@@ -16,10 +16,10 @@ export default function Profile() {
 
   useEffect(() => {
     if (!user?.student_id) return;
-    api.get(`/api/students/${user.student_id}`).then(d => {
-      setForm(d || {});
-      setLoading(false);
-    });
+    api.get(`/api/students/${user.student_id}`)
+      .then(d => setForm(d || {}))
+      .catch(() => setForm({}))
+      .finally(() => setLoading(false));
   }, [user]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -31,9 +31,14 @@ export default function Profile() {
 
   const save = async () => {
     setSaving(true); setMsg('');
-    const res = await api.put(`/api/students/${user.student_id}`, form);
-    setSaving(false);
-    setMsg(res?.detail || (res?.student_id ? 'Profile saved!' : 'Saved!'));
+    try {
+      const res = await api.put(`/api/students/${user.student_id}`, form);
+      setMsg(res?.student_id ? 'Profile saved!' : 'Saved!');
+    } catch (err) {
+      setMsg(err.message || 'Failed to save profile.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const field = (label, key, type = 'text', placeholder = '') => (

@@ -11,10 +11,10 @@ export default function Goals() {
 
   useEffect(() => {
     if (!user?.student_id) return;
-    api.get(`/api/students/${user.student_id}/goals`).then(d => {
-      setGoals(d?.goals || []);
-      setLoading(false);
-    });
+    api.get(`/api/students/${user.student_id}/goals`)
+      .then(d => setGoals(d?.goals || []))
+      .catch(() => setGoals([]))
+      .finally(() => setLoading(false));
   }, [user]);
 
   return (

@@ -10,10 +10,10 @@ export default function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/api/teacher/students').then(d => {
-      setStudents(d?.students || []);
-      setLoading(false);
-    });
+    api.get('/api/teacher/students')
+      .then(d => setStudents(d?.students || []))
+      .catch(() => setStudents([]))
+      .finally(() => setLoading(false));
   }, []);
 
   const active = students.filter(s => s.is_active);

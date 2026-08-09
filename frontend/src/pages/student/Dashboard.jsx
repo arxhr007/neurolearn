@@ -19,8 +19,10 @@ export default function StudentDashboard() {
     ]).then(([g, m]) => {
       setGoals(g?.goals || []);
       setMastery(m?.events || []);
-      setLoading(false);
-    });
+    }).catch(() => {
+      setGoals([]);
+      setMastery([]);
+    }).finally(() => setLoading(false));
   }, [user]);
 
   const activeGoal = goals.find(g => g.is_active);

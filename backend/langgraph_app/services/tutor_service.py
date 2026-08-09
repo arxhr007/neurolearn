@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from datetime import datetime
 import re
 import time
-from threading import Lock
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -16,8 +15,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 from langgraph_app.models import (
-    ConversationResponse,
-    ConversationTurn,
     Source,
     TutorQuestionResponse,
 )
@@ -32,7 +29,6 @@ class TutorServiceConfig:
 
     default_top_k_retrieval: int = 5
     default_response_timeout_seconds: int = 60
-    enable_conversation_history: bool = True
     enable_smalltalk_heuristics: bool = True
 
 
@@ -103,8 +99,6 @@ class TutorService:
         self.student_db = student_db
         self.llm = llm
         self.config = config or TutorServiceConfig()
-        self._history: dict[str, dict[str, Any]] = {}
-        self._lock = Lock()
 
     def ask_question(
         self,
@@ -120,14 +114,7 @@ class TutorService:
         active_learning_goal = self._extract_active_goal(student_id)
         smalltalk_kind = self._smalltalk_kind(question) if self.config.enable_smalltalk_heuristics else None
         if smalltalk_kind:
-            response = self._build_smalltalk_response(conversation_id, turn_id, smalltalk_kind)
-            self._store_turn(
-                conversation_id=conversation_id,
-                student_id=student_id,
-                learning_goal=active_learning_goal,
-                turn=self._build_question_turn(turn_id, question, response),
-            )
-            return response
+            return self._build_smalltalk_response(conversation_id, turn_id, smalltalk_kind)
         profile = self._resolve_student_profile(student_id, student_profile)
         payload = self._build_payload(
             question=question,
@@ -138,14 +125,7 @@ class TutorService:
             conversation_id=conversation_id,
         )
         state = self._invoke(payload)
-        response = self._build_question_response(conversation_id, turn_id, state)
-        self._store_turn(
-            conversation_id=conversation_id,
-            student_id=student_id,
-            learning_goal=active_learning_goal,
-            turn=self._build_question_turn(turn_id, question, response),
-        )
-        return response
+        return self._build_question_response(conversation_id, turn_id, state)
 
     def answer_question(
         self,
@@ -191,14 +171,7 @@ class TutorService:
             check_answer_hint=check_answer_hint,
         )
         state = self._invoke(payload)
-        response = self._build_answer_response(conversation_id, turn_id, state)
-        self._store_turn(
-            conversation_id=conversation_id,
-            student_id=student_id,
-            learning_goal=active_learning_goal,
-            turn=self._build_answer_turn(turn_id, question, student_answer, response),
-        )
-        return response
+        return self._build_answer_response(conversation_id, turn_id, state)
 
     def evaluate_student_answer(
         self,
@@ -222,67 +195,6 @@ class TutorService:
             conversation_id=conversation_id,
             turn_id=turn_id,
         )
-
-    def get_conversation_history(self, student_id: str, limit: int = 10) -> ConversationResponse:
-        """Return the most recent in-memory conversation history for a student."""
-        active_learning_goal = self._extract_active_goal(student_id)
-        with self._lock:
-            recent: tuple[str, dict[str, Any]] | None = None
-            for conversation_id, entry in self._history.items():
-                if entry.get("student_id") != student_id:
-                    continue
-                if recent is None or entry["updated_at"] > recent[1]["updated_at"]:
-                    recent = (conversation_id, entry)
-
-            if not recent:
-                now = datetime.utcnow()
-                return ConversationResponse(
-                    conversation_id=str(uuid4()),
-                    student_id=student_id,
-                    created_at=now,
-                    updated_at=now,
-                    turns=[],
-                    learning_goal=active_learning_goal,
-                )
-
-            conversation_id, entry = recent
-            turns = list(entry["turns"])[-max(int(limit), 1):]
-            return ConversationResponse(
-                conversation_id=conversation_id,
-                student_id=entry["student_id"],
-                created_at=entry["created_at"],
-                updated_at=entry["updated_at"],
-                turns=turns,
-                learning_goal=entry.get("learning_goal"),
-            )
-
-    def get_conversation_by_id(self, conversation_id: str, student_id: str) -> ConversationResponse:
-        """Return a specific conversation history by conversation id."""
-        active_learning_goal = self._extract_active_goal(student_id)
-        with self._lock:
-            entry = self._history.get(conversation_id)
-            if not entry:
-                now = datetime.utcnow()
-                return ConversationResponse(
-                    conversation_id=conversation_id,
-                    student_id=student_id,
-                    created_at=now,
-                    updated_at=now,
-                    turns=[],
-                    learning_goal=active_learning_goal,
-                )
-            return ConversationResponse(
-                conversation_id=conversation_id,
-                student_id=entry["student_id"],
-                created_at=entry["created_at"],
-                updated_at=entry["updated_at"],
-                turns=list(entry["turns"]),
-                learning_goal=entry.get("learning_goal"),
-            )
-
-    def clear_conversation_history(self, conversation_id: str) -> bool:
-        with self._lock:
-            return self._history.pop(conversation_id, None) is not None
 
     def get_mastery_stats(self, student_id: str) -> dict[str, Any]:
         return self.student_db.get_mastery_stats(student_id)
@@ -359,13 +271,12 @@ class TutorService:
             "graph": True,
             "retriever": self.retriever.health_check(),
             "database": self.student_db.health_check(),
+            "checkpointing": bool(getattr(self.graph, "checkpointing_enabled", False)),
         }
 
     def get_stats(self) -> dict[str, Any]:
-        with self._lock:
-            conversation_count = len(self._history)
+        # Conversation counts live in the database; the API layer adds them.
         return {
-            "conversation_count": conversation_count,
             "retriever": self.retriever.get_stats(),
             "database_healthy": self.student_db.health_check(),
             "health": self.health_check(),
@@ -373,11 +284,17 @@ class TutorService:
 
     def _invoke(self, payload: dict[str, Any]) -> dict[str, Any]:
         start = time.perf_counter()
+        # The compiled graph carries a SQLite checkpointer, which refuses to run
+        # without a thread id. A conversation is the natural thread: every turn
+        # in it should share checkpoint state.
+        thread_id = str(payload.get("conversation_id") or uuid4())
+        config = {"configurable": {"thread_id": thread_id}}
         try:
             return invoke_graph_safe(
                 self.graph,
                 payload,
                 timeout_seconds=self.config.default_response_timeout_seconds,
+                config=config,
             )
         finally:
             elapsed_ms = (time.perf_counter() - start) * 1000.0
@@ -556,65 +473,6 @@ class TutorService:
             sources=[],
             evaluation_result={"smalltalk": True, "kind": kind},
         )
-
-    def _build_question_turn(self, turn_id: str, question: str, response: TutorResponse) -> ConversationTurn:
-        return ConversationTurn(
-            turn_id=turn_id,
-            type="question",
-            question=question,
-            answer=response.answer,
-            check_question=response.check_question,
-            check_answer_hint=response.check_answer_hint,
-            sources=response.sources,
-            generated_at=response.generated_at,
-        )
-
-    def _build_answer_turn(
-        self,
-        turn_id: str,
-        question: str,
-        student_answer: str,
-        response: TutorResponse,
-    ) -> ConversationTurn:
-        return ConversationTurn(
-            turn_id=turn_id,
-            type="answer",
-            question=question,
-            student_answer=student_answer,
-            answer=response.answer,
-            is_correct=bool((response.evaluation_result or {}).get("is_correct")),
-            feedback=(response.evaluation_result or {}).get("feedback"),
-            misconception=(response.evaluation_result or {}).get("misconception"),
-            confidence=(response.evaluation_result or {}).get("confidence"),
-            mastery_event_id=str((response.mastery_event or {}).get("id")) if response.mastery_event else None,
-            remediation=response.remediation_explanation,
-            generated_at=response.generated_at,
-        )
-
-    def _store_turn(
-        self,
-        conversation_id: str,
-        student_id: str,
-        learning_goal: str | None,
-        turn: ConversationTurn,
-    ) -> None:
-        if not self.config.enable_conversation_history:
-            return
-        with self._lock:
-            entry = self._history.get(conversation_id)
-            if entry is None:
-                entry = {
-                    "student_id": student_id,
-                    "created_at": turn.generated_at,
-                    "updated_at": turn.generated_at,
-                    "turns": [],
-                    "learning_goal": learning_goal,
-                }
-                self._history[conversation_id] = entry
-            entry["turns"].append(turn)
-            entry["updated_at"] = turn.generated_at
-            if learning_goal and not entry.get("learning_goal"):
-                entry["learning_goal"] = learning_goal
 
     def generate_story_from_state(
         self,

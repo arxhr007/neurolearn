@@ -15,12 +15,17 @@ export default function TeacherCreate() {
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true); setError('');
-    const res = await api.post('/api/admin/teachers', form);
-    setSaving(false);
-    if (res?.id || res?.username) {
-      navigate('/admin/teachers');
-    } else {
-      setError(res?.detail || 'Failed to create teacher.');
+    try {
+      const res = await api.post('/api/admin/teachers', form);
+      if (res?.id || res?.username) {
+        navigate('/admin/teachers');
+      } else {
+        setError('Failed to create teacher.');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to create teacher.');
+    } finally {
+      setSaving(false);
     }
   };
 

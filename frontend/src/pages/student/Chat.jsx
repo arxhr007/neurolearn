@@ -33,25 +33,44 @@ export default function Chat() {
 
   const loadConversations = useCallback(() => {
     if (!user?.student_id) return;
-    api.get(`/api/conversations/${user.student_id}`).then(d => {
-      setConversations(d?.conversations || []);
-    });
+    api.get(`/api/students/${user.student_id}/conversations`)
+      .then(d => setConversations(Array.isArray(d) ? d : []))
+      .catch(() => setConversations([]));
   }, [user]);
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
 
+  // A turn carries both sides of an exchange, so each one expands into
+  // a student bubble followed by a tutor bubble.
+  const turnsToMessages = (turns) => {
+    const out = [];
+    for (const t of turns) {
+      if (t.type === 'answer') {
+        if (t.student_answer) out.push({ id: uid(), role: 'student', text: t.student_answer });
+        const reply = t.feedback || t.answer;
+        if (reply) out.push({ id: uid(), role: 'tutor', text: reply });
+        if (t.remediation) out.push({ id: uid(), role: 'tutor', text: t.remediation });
+      } else {
+        if (t.question) out.push({ id: uid(), role: 'student', text: t.question });
+        if (t.answer) out.push({ id: uid(), role: 'tutor', text: t.answer });
+        if (t.check_question) out.push({ id: uid(), role: 'tutor', text: t.check_question });
+      }
+    }
+    return out;
+  };
+
   const loadConversation = async (id) => {
-    const data = await api.get(`/api/conversations/${user.student_id}/${id}`);
-    const msgs = data?.messages || data?.turns || [];
-    if (msgs.length === 0) return;
-    setMessages(msgs.map(m => ({
-      id: uid(),
-      role: m.role === 'student' ? 'student' : 'tutor',
-      text: m.content || m.text || '',
-    })));
-    setConvId(id);
-    setMode('question');
-    setCheckQ(null);
+    try {
+      const data = await api.get(`/api/conversations/${user.student_id}/${id}`);
+      const msgs = turnsToMessages(data?.turns || []);
+      if (msgs.length === 0) return;
+      setMessages(msgs);
+      setConvId(id);
+      setMode('question');
+      setCheckQ(null);
+    } catch (err) {
+      addMsg('tutor', `Could not load that conversation. ${err.message}`);
+    }
   };
 
   const startNewConv = () => {
@@ -64,9 +83,13 @@ export default function Chat() {
 
   const deleteConv = async (id, e) => {
     e.stopPropagation();
-    await api.delete(`/api/conversations/${id}`);
-    setConversations(cs => cs.filter(c => (c.id || c.conversation_id) !== id));
-    if (convId === id) startNewConv();
+    try {
+      await api.delete(`/api/conversations/${id}`);
+      setConversations(cs => cs.filter(c => (c.id || c.conversation_id) !== id));
+      if (convId === id) startNewConv();
+    } catch (err) {
+      addMsg('tutor', `Could not delete that conversation. ${err.message}`);
+    }
   };
 
   const addMsg = (role, text) => setMessages(prev => [...prev, { id: uid(), role, text }]);
@@ -76,25 +99,30 @@ export default function Chat() {
     const q = input.trim(); setInput('');
     addMsg('student', q);
     setLoading(true); setCheckQ(null);
-    const res = await api.post('/api/tutor/question', {
-      student_id: user.student_id,
-      conversation_id: convId,
-      question: q,
-      context: {},
-    });
-    if (res?.answer) {
-      addMsg('tutor', res.answer);
-      if (res.check_question) {
-        setCheckQ(res.check_question);
-        setLastTurnId(res.turn_id);
-        setLastHint(res.check_answer_hint);
-        setMode('answer');
+    try {
+      const res = await api.post('/api/tutor/question', {
+        student_id: user.student_id,
+        conversation_id: convId,
+        question: q,
+        context: {},
+      });
+      if (res?.answer) {
+        addMsg('tutor', res.answer);
+        if (res.check_question) {
+          setCheckQ(res.check_question);
+          setLastTurnId(res.turn_id);
+          setLastHint(res.check_answer_hint);
+          setMode('answer');
+        }
+      } else {
+        addMsg('tutor', 'Sorry, I had trouble answering that.');
       }
-    } else {
-      addMsg('tutor', res?.detail || 'Sorry, I had trouble answering that.');
+    } catch (err) {
+      addMsg('tutor', `Sorry, I had trouble answering that. ${err.message}`);
+    } finally {
+      setLoading(false);
+      loadConversations();
     }
-    setLoading(false);
-    loadConversations();
   };
 
   const sendAnswer = async () => {
@@ -102,16 +130,22 @@ export default function Chat() {
     const ans = input.trim(); setInput('');
     addMsg('student', ans);
     setLoading(true); setCheckQ(null);
-    const res = await api.post('/api/tutor/answer', {
-      student_id: user.student_id,
-      conversation_id: convId,
-      turn_id: lastTurnId,
-      student_answer: ans,
-      check_answer_hint: lastHint,
-    });
-    if (res?.feedback) addMsg('tutor', res.feedback);
-    setMode('question');
-    setLoading(false);
+    try {
+      const res = await api.post('/api/tutor/answer', {
+        student_id: user.student_id,
+        conversation_id: convId,
+        turn_id: lastTurnId,
+        student_answer: ans,
+        check_answer_hint: lastHint,
+      });
+      if (res?.feedback) addMsg('tutor', res.feedback);
+      if (res?.remediation) addMsg('tutor', res.remediation);
+    } catch (err) {
+      addMsg('tutor', `Sorry, I could not check that answer. ${err.message}`);
+    } finally {
+      setMode('question');
+      setLoading(false);
+    }
   };
 
   const handleSend = () => mode === 'question' ? sendQuestion() : sendAnswer();

@@ -14,6 +14,7 @@ python-dotenv>=1.0.1
 
 # --- LangGraph Migration ---
 langgraph>=0.2.50
+langgraph-checkpoint-sqlite>=2.0.0
 
 # --- Phase 4 API ---
 fastapi>=0.104.1

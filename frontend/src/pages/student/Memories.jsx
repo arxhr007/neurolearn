@@ -14,10 +14,10 @@ export default function Memories() {
 
   const load = () => {
     setLoading(true);
-    api.get('/api/story/memories').then(d => {
-      setMemories(d?.memories || d || []);
-      setLoading(false);
-    });
+    api.get('/api/story/memories')
+      .then(d => setMemories(d?.memories || d || []))
+      .catch(() => setMemories([]))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, []);
@@ -27,12 +27,17 @@ export default function Memories() {
     setSaving(true); setError(''); setSuccess('');
     const fd = new FormData();
     fd.append('text', text.trim());
-    const res = await api.postForm('/api/memories', fd);
-    setSaving(false);
-    if (res?.id || res?.memory_id || res?.text) {
-      setText(''); setSuccess('Memory saved!'); load();
-    } else {
-      setError(res?.detail || 'Failed to save memory.');
+    try {
+      const res = await api.postForm('/api/memories', fd);
+      if (res?.id || res?.memory_id || res?.text) {
+        setText(''); setSuccess('Memory saved!'); load();
+      } else {
+        setError('Failed to save memory.');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to save memory.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -42,14 +47,19 @@ export default function Memories() {
     setSaving(true); setError(''); setSuccess('');
     const fd = new FormData();
     fd.append('audio', file);
-    const res = await api.postForm('/api/memories', fd);
-    setSaving(false);
-    if (res?.id || res?.memory_id || res?.text) {
-      setSuccess('Audio memory saved!'); load();
-    } else {
-      setError(res?.detail || 'Failed to save audio memory.');
+    try {
+      const res = await api.postForm('/api/memories', fd);
+      if (res?.id || res?.memory_id || res?.text) {
+        setSuccess('Audio memory saved!'); load();
+      } else {
+        setError('Failed to save audio memory.');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to save audio memory.');
+    } finally {
+      setSaving(false);
+      e.target.value = '';
     }
-    e.target.value = '';
   };
 
   return (

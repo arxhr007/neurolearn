@@ -1,4 +1,4 @@
-const BASE = 'http://localhost:8000';
+import { api } from '../api';
 
 function base64ToArrayBuffer(b64) {
   const chars = atob(b64);
@@ -43,21 +43,10 @@ function bufToUrl(buf) {
   return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
 }
 
-async function ttsRequest(body) {
-  const token = localStorage.getItem('access_token');
-  const res = await fetch(`${BASE}/api/story/tts`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `TTS failed: ${res.status}`);
-  }
-  return res.json();
+// Uses the shared api client so token handling, refresh-on-401 and error
+// shaping stay in one place.
+function ttsRequest(body) {
+  return api.post('/api/story/tts', body);
 }
 
 /**

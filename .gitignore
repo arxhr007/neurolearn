@@ -26,6 +26,9 @@ ENV/
 # Virtualenv / local env
 .env
 .env.*
+# ...but the templates must ship.
+!.env.example
+!**/.env.example
 
 # OS / editor
 .DS_Store
@@ -35,7 +38,13 @@ Thumbs.db
 
 # Runtime data
 vectorstore/
+checkpoints/
 chroma.sqlite3
+
+# User-uploaded media. A student voice recording was previously committed here;
+# these are personal data and must never enter version control.
+app/static/uploads/
+backend/app/static/uploads/
 chroma/
 chromadb/
 data/

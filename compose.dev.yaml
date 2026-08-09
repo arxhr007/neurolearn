@@ -1,0 +1,32 @@
+# Development overlay: source bind-mounted, hot reload on both services.
+#
+#   docker compose -f compose.yaml -f compose.dev.yaml up --build
+#
+# The web app is served by Vite on http://localhost:5173 here (not nginx on
+# 3000), and Vite proxies /api to the backend container.
+
+services:
+  backend:
+    volumes:
+      - ./backend:/app
+      # Keep container-managed state out of the bind mount.
+      - /app/__pycache__
+    command: ["uvicorn", "api_main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  frontend:
+    build:
+      # Stop at the build stage so node (not nginx) is the runtime.
+      target: build
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+    environment:
+      VITE_DEV_API_TARGET: http://backend:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      # Preserve the image's node_modules; the host copy may be absent or
+      # built for a different platform.
+      - /app/node_modules
+    depends_on:
+      backend:
+        condition: service_started

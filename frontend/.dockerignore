@@ -1,0 +1,14 @@
+node_modules
+dist
+dist-ssr
+
+.env
+.env.*
+!.env.example
+
+*.log
+npm-debug.log*
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

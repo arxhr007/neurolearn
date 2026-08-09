@@ -273,10 +273,18 @@ def ensure_default_admin(db: Session, username: str = "admin", password: str = "
 
 
 def ensure_single_admin(db: Session) -> None:
+    """Warn when the single-admin invariant is violated.
+
+    This runs from the API lifespan handler, so raising here would stop the
+    service from booting at all — a far worse outcome than an extra admin row.
+    """
     count = db.query(Admin).count()
     if count > 1:
-        logger.error("Multiple admin accounts detected (%s).", count)
-        raise ValueError("Only one admin account is allowed.")
+        logger.error(
+            "Multiple admin accounts detected (%s); expected exactly one. "
+            "Remove the extra accounts to restore the intended invariant.",
+            count,
+        )
 
 
 def authenticate_admin(db: Session, username: str, password: str) -> Admin | None:

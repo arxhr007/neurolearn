@@ -29,19 +29,26 @@ export default function Story() {
   const latestUrlRef = useRef('');
 
   useEffect(() => {
-    api.get('/api/story/curricula').then(d => setCurricula(d?.curricula || []));
+    api.get('/api/story/curricula')
+      .then(d => setCurricula(d?.curricula || []))
+      .catch(() => setCurricula([]));
   }, []);
 
   useEffect(() => {
     if (!user?.student_id) return;
-    api.get(`/api/students/${user.student_id}`).then(d => setProfile(d || {}));
+    api.get(`/api/students/${user.student_id}`)
+      .then(d => setProfile(d || {}))
+      .catch(() => setProfile({}));
   }, [user]);
 
   const handleCurriculumChange = async (name) => {
     setSelectedC(name); setSelectedM(''); setSelectedA(''); setCurriculumData(null);
     if (!name) return;
-    const data = await api.get(`/api/story/curricula/${name}`);
-    setCurriculumData(data);
+    try {
+      setCurriculumData(await api.get(`/api/story/curricula/${name}`));
+    } catch (err) {
+      setError(err.message || 'Failed to load curriculum.');
+    }
   };
 
   const modules = curriculumData?.modules || [];
@@ -69,12 +76,19 @@ export default function Story() {
     setLoading(true); setError('');
     const placeholder_values = {};
     placeholders.forEach(p => { if (p.value) placeholder_values[p.key] = p.value; });
-    const res = await api.post('/api/story/generate', {
-      curriculum: selectedC,
-      module_number: parseInt(selectedM),
-      activity_id: selectedA,
-      placeholder_values,
-    });
+    let res;
+    try {
+      res = await api.post('/api/story/generate', {
+        curriculum: selectedC,
+        module_number: parseInt(selectedM),
+        activity_id: selectedA,
+        placeholder_values,
+      });
+    } catch (err) {
+      setLoading(false);
+      setError(err.message || 'Failed to generate story.');
+      return;
+    }
     setLoading(false);
     if (res?.story) {
       setResult(res);
@@ -98,7 +112,7 @@ export default function Story() {
         }
       });
     } else {
-      setError(res?.detail || 'Story generation failed. Check API keys.');
+      setError('Story generation failed. Check API keys.');
     }
   };
 
