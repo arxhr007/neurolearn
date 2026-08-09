@@ -38,43 +38,140 @@ NeuroLearn focuses on student-centered learning support with adaptive explanatio
 - **Story Generation:** In learn mode, generates a single continuous Malayalam story from all module chunks with a moral paragraph (കഥയുടെ പാഠം). Uses `max_tokens=5000` for longer narratives.
 - **Manual Module Override:** `chapter_modules.csv` lets you hand-edit page ranges per module, overriding auto-detection when needed.
 
-## 🧭 Visual Architecture Diagram
+## 🧭 Architecture
+
+Three views: what runs where, what happens during a tutor turn, and where the
+knowledge comes from.
+
+### 1. System and deployment
+
+`docker compose up` starts two containers. The browser only ever talks to nginx —
+it serves the built SPA and reverse-proxies `/api` to the backend, so every
+request is same-origin and CORS never comes into play.
+
+```mermaid
+flowchart LR
+    Browser["🌐 Browser<br/>localhost:3000"]
+
+    subgraph FE["frontend container · nginx:alpine"]
+        Nginx["nginx<br/>• serves dist/<br/>• SPA history fallback<br/>• /api → backend:8000"]
+        SPA["React 19 SPA<br/>Vite build · Tailwind<br/>JWT in localStorage"]
+    end
+
+    subgraph BE["backend container · python:3.11-slim"]
+        API["FastAPI · api_main.py<br/>~70 routes · JWT auth"]
+        Svc["TutorService<br/>orchestration"]
+        Graph["LangGraph runtime"]
+        Retr["RAGRetriever"]
+    end
+
+    subgraph Store["bind-mounted state · survives compose down"]
+        DB[("SQLite<br/>neurolearn.db<br/>users · conversations<br/>goals · mastery · memories")]
+        Legacy[("SQLite<br/>student_profiles.db<br/>legacy, dual-written")]
+        Vec[("Chroma<br/>vectorstore/")]
+    end
+
+    subgraph Ext["external APIs"]
+        Groq["Groq<br/>llama-3.3-70b · 3.1-8b"]
+        Gem["Google Gemini<br/>story · TTS · transcription"]
+    end
+
+    Browser -->|"HTML · JS · CSS"| Nginx
+    Nginx -.serves.-> SPA
+    Browser -->|"/api/* · Bearer token"| Nginx
+    Nginx -->|proxy| API
+
+    API --> Svc --> Graph --> Retr
+    API --> DB
+    Svc --> Legacy
+    Retr --> Vec
+    Graph -->|chat · intent · evaluation| Groq
+    API -->|story · TTS · memory| Gem
+
+    classDef ext stroke-width:2px,stroke-dasharray:4 3
+    class Groq,Gem ext
+```
+
+### 2. Tutor turn — the LangGraph state machine
+
+Every question runs through this graph (`backend/langgraph_app/graph/builder.py`).
+Routing is decided by three conditional edges: intent, explanation complexity,
+and answer correctness.
 
 ```mermaid
 flowchart TD
-   A[Student Query CLI\nmain.py] --> B[LangGraph App]
-   B --> C[Intent Classifier]
-   C --> D[Goal Drift Checker]
+    Start(["POST /api/tutor/question<br/>or /api/tutor/answer"]) --> PO["parent_orchestrator"]
+    PO --> IC["intent_classifier<br/>rules fast-path, else llama-3.1-8b"]
+    IC --> GD["goal_drift_checker<br/>is this still on the learning goal?"]
 
-   D -->|off-goal| E[Drift Redirect]
-   E --> Z[Student Output]
+    GD --> R1{"route by intent<br/>+ drift"}
+    R1 -->|"answering a check question"| AR["answer_retriever"]
+    R1 -->|smalltalk| ST["smalltalk_responder"]
+    R1 -->|off-goal| DR["drift_redirect<br/>Malayalam nudge back"]
+    R1 -->|new concept| NR["new_concept_retriever"]
 
-   D -->|on-goal + new_concept| F[new_concept_retriever]
-   D -->|on-goal + answer| G[answer_retriever]
+    NR --> PZ["new_concept_personalizer<br/>rewrites for reading age,<br/>learning style, interests,<br/>neuro profile"]
+    PZ --> PG{"personalization_gate<br/>too complex?"}
+    PG -->|"revise · once only"| PZ
+    PG -->|deliver| EV["evaluator<br/>generates a check question"]
 
-   F --> R[Retriever Service]
-   G --> R
-   R --> S[Threshold + Dedup + Rerank\nOptional Hybrid]
-   R --> T[(Chroma Vector Store)]
-   S --> U[Grounded Context]
+    AR --> AE["answer_evaluator<br/>correct? misconception?<br/>confidence?"]
+    AE --> R2{"is_correct"}
+    R2 -->|true| MAS["persist mastery event"]
+    R2 -->|"false / evaluation failed"| REM["remediation<br/>simpler re-explanation"]
 
-   U --> H[new_concept_personalizer]
-   H --> I[Personalization Gate]
-   I -->|revise| H
-   I -->|deliver| J[evaluator\nGenerates Check Question]
-   J --> Z
+    EV --> Out(["response + sources"])
+    ST --> Out
+    DR --> Out
+    MAS --> Out
+    REM --> Out
 
-   U --> K[answer_evaluator]
-   K --> L{is_correct}
-   L -->|true| M[Persist Mastery Event\nSQLite]
-   M --> Z
-   L -->|false| N[Remediation]
-   N --> Z
+    Out --> Persist[("turns written to<br/>conversations + messages")]
 
-   O[PDF Pipeline\npipeline/pdf_content_pipeline.py] --> P[Chunk Corpus\noutput/rag_chunks/*.json]
-   P --> Q[Index Builder\npipeline/build_vector_index.py]
-   Q --> T
+    classDef terminal stroke-width:2px
+    class Start,Out terminal
 ```
+
+> The retry loop at `personalization_gate` is capped at one pass. A failed or
+> missing evaluation deliberately routes to remediation rather than being
+> scored correct.
+
+### 3. Knowledge pipeline and retrieval
+
+The OCR pipeline is offline and optional — the chunk corpus it produces is
+committed, and the retriever falls back to it when no vector index exists. That
+is why a fresh `docker compose up` answers real questions with no setup.
+
+```mermaid
+flowchart LR
+    subgraph Offline["offline · run manually, needs Tesseract + Poppler"]
+        PDFs["📄 Malayalam curriculum PDFs<br/>backend/input/pdfs/"]
+        OCR["pdf_content_pipeline.py<br/>OCR → clean → chunk"]
+        Chunks["📦 output/rag_chunks/*.json<br/>1728 chunks · committed to git"]
+        Index["build_vector_index.py"]
+    end
+
+    subgraph Runtime["request time"]
+        Q["student question"]
+        Retr["RAGRetriever"]
+        Vec[("Chroma<br/>vectorstore/")]
+        Rank["candidate_k → similarity floor<br/>→ dedup per source/page<br/>→ rerank → top_k"]
+        Ctx["grounded context<br/>+ source citations"]
+    end
+
+    PDFs --> OCR --> Chunks --> Index --> Vec
+    Chunks -.->|"fallback when<br/>no index is built"| Retr
+
+    Q --> Retr
+    Retr --> Vec
+    Vec --> Rank --> Ctx
+
+    classDef optional stroke-dasharray:4 3
+    class Offline,PDFs,OCR,Index optional
+```
+
+Embeddings: `paraphrase-multilingual-MiniLM-L12-v2`, baked into the backend
+image so startup needs no network access.
 
 ## Quick Start
 
@@ -86,7 +183,7 @@ Core runtime:
 | **Python** | 3.9 or higher |
 | **Groq API Key** | Set `GROQ_API_KEY` in `.env` or your shell |
 
-Pre-generated chunk files are already included in `output/rag_chunks/`, so you can run the tutor without OCR setup.
+Pre-generated chunk files are already included in `backend/output/rag_chunks/`, so you can run the tutor without OCR setup.
 
 Optional (only if you run the PDF content pipeline):
 
