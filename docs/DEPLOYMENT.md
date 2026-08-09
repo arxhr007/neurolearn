@@ -1,7 +1,7 @@
 ﻿# Deployment
 
 NeuroLearn ships as two containers: the FastAPI backend and an nginx-served
-React app. See [RUNNING.md](../RUNNING.md) for the day-to-day commands.
+React app. See [RUNNING.md](RUNNING.md) for the day-to-day commands.
 
 ## Layout
 

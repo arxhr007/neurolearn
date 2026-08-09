@@ -125,7 +125,7 @@ Optional (only if you run the PDF content pipeline):
    semantic search.
 
 > **Prefer Docker?** `cp .env.example .env` then `docker compose up --build`
-> brings up the API and the web app together. See [RUNNING.md](RUNNING.md).
+> brings up the API and the web app together. See [docs/RUNNING.md](docs/RUNNING.md).
 
 ## 🎯 Usage
 
@@ -254,7 +254,8 @@ cd backend && python test_api.py
 
 ## 📚 Guides and Concepts
 To understand the project and how to work with it, start with these docs:
-- **[how_to.md](how_to.md)**: Complete run guide covering CLI, API, web app, Docker, verification, data pipelines, Story Mode, and Chapter Mode with module selection.
+- **[RUNNING.md](docs/RUNNING.md)**: Start here. Docker quick start, local development, API keys, and common issues.
+- **[how_to.md](docs/how_to.md)**: The extras — CLI tutor, the server-rendered Jinja app, and the data pipeline.
 - **[SETUP.md](docs/SETUP.md)**: Local installation, environment variables, and smoke test steps.
 - **[WEB_PRODUCT_DESIGN.md](docs/WEB_PRODUCT_DESIGN.md)**: Product boundary, API contracts, frontend logic, and deployment architecture for web migration (student tutor UI + admin dashboard + single-VPS target).
 - **[FRONTEND_API_INTEGRATION.md](docs/FRONTEND_API_INTEGRATION.md)**: Practical frontend integration guide with auth flow, request/response examples, and endpoint-by-endpoint usage.
@@ -263,12 +264,12 @@ To understand the project and how to work with it, start with these docs:
 - **[DATA_FORMATS.md](docs/DATA_FORMATS.md)**: Student profile, mastery, chunk, and vector store formats.
 - **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)**: Common setup and runtime issues.
 - **[CONTRIBUTING.md](docs/CONTRIBUTING.md)**: How to work on the repo safely.
-- **[DEPLOYMENT.md](docs/DEPLOYMENT.md)**: Current CLI-first deployment notes and what would need to change for hosting.
+- **[DEPLOYMENT.md](docs/DEPLOYMENT.md)**: How the containers are built, what persists, and what to harden before exposing this publicly.
 - **[EXAMPLES.md](docs/EXAMPLES.md)**: Example student flows and pipeline usage.
 - **[TESTING.md](docs/TESTING.md)**: Validation checklist and testing workflow.
 
 Chapter mode with module selection:
-- `chapter_modules.csv` — manually editable page ranges for each module (source, module, start_page, end_page). Overrides auto-detection when present. See [how_to.md](how_to.md) §10 for details.
+- `backend/chapter_modules.csv` — manually editable page ranges for each module (source, module, start_page, end_page). Overrides auto-detection when present. A readable companion table lives in [chapter_modules_overview.md](docs/chapter_modules_overview.md).
 
 Internal notes and build history:
 - **[FLOW.md](docs/FLOW.md)**: Detailed mapping of the data flow and AI interactions.

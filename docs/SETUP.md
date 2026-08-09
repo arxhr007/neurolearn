@@ -20,7 +20,7 @@ cd backend
 pip install -r requirements.txt
 ```
 
-For the containerized setup instead, see [RUNNING.md](../RUNNING.md).
+For the containerized setup instead, see [RUNNING.md](RUNNING.md).
 
 ## Configure environment
 

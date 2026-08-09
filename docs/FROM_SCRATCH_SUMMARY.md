@@ -352,7 +352,7 @@ This repository has now evolved from static RAG behavior into an adaptive tutor 
 
 ## Related Docs
 
-- [README.md](README.md)
+- [README.md](../README.md)
 - [FLOW.md](FLOW.md)
 - [plan.md](plan.md)
 
