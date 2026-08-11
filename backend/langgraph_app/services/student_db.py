@@ -23,8 +23,14 @@ class StudentDB(StudentDBBase):
 
     @contextmanager
     def _connect(self):
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         conn.row_factory = sqlite3.Row
+        # Match the pragmas used for the primary database: WAL so readers are
+        # not blocked by a writer, and a busy timeout so a contended write waits
+        # instead of raising "database is locked".
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=15000")
+        conn.execute("PRAGMA synchronous=NORMAL")
         try:
             yield conn
             conn.commit()

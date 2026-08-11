@@ -1,12 +1,15 @@
 """SQLAlchemy engine and session helpers."""
 
+import logging
 from pathlib import Path
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.config import get_settings
 
+
+logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
@@ -15,6 +18,35 @@ if settings.database_url.startswith("sqlite"):
     _connect_args = {"check_same_thread": False}
 
 engine = create_engine(settings.database_url, connect_args=_connect_args, future=True)
+
+
+@event.listens_for(engine, "connect")
+def _apply_sqlite_pragmas(dbapi_connection, _connection_record) -> None:
+    """Make SQLite usable under concurrent requests.
+
+    In the default `delete` journal mode a writer blocks every reader, and
+    concurrent writers fail outright with "database is locked". Tutor requests
+    hold their session across a multi-second LLM call before committing, so two
+    students finishing a turn at once is enough to collide.
+
+    WAL lets readers proceed during a write; busy_timeout makes a blocked writer
+    wait instead of failing immediately. journal_mode persists in the file, the
+    rest are per-connection.
+    """
+    if engine.dialect.name != "sqlite":
+        return
+    cursor = dbapi_connection.cursor()
+    try:
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA busy_timeout=15000")
+        # Safe to relax with WAL: a crash can lose the last commits but cannot
+        # corrupt the database.
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        cursor.execute("PRAGMA foreign_keys=ON")
+    except Exception:
+        logger.warning("Could not apply SQLite pragmas", exc_info=True)
+    finally:
+        cursor.close()
 
 
 def _ensure_sqlite_parent_dir() -> None:
