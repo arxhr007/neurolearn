@@ -21,3 +21,8 @@ export const csvToList = (value) =>
 
 export const listToCsv = (value) =>
   Array.isArray(value) ? value.join(', ') : String(value || '');
+
+// The goals endpoints return { active, archived }, not a flat list. Callers
+// want one array with is_active intact so they can label each entry; the
+// active goal comes first.
+export const goalsFromResponse = (d) => [...(d?.active || []), ...(d?.archived || [])];

@@ -53,6 +53,29 @@ SQLite databases and the Chroma index are bind-mounted to `backend/data/`,
 `backend/vectorstore/`, and `backend/checkpoints/`, so they survive
 `docker compose down`. To wipe them, delete those directories.
 
+> **Do not write to the database from the host while the containers are
+> running.** The databases use WAL journalling, which needs real shared memory
+> (the `-shm` file). That does not work across a Docker bind mount, so writes
+> made by a host-side process are invisible to the container until it restarts.
+> Run seeds and migrations inside the container instead:
+>
+> ```bash
+> docker compose exec backend python -m database.seed_evadb
+> ```
+
+### Demo data
+
+`database/seed_evadb.py` creates a fully populated student — profile with family
+names and favourites, three Malayalam memories, an active and a previous
+learning goal, and six mastery events — so every screen has something in it.
+It is idempotent.
+
+| Role | Username | Password |
+|---|---|---|
+| Student (Eva) | `student1` | `student123` |
+| Her teacher | `teacher1` | `teacher123` |
+| Admin | `admin` | `admin` |
+
 ---
 
 ## Running without Docker

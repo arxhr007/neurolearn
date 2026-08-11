@@ -4,7 +4,7 @@ import AppShell from '../../components/AppShell';
 import Card from '../../components/Card';
 import { MetricCard } from '../../components/Card';
 import { api } from '../../api';
-import { LEARNING_STYLES, NEURO_PROFILES, csvToList, listToCsv } from '../../constants';
+import { LEARNING_STYLES, NEURO_PROFILES, csvToList, listToCsv, goalsFromResponse } from '../../constants';
 
 export default function StudentDetail() {
   const { id } = useParams();
@@ -26,7 +26,7 @@ export default function StudentDetail() {
     ]).then(([s, m, g]) => {
       setStudent(s?.student || s);
       setMastery(m?.events || []);
-      setGoals(g?.goals || []);
+      setGoals(goalsFromResponse(g));
     }).catch(() => {
       setStudent(null);
     }).finally(() => setLoading(false));

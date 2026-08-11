@@ -4,6 +4,7 @@ import { MetricCard } from '../../components/Card';
 import Card from '../../components/Card';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api';
+import { goalsFromResponse } from '../../constants';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
@@ -17,7 +18,7 @@ export default function StudentDashboard() {
       api.get(`/api/students/${user.student_id}/goals`),
       api.get(`/api/students/${user.student_id}/mastery`),
     ]).then(([g, m]) => {
-      setGoals(g?.goals || []);
+      setGoals(goalsFromResponse(g));
       setMastery(m?.events || []);
     }).catch(() => {
       setGoals([]);

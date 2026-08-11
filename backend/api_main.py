@@ -19,6 +19,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db
@@ -211,6 +212,9 @@ class StudentResponse(BaseModel):
     teacher_id: int
     created_at: datetime
     updated_at: datetime
+    # Populated by the teacher roster endpoint; 0 elsewhere rather than a
+    # per-student query on every single-student read.
+    goal_count: int = 0
 
 
 class StudentListResponse(BaseModel):
@@ -500,8 +504,9 @@ def _map_student_profile(profile: dict[str, Any]) -> StudentProfile:
     )
 
 
-def _map_student_row(student: Student) -> StudentResponse:
+def _map_student_row(student: Student, goal_count: int = 0) -> StudentResponse:
     return StudentResponse(
+        goal_count=int(goal_count),
         student_id=student.student_id,
         username=student.username,
         full_name=student.full_name or "",
@@ -1562,7 +1567,11 @@ def create_learning_goal(
     db: Session = Depends(get_db),
 ) -> LearningGoal:
     student = _require_student_access(db, current_user, student_id)
-    row = create_goal(db, student_id=student.id, goal_text=payload.goal_text)
+    try:
+        row = create_goal(db, student_id=student.id, goal_text=payload.goal_text)
+    except ValueError as exc:
+        # create_goal rejects empty text / unknown student; that is client error.
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return LearningGoal(
         goal_id=str(row.id),
         goal_text=row.goal_text,
@@ -1630,9 +1639,24 @@ def list_teacher_students(
 ) -> StudentListResponse:
     teacher_id = _as_int_user_id(current_user)
     students = list_students_for_teacher(db, teacher_id)
+
+    # One grouped count for the whole roster rather than a query per student.
+    goal_counts: dict[int, int] = {}
+    if students:
+        rows = (
+            db.query(LearningGoalModel.student_id, func.count(LearningGoalModel.id))
+            .filter(LearningGoalModel.student_id.in_([s.id for s in students]))
+            .group_by(LearningGoalModel.student_id)
+            .all()
+        )
+        goal_counts = {int(sid): int(count) for sid, count in rows}
+
     return StudentListResponse(
         total=len(students),
-        students=[_map_student_row(student) for student in students],
+        students=[
+            _map_student_row(student, goal_counts.get(int(student.id), 0))
+            for student in students
+        ],
     )
 
 
@@ -1730,7 +1754,10 @@ def create_teacher_student_goal(
     db: Session = Depends(get_db),
 ) -> LearningGoal:
     student = _require_student_access(db, current_user, student_id)
-    goal = create_goal(db, student_id=student.id, goal_text=payload.goal_text)
+    try:
+        goal = create_goal(db, student_id=student.id, goal_text=payload.goal_text)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return LearningGoal(
         goal_id=str(goal.id),
         goal_text=goal.goal_text,

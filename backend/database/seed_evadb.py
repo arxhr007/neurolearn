@@ -1,8 +1,19 @@
-"""Seed the database with Eva (student1) and her teacher with full profile + memories."""
+"""Seed the database with Eva (student1), her teacher, and enough data to see
+every screen populated: full personalisation profile, memories, a learning goal,
+and a mastery history.
 
-from datetime import datetime
+Idempotent — safe to run repeatedly; each section is skipped if already present.
+
+Run as a module so that `app` and `langgraph_app` resolve:
+
+    cd backend && python -m database.seed_evadb          # local
+    docker compose exec backend python -m database.seed_evadb
+"""
+
+from datetime import datetime, timedelta
 
 from app.database import SessionLocal, init_db
+from app.models.learning import LearningGoal, MasteryEvent
 from app.models.memory import StudentMemory
 from app.models.user import Student, Teacher
 from app.services.auth import hash_password
@@ -126,10 +137,69 @@ def main() -> None:
             ]
             for m in memories:
                 db.add(m)
-            db.commit()
             print(f"Created {len(memories)} memories for {student.full_name}")
 
-    print("Done seeding Eva's data.")
+        # --- Learning goals -------------------------------------------------
+        # create_goal() deactivates prior goals, so seed the history directly:
+        # one earlier goal marked inactive, one current goal active.
+        if db.query(LearningGoal).filter(LearningGoal.student_id == student.id).count() > 0:
+            print("Student already has goals — skipping")
+        else:
+            now = datetime.utcnow()
+            db.add(LearningGoal(
+                student_id=student.id,
+                goal_text="Recognise and name the parts of a plant",
+                is_active=False,
+                created_at=now - timedelta(days=21),
+                updated_at=now - timedelta(days=14),
+            ))
+            db.add(LearningGoal(
+                student_id=student.id,
+                goal_text="Understand why handwashing keeps us healthy",
+                is_active=True,
+                created_at=now - timedelta(days=14),
+                updated_at=now - timedelta(days=14),
+            ))
+            print("Created 2 goals (1 active, 1 previous)")
+
+        # --- Mastery history ------------------------------------------------
+        if db.query(MasteryEvent).filter(MasteryEvent.student_id == student.id).count() > 0:
+            print("Student already has mastery events — skipping")
+        else:
+            now = datetime.utcnow()
+            samples = [
+                ("health.hygiene.handwashing", True, 0.91, "", "Secondary.pdf", 9, 11),
+                ("health.hygiene.germs", True, 0.84, "", "Secondary.pdf", 9, 9),
+                ("health.hygiene.when_to_wash", False, 0.42,
+                 "Thought washing only matters after playing outside", "Secondary.pdf", 58, 8),
+                ("science.plants.parts", True, 0.88, "", "Primary.pdf", 21, 6),
+                ("science.plants.photosynthesis", False, 0.37,
+                 "Said plants eat soil for food", "Primary.pdf", 23, 5),
+                ("science.plants.roots", True, 0.79, "", "Primary.pdf", 22, 4),
+            ]
+            for i, (key, correct, conf, misc, doc, page, chunk) in enumerate(samples):
+                db.add(MasteryEvent(
+                    student_id=student.id,
+                    concept_key=key,
+                    is_correct=correct,
+                    misconception=misc,
+                    confidence=conf,
+                    source_doc=doc,
+                    source_page=page,
+                    source_chunk_id=chunk,
+                    created_at=now - timedelta(days=len(samples) - i, hours=i),
+                ))
+            correct_n = sum(1 for s in samples if s[1])
+            print(f"Created {len(samples)} mastery events ({correct_n} correct, "
+                  f"{len(samples) - correct_n} incorrect)")
+
+        # Single commit for everything above. Previously this sat inside the
+        # memories branch, so a partially-seeded run could silently roll back.
+        db.commit()
+
+    print("\nDone seeding Eva's data.")
+    print("  student : student1 / student123   (student_id s100)")
+    print("  teacher : teacher1 / teacher123")
 
 
 if __name__ == "__main__":

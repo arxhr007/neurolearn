@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import AppShell from '../../components/AppShell';
 import Card from '../../components/Card';
 import { api } from '../../api';
+import { goalsFromResponse } from '../../constants';
 
 export default function TeacherGoals() {
   const [students, setStudents] = useState([]);
@@ -19,7 +20,7 @@ export default function TeacherGoals() {
   const loadGoals = (studentId) => {
     if (!studentId) return;
     api.get(`/api/teacher/students/${studentId}/goals`)
-      .then(d => setGoals(d?.goals || []))
+      .then(d => setGoals(goalsFromResponse(d)))
       .catch(() => setGoals([]));
   };
 
@@ -31,7 +32,7 @@ export default function TeacherGoals() {
     setSaving(true); setMsg('');
     try {
       const res = await api.post(`/api/students/${form.student_id}/goals`, { goal_text: form.goal_text });
-      if (res?.goal_text || res?.id) {
+      if (res?.goal_id || res?.goal_text) {
         setMsg('Goal created!');
         setForm(f => ({ ...f, goal_text: '' }));
         loadGoals(form.student_id);
@@ -65,6 +66,11 @@ export default function TeacherGoals() {
                 placeholder="e.g. Learn the steps of handwashing"
                 className="w-full px-4 py-2.5 rounded-xl border border-greige-border bg-white text-ink text-sm focus:outline-none focus:border-sage resize-none" />
             </div>
+            <p className="text-xs text-muted -mt-1">
+              A student has one active goal at a time. Setting a new goal replaces the
+              current one, which is kept as history. The tutor uses the active goal to
+              steer students back on topic.
+            </p>
             <button type="submit" disabled={saving}
               className="px-6 py-2.5 rounded-xl bg-sage text-white font-semibold text-sm hover:bg-sage-dark disabled:opacity-50 self-start">
               {saving ? 'Saving…' : 'Set Goal'}
@@ -82,7 +88,7 @@ export default function TeacherGoals() {
               <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${g.is_active ? 'bg-sage' : 'bg-greige-border'}`} />
               <div>
                 <p className="text-sm text-ink">{g.goal_text}</p>
-                <span className={`text-xs font-medium ${g.is_active ? 'text-sage-dark' : 'text-muted'}`}>{g.is_active ? 'Active' : 'Done'}</span>
+                <span className={`text-xs font-medium ${g.is_active ? 'text-sage-dark' : 'text-muted'}`}>{g.is_active ? 'Active' : 'Previous'}</span>
               </div>
             </div>
           ))}
