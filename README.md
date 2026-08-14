@@ -3,8 +3,9 @@
 # NeuroLearn: Adaptive AI Tutor for Neurodivergent Learners
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/release/python-390/)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
+[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)](LICENSE)
 
+**NeuroLearn** is an adaptive AI tutoring platform designed specifically for **neurodivergent students**. Recognizing that everyone learns differently, our AI dynamically tailors its teaching approach to suit individual needs.
 
 NeuroLearn focuses on student-centered learning support with adaptive explanations, guided remediation, mastery tracking, and profile-aware tutoring so each learner can progress in a way that works for them.
 
@@ -175,54 +176,17 @@ image so startup needs no network access.
 
 ## Quick Start
 
-### Prerequisites
-Core runtime:
+1. Create `.env` from `.env.example` in the project root, then set `GROQ_API_KEY`.
+2. Start the application:
 
-| Dependency | Installation |
-|---|---|
-| **Python** | 3.9 or higher |
-| **Groq API Key** | Set `GROQ_API_KEY` in `.env` or your shell |
-
-Pre-generated chunk files are already included in `backend/output/rag_chunks/`, so you can run the tutor without OCR setup.
-
-Optional (only if you run the PDF content pipeline):
-
-| Dependency | Installation |
-|---|---|
-| **Tesseract OCR** | `sudo apt install tesseract-ocr` or [Windows Installer](https://github.com/UB-Mannheim/tesseract/wiki) |
-| **Malayalam Data** | `sudo apt install tesseract-ocr-mal` (Linux). For Windows, place `mal.traineddata` in the `tessdata` directory. |
-| **Poppler** | `sudo apt install poppler-utils` or [Poppler for Windows](https://github.com/oschwartz10612/poppler-windows) (required by `pdf2image`) |
-
-### Setup & Installation
-1. **Clone the repository:**
    ```bash
-   git clone https://github.com/arxhr007/neurolearn.git
-   cd neurolearn
+   docker compose up --build
    ```
 
-2. **Install Python dependencies:**
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   ```
-
-3. **Configure the Environment:**
-   Copy `.env.example` to `.env` in the project root and add your Groq API key:
-   ```bash
-   cp .env.example .env
-   ```
-
-4. **Optional — build the local vector index:**
-   ```bash
-   cd backend
-   python pipeline/build_vector_index.py
-   ```
-   Retrieval falls back to the pre-chunked corpus in `backend/output/rag_chunks/`,
-   so the app works without this step. Build the index for faster, higher-quality
-   semantic search.
-
-> **Prefer Docker?** `cp .env.example .env` then `docker compose up --build`
-> brings up the API and the web app together. See [docs/RUNNING.md](docs/RUNNING.md).
+The web app is available at `http://localhost:3000` and the API at
+`http://localhost:8000`. The included chunk corpus works without OCR or a
+locally built vector index. For local development, optional OCR/indexing, and
+troubleshooting, see [docs/RUNNING.md](docs/RUNNING.md).
 
 ## 🎯 Usage
 
@@ -280,10 +244,6 @@ python manage_student_db.py set-goal --student-id s100 --goal "Learn handwashing
 
 **Run a Query:**
 ```bash
-# Run once after clone (or after updating chunks)
-python pipeline/build_vector_index.py
-
-# Start tutor
 python main.py --student-id s100
 
 # Then type your question interactively when prompted
@@ -329,14 +289,7 @@ python pipeline/pdf_content_pipeline.py \
 python pipeline/build_vector_index.py
 ```
 
-### 3. Run with Docker
-```bash
-cp .env.example .env      # add GROQ_API_KEY and gemini_api_key
-docker compose up --build
-```
-Web app on `http://localhost:3000`, API on `http://localhost:8000`.
-
-### 4. Verify the app
+### 3. Verify the app
 ```bash
 # Health check
 curl http://localhost:8000/api/health
@@ -348,6 +301,10 @@ cd backend && python test_api.py
 ![NeuroLearn Demo](docs/demo.png)
 
 ## 📄 License
+NeuroLearn is proprietary and available under the [NeuroLearn Proprietary
+License](LICENSE). Copying, redistribution, modification, false ownership
+claims, and commercial use require prior written permission from the copyright
+holders.
 
 ## 📚 Guides and Concepts
 To understand the project and how to work with it, start with these docs:
