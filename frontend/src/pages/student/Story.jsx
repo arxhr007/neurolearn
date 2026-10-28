@@ -22,11 +22,14 @@ export default function Story() {
   const [step, setStep] = useState('select'); // select | placeholders | result
   const [result, setResult] = useState(null);
   const [audioReady, setAudioReady] = useState(false);
+  const [audioUrl, setAudioUrl] = useState('');
   const [audioStatus, setAudioStatus] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const audioRef = useRef(null);
   const latestUrlRef = useRef('');
+  const pendingAudioTimeRef = useRef(0);
+  const resumeAudioRef = useRef(true);
 
   useEffect(() => {
     api.get('/api/story/curricula')
@@ -93,22 +96,21 @@ export default function Story() {
     if (res?.story) {
       setResult(res);
       setAudioReady(false); setAudioStatus('');
+      setAudioUrl('');
       latestUrlRef.current = '';
+      pendingAudioTimeRef.current = 0;
+      resumeAudioRef.current = true;
       if (audioRef.current) { audioRef.current.pause(); audioRef.current.removeAttribute('src'); }
       setStep('result');
       streamTTS(res.story, (url, status) => {
         setAudioStatus(status);
         if (url) {
           latestUrlRef.current = url;
-          const el = audioRef.current;
-          if (el) {
-            const isPlaying = !el.paused && !el.ended && el.readyState > 0;
-            if (!isPlaying) {
-              el.src = url;
-              el.play().catch(() => {});
-              setAudioReady(true);
-            }
-          }
+          const currentAudio = audioRef.current;
+          pendingAudioTimeRef.current = currentAudio?.currentTime || 0;
+          resumeAudioRef.current = currentAudio ? !currentAudio.paused : true;
+          setAudioUrl(url);
+          setAudioReady(true);
         }
       });
     } else {
@@ -117,8 +119,10 @@ export default function Story() {
   };
 
   const reset = () => {
-    setStep('select'); setResult(null); setAudioReady(false); setAudioStatus('');
+    setStep('select'); setResult(null); setAudioReady(false); setAudioUrl(''); setAudioStatus('');
     latestUrlRef.current = '';
+    pendingAudioTimeRef.current = 0;
+    resumeAudioRef.current = true;
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.removeAttribute('src'); }
     setSelectedC(''); setSelectedM(''); setSelectedA(''); setCurriculumData(null);
     setError('');
@@ -205,17 +209,35 @@ export default function Story() {
 
             <div className="mt-4">
               {audioStatus && <p className="text-xs text-muted mb-2">{audioStatus}</p>}
-              {audioReady && (
-                <audio
-                  ref={audioRef}
-                  controls
-                  className="w-full rounded-lg"
-                  onEnded={() => {
-                    if (latestUrlRef.current && audioRef.current) {
-                      audioRef.current.src = latestUrlRef.current;
-                    }
-                  }}
-                />
+              {audioReady && audioUrl && (
+                <div className="flex items-center gap-3 rounded-xl border border-greige-border bg-white px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => audioRef.current?.paused ? audioRef.current.play() : audioRef.current?.pause()}
+                    className="shrink-0 rounded-lg bg-sage px-3 py-2 text-xs font-semibold text-white hover:bg-sage-dark"
+                  >
+                    Play audio
+                  </button>
+                  <audio
+                    ref={audioRef}
+                    src={audioUrl}
+                    controls
+                    className="min-w-0 flex-1 h-10"
+                    onLoadedMetadata={() => {
+                      const audio = audioRef.current;
+                      if (!audio) return;
+                      const targetTime = pendingAudioTimeRef.current;
+                      if (targetTime > 0 && Number.isFinite(targetTime)) {
+                        audio.currentTime = Math.min(targetTime, Math.max(0, audio.duration - 0.05));
+                      }
+                      if (resumeAudioRef.current) {
+                        audio.play().catch(() => {
+                          setAudioStatus('Audio is ready. Allow autoplay for localhost in Brave, or press Play audio.');
+                        });
+                      }
+                    }}
+                  />
+                </div>
               )}
             </div>
 

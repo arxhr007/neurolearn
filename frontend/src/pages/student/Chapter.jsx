@@ -36,9 +36,12 @@ export default function Chapter() {
 
   // Audio
   const [audioReady, setAudioReady] = useState(false);
+  const [audioUrl, setAudioUrl] = useState('');
   const [audioStatus, setAudioStatus] = useState('');
   const audioRef = useRef(null);
   const latestUrlRef = useRef('');
+  const pendingAudioTimeRef = useRef(0);
+  const resumeAudioRef = useRef(true);
 
   useEffect(() => {
     api.get('/api/story/curricula')
@@ -86,6 +89,9 @@ export default function Chapter() {
 
   const startDrill = async () => {
     setLoading(true); setError('');
+    setStory(''); setQuestions([]); setAudioReady(false); setAudioUrl(''); setAudioStatus('');
+    latestUrlRef.current = '';
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current.removeAttribute('src'); }
     const placeholder_values = {};
     placeholders.forEach(p => { if (p.value) placeholder_values[p.key] = p.value; });
     let res;
@@ -98,6 +104,7 @@ export default function Chapter() {
       });
     } catch (err) {
       setLoading(false);
+      setStep('placeholders');
       setError(err.message || 'Failed to generate story.');
       return;
     }
@@ -107,25 +114,25 @@ export default function Chapter() {
       setQuestions(res.questions || []);
       setQIndex(0); setFeedback(''); setAnswer('');
       setAudioReady(false); setAudioStatus('');
+      setAudioUrl('');
       latestUrlRef.current = '';
+      pendingAudioTimeRef.current = 0;
+      resumeAudioRef.current = true;
       if (audioRef.current) { audioRef.current.pause(); audioRef.current.removeAttribute('src'); }
       setStep('drill');
       streamTTS(res.story, (url, status) => {
         setAudioStatus(status);
         if (url) {
           latestUrlRef.current = url;
-          const el = audioRef.current;
-          if (el) {
-            const isPlaying = !el.paused && !el.ended && el.readyState > 0;
-            if (!isPlaying) {
-              el.src = url;
-              el.play().catch(() => {});
-              setAudioReady(true);
-            }
-          }
+          const currentAudio = audioRef.current;
+          pendingAudioTimeRef.current = currentAudio?.currentTime || 0;
+          resumeAudioRef.current = currentAudio ? !currentAudio.paused : true;
+          setAudioUrl(url);
+          setAudioReady(true);
         }
       });
     } else {
+      setStory(''); setQuestions([]); setAudioReady(false); setAudioUrl(''); setAudioStatus('');
       setError('Failed to generate story. Check API/Groq key.');
     }
   };
@@ -170,8 +177,10 @@ export default function Chapter() {
   const reset = () => {
     setStep('select'); setStory(''); setQuestions([]); setQIndex(0);
     setFeedback(''); setAnswer(''); setError('');
-    setAudioReady(false); setAudioStatus('');
+    setAudioReady(false); setAudioUrl(''); setAudioStatus('');
     latestUrlRef.current = '';
+    pendingAudioTimeRef.current = 0;
+    resumeAudioRef.current = true;
     if (audioRef.current) { audioRef.current.pause(); audioRef.current.removeAttribute('src'); }
     setSelectedC(''); setSelectedM(''); setSelectedA(''); setCurriculumData(null);
   };
@@ -258,17 +267,35 @@ export default function Chapter() {
                 {audioStatus && (
                   <p className="text-xs text-muted mb-2">{audioStatus}</p>
                 )}
-                {audioReady && (
-                  <audio
-                    ref={audioRef}
-                    controls
-                    className="w-full rounded-lg"
-                    onEnded={() => {
-                      if (latestUrlRef.current && audioRef.current) {
-                        audioRef.current.src = latestUrlRef.current;
-                      }
-                    }}
-                  />
+                {audioReady && audioUrl && (
+                  <div className="flex items-center gap-3 rounded-xl border border-greige-border bg-white px-3 py-2">
+                    <button
+                      type="button"
+                      onClick={() => audioRef.current?.paused ? audioRef.current.play() : audioRef.current?.pause()}
+                      className="shrink-0 rounded-lg bg-sage px-3 py-2 text-xs font-semibold text-white hover:bg-sage-dark"
+                    >
+                      Play audio
+                    </button>
+                    <audio
+                      ref={audioRef}
+                      src={audioUrl}
+                      controls
+                      className="min-w-0 flex-1 h-10"
+                      onLoadedMetadata={() => {
+                        const audio = audioRef.current;
+                        if (!audio) return;
+                        const targetTime = pendingAudioTimeRef.current;
+                        if (targetTime > 0 && Number.isFinite(targetTime)) {
+                          audio.currentTime = Math.min(targetTime, Math.max(0, audio.duration - 0.05));
+                        }
+                        if (resumeAudioRef.current) {
+                          audio.play().catch(() => {
+                            setAudioStatus('Audio is ready. Allow autoplay for localhost in Brave, or press Play audio.');
+                          });
+                        }
+                      }}
+                    />
+                  </div>
                 )}
               </div>
             </Card>

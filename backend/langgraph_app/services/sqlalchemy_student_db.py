@@ -44,6 +44,7 @@ class SqlAlchemyStudentDB(StudentDBBase):
         return {
             "student_id": student.student_id,
             "name": name,
+            "age": int(student.age),
             "learning_style": student.learning_style,
             "reading_age": int(student.reading_age),
             "interest_graph": list(student.interests or []),

@@ -495,10 +495,23 @@ def _map_student_profile(profile: dict[str, Any]) -> StudentProfile:
     return StudentProfile(
         student_id=profile["student_id"],
         name=profile.get("name") or "",
+        full_name=profile.get("name") or "",
+        age=profile.get("age"),
         learning_style=profile.get("learning_style") or "general",
         reading_age=int(profile.get("reading_age") or 8),
         interests=list(profile.get("interest_graph") or []),
         neuro_profile=list(profile.get("neuro_profile") or ["general"]),
+        father_name=profile.get("father_name"),
+        mother_name=profile.get("mother_name"),
+        grandfather_name=profile.get("grandfather_name"),
+        grandmother_name=profile.get("grandmother_name"),
+        favorite_color=profile.get("favorite_color"),
+        teacher_name=profile.get("teacher_name"),
+        place=profile.get("place"),
+        friends=profile.get("friends"),
+        favorite_food=profile.get("favorite_food"),
+        favorite_animal=profile.get("favorite_animal"),
+        favorite_interest=profile.get("favorite_interest"),
         created_at=_as_dt(profile.get("created_at")),
         updated_at=_as_dt(profile.get("updated_at")),
     )
@@ -1276,7 +1289,6 @@ def chapter_learn(
 
     memory_categories = activity.get("relevant_memory_categories")
 
-    story = ""
     try:
         story = service.llm.generate_story_from_answer(
             answer=filled_template,
@@ -1286,8 +1298,9 @@ def chapter_learn(
             memory_categories=memory_categories,
             max_tokens=16384,
         )
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to generate story for chapter learn")
+        raise HTTPException(status_code=502, detail=f"Story generation failed: {exc}") from exc
 
     question_count = 3
     questions = []
@@ -1458,7 +1471,7 @@ def get_student(
 def put_student(
     student_id: str,
     payload: StudentProfileRequest,
-    current_user: TokenData = Depends(require_roles("teacher", "admin")),
+    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
     student_db: SqlAlchemyStudentDB = Depends(get_student_db),
     db: Session = Depends(get_db),
 ) -> StudentProfile:
@@ -1466,11 +1479,23 @@ def put_student(
     update_student(
         db,
         student_id=student_id,
-        full_name=payload.name,
+        full_name=payload.full_name or payload.name,
+        age=payload.age,
         reading_age=payload.reading_age,
         learning_style=payload.learning_style,
         interests=payload.interests,
         neuro_profile=payload.neuro_profile,
+        father_name=payload.father_name,
+        mother_name=payload.mother_name,
+        grandfather_name=payload.grandfather_name,
+        grandmother_name=payload.grandmother_name,
+        favorite_color=payload.favorite_color,
+        teacher_name=payload.teacher_name,
+        place=payload.place,
+        friends=payload.friends,
+        favorite_food=payload.favorite_food,
+        favorite_animal=payload.favorite_animal,
+        favorite_interest=payload.favorite_interest,
     )
     profile = student_db.get_student_profile(student_id)
     if not profile:
@@ -2053,6 +2078,8 @@ class TTSRequest(BaseModel):
 
 
 TTS_FALLBACK_MODELS = [
+    "gemini-3.8-flash-tts",
+    "gemini-3.1-flash-tts-preview",
     "gemini-2.5-flash-preview-tts",
     "gemini-2.5-pro-preview-tts",
 ]
@@ -2069,7 +2096,7 @@ def _tts_generate(prompt_text: str) -> bytes:
     if not api_key:
         raise HTTPException(status_code=400, detail="Gemini API key not configured")
 
-    primary_model = os.getenv("GEMINI_TTS_MODEL", "gemini-2.5-flash-preview-tts")
+    primary_model = os.getenv("GEMINI_TTS_MODEL", "gemini-3.8-flash-lite-tts")
     models_to_try = [primary_model] + [m for m in TTS_FALLBACK_MODELS if m != primary_model]
     last_error = None
 
@@ -2115,8 +2142,9 @@ def _tts_generate(prompt_text: str) -> bytes:
             print(f"   TTS model {model} failed: {err_str[:300]}")
             is_rate_limit = "429" in err_str or "quota" in err_str.lower() or "Too Many Requests" in err_str
             last_error = "Rate limited — wait a moment and try again" if is_rate_limit else err_str
-            if not is_rate_limit:
-                break
+            # Try the next configured TTS model for quota errors, invalid
+            # model errors, API outages, and any other provider failure.
+            continue
 
     raise HTTPException(status_code=502, detail=f"TTS unavailable: {last_error}")
 
