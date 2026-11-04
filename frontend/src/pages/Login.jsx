@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const ROLES = ['student', 'teacher', 'admin'];
-const HOME = { student: '/student/dashboard', teacher: '/teacher/dashboard', admin: '/admin/dashboard' };
+const ROLES = ['student', 'teacher', 'parent', 'admin'];
+const HOME = { student: '/student/chapter', teacher: '/teacher/dashboard', parent: '/parent/profile', admin: '/admin/dashboard' };
 
 export default function Login() {
   const { login } = useAuth();

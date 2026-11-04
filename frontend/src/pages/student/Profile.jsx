@@ -11,6 +11,7 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const canEdit = ['parent', 'teacher', 'admin'].includes(user?.role);
 
   useEffect(() => {
     if (!user?.student_id) return;
@@ -31,7 +32,7 @@ export default function Profile() {
     setSaving(true); setMsg('');
     try {
       const res = await api.put(`/api/students/${user.student_id}`, form);
-      setMsg(res?.student_id ? 'Profile saved!' : 'Saved!');
+      setMsg(res?.student_id ? 'Saved successfully.' : 'Saved successfully.');
     } catch (err) {
       setMsg(err.message || 'Failed to save profile.');
     } finally {
@@ -45,7 +46,8 @@ export default function Profile() {
       <input
         type={type} value={form[key] || ''} onChange={e => set(key, type === 'number' ? Number(e.target.value) : e.target.value)}
         placeholder={placeholder}
-        className="w-full px-4 py-2.5 rounded-xl border border-greige-border bg-white text-ink text-sm focus:outline-none focus:border-sage focus:ring-2 focus:ring-sage/20"
+        readOnly={!canEdit}
+        className="w-full px-4 py-2.5 rounded-xl border border-greige-border bg-white text-ink text-sm focus:outline-none focus:border-sage focus:ring-2 focus:ring-sage/20 read-only:bg-greige-bg"
       />
     </div>
   );
@@ -68,7 +70,7 @@ export default function Profile() {
         <Card title="Learning Style">
           <div className="flex flex-wrap gap-2">
             {STYLES.map(s => (
-              <button key={s} type="button" onClick={() => set('learning_style', s)}
+              <button key={s} type="button" disabled={!canEdit} onClick={() => set('learning_style', s)}
                 className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${form.learning_style === s ? 'bg-sage text-white' : 'bg-greige-accent text-muted hover:bg-greige-border'}`}>
                 {s}
               </button>
@@ -81,7 +83,7 @@ export default function Profile() {
             {PROFILES.map(p => {
               const arr = Array.isArray(form.neuro_profile) ? form.neuro_profile : [];
               return (
-                <button key={p} type="button" onClick={() => toggleArr('neuro_profile', p)}
+                <button key={p} type="button" disabled={!canEdit} onClick={() => toggleArr('neuro_profile', p)}
                   className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${arr.includes(p) ? 'bg-sage text-white' : 'bg-greige-accent text-muted hover:bg-greige-border'}`}>
                   {p}
                 </button>
@@ -106,14 +108,14 @@ export default function Profile() {
           </div>
         </Card>
 
-        <div className="flex gap-3">
+        {canEdit && <div className="flex gap-3">
           <button onClick={save} disabled={saving}
             className="px-6 py-3 rounded-xl bg-sage text-white font-semibold text-sm hover:bg-sage-dark disabled:opacity-50">
             {saving ? 'Saving…' : 'Save Profile'}
           </button>
-        </div>
+        </div>}
 
-        <p className="text-xs text-muted">Note: Profile save requires a PUT /api/students/:id endpoint. If not yet available, changes will show an error but local state updates.</p>
+        {!canEdit && <p className="text-xs text-muted">Only a teacher or parent can edit this profile.</p>}
       </div>
     </AppShell>
   );

@@ -11,6 +11,9 @@ export default function StudentDetail() {
   const [student, setStudent] = useState(null);
   const [mastery, setMastery] = useState([]);
   const [goals, setGoals] = useState([]);
+  const [memories, setMemories] = useState([]);
+  const [memoryText, setMemoryText] = useState('');
+  const [memorySaving, setMemorySaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [editing, setEditing] = useState(false);
@@ -23,10 +26,12 @@ export default function StudentDetail() {
       api.get(`/api/teacher/students/${id}`),
       api.get(`/api/teacher/students/${id}/mastery`),
       api.get(`/api/teacher/students/${id}/goals`),
-    ]).then(([s, m, g]) => {
+      api.get(`/api/story/memories?student_id=${id}`),
+    ]).then(([s, m, g, memoryData]) => {
       setStudent(s?.student || s);
       setMastery(m?.events || []);
       setGoals(goalsFromResponse(g));
+      setMemories(memoryData?.memories || []);
     }).catch(() => {
       setStudent(null);
     }).finally(() => setLoading(false));
@@ -40,6 +45,17 @@ export default function StudentDetail() {
       learning_style: student.learning_style || 'step-by-step',
       interests: listToCsv(student.interests),
       neuro_profile: Array.isArray(student.neuro_profile) ? student.neuro_profile : [],
+      father_name: student.father_name || '',
+      mother_name: student.mother_name || '',
+      grandfather_name: student.grandfather_name || '',
+      grandmother_name: student.grandmother_name || '',
+      favorite_color: student.favorite_color || '',
+      teacher_name: student.teacher_name || '',
+      place: student.place || '',
+      friends: student.friends || '',
+      favorite_food: student.favorite_food || '',
+      favorite_animal: student.favorite_animal || '',
+      favorite_interest: student.favorite_interest || '',
       is_active: student.is_active !== false,
     });
     setMsg('');
@@ -65,6 +81,17 @@ export default function StudentDetail() {
         learning_style: form.learning_style,
         interests: csvToList(form.interests),
         neuro_profile: form.neuro_profile,
+        father_name: form.father_name,
+        mother_name: form.mother_name,
+        grandfather_name: form.grandfather_name,
+        grandmother_name: form.grandmother_name,
+        favorite_color: form.favorite_color,
+        teacher_name: form.teacher_name,
+        place: form.place,
+        friends: form.friends,
+        favorite_food: form.favorite_food,
+        favorite_animal: form.favorite_animal,
+        favorite_interest: form.favorite_interest,
         is_active: form.is_active,
       });
       setStudent(updated?.student || updated);
@@ -74,6 +101,37 @@ export default function StudentDetail() {
       setMsg(err.message || 'Failed to update student.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const saveMemory = async () => {
+    if (!memoryText.trim()) return;
+    setMemorySaving(true); setMsg('');
+    const fd = new FormData();
+    fd.append('text', memoryText.trim());
+    fd.append('student_id', id);
+    try {
+      const res = await api.postForm('/api/memories', fd);
+      if (res?.memory) {
+        setMemoryText('');
+        const updated = await api.get(`/api/story/memories?student_id=${id}`);
+        setMemories(updated?.memories || []);
+        setMsg('Memory saved successfully.');
+      }
+    } catch (err) {
+      setMsg(err.message || 'Failed to save memory.');
+    } finally {
+      setMemorySaving(false);
+    }
+  };
+
+  const deleteMemory = async (memoryId) => {
+    try {
+      await api.delete(`/api/memories/${memoryId}?student_id=${id}`);
+      setMemories(ms => ms.filter(memory => memory.id !== memoryId));
+      setMsg('Memory deleted successfully.');
+    } catch (err) {
+      setMsg(err.message || 'Failed to delete memory.');
     }
   };
 
@@ -175,6 +233,19 @@ export default function StudentDetail() {
               </div>
 
               {field('Interests (comma separated)', 'interests')}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {field("Father's Name", 'father_name')}
+                {field("Mother's Name", 'mother_name')}
+                {field("Grandfather's Name", 'grandfather_name')}
+                {field("Grandmother's Name", 'grandmother_name')}
+                {field('Favorite Color', 'favorite_color')}
+                {field("Teacher's Name", 'teacher_name')}
+                {field('Place', 'place')}
+                {field('Friends', 'friends')}
+                {field('Favorite Food', 'favorite_food')}
+                {field('Favorite Animal', 'favorite_animal')}
+                {field('Favorite Interest', 'favorite_interest')}
+              </div>
 
               <label className="flex items-center gap-2 text-sm text-ink">
                 <input
@@ -220,6 +291,33 @@ export default function StudentDetail() {
           </div>
         ))}
         {mastery.length === 0 && <p className="text-sm text-muted">No mastery events yet.</p>}
+      </Card>
+
+      <Card title={`Memories (${memories.length})`}>
+        <div className="flex gap-3 mb-4">
+          <textarea
+            value={memoryText}
+            onChange={e => setMemoryText(e.target.value)}
+            placeholder="Add a memory for this student…"
+            rows={3}
+            className="flex-1 px-4 py-3 rounded-xl border border-greige-border bg-white text-ink text-sm resize-none focus:outline-none focus:border-sage"
+          />
+          <button onClick={saveMemory} disabled={memorySaving || !memoryText.trim()}
+            className="self-end px-4 py-2.5 rounded-xl bg-sage text-white text-sm font-semibold disabled:opacity-50">
+            {memorySaving ? 'Saving…' : 'Save Memory'}
+          </button>
+        </div>
+        {memories.length === 0 ? <p className="text-sm text-muted">No memories yet.</p> : memories.map((memory, i) => (
+          <div key={i} className="py-3 border-b border-greige-border last:border-0 flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm text-ink">{memory.text || memory.summary}</p>
+              {memory.title && <p className="text-xs text-muted mt-1">{memory.title}</p>}
+            </div>
+            <button onClick={() => deleteMemory(memory.id)} className="shrink-0 text-xs text-clay hover:underline">
+              Delete
+            </button>
+          </div>
+        ))}
       </Card>
     </AppShell>
   );

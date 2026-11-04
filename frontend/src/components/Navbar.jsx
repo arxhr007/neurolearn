@@ -3,20 +3,19 @@ import { useAuth } from '../context/AuthContext';
 
 const NAV = {
   student: [
-    { to: '/student/dashboard', label: 'Dashboard' },
     { to: '/student/chat', label: 'Chat' },
     { to: '/student/chapter', label: 'Chapter' },
-    { to: '/student/story', label: 'Story' },
-    { to: '/student/memories', label: 'Memories' },
     { to: '/student/goals', label: 'Goals' },
-    { to: '/student/progress', label: 'Progress' },
-    { to: '/student/profile', label: 'Profile' },
   ],
   teacher: [
     { to: '/teacher/dashboard', label: 'Dashboard' },
     { to: '/teacher/students', label: 'Students' },
     { to: '/teacher/goals', label: 'Goals' },
     { to: '/teacher/analytics', label: 'Analytics' },
+  ],
+  parent: [
+    { to: '/parent/profile', label: 'Student Profile' },
+    { to: '/parent/memories', label: 'Memories' },
   ],
   admin: [
     { to: '/admin/dashboard', label: 'Dashboard' },
