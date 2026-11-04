@@ -44,6 +44,7 @@ class SqlAlchemyStudentDB(StudentDBBase):
         return {
             "student_id": student.student_id,
             "name": name,
+            "age": int(student.age),
             "learning_style": student.learning_style,
             "reading_age": int(student.reading_age),
             "interest_graph": list(student.interests or []),
@@ -468,6 +469,21 @@ class SqlAlchemyStudentDB(StudentDBBase):
                     "activities": m.activities, "tags": m.tags,
                     "importance_score": m.importance_score,
                     "created_at": m.created_at.isoformat()}
+
+    def delete_memory(self, student_id: str, memory_id: int) -> bool:
+        with self._session() as db:
+            student = self._student_by_student_id(db, student_id)
+            if not student:
+                return False
+            memory = (
+                db.query(StudentMemory)
+                .filter(StudentMemory.id == int(memory_id), StudentMemory.student_id == student.id)
+                .first()
+            )
+            if not memory:
+                return False
+            db.delete(memory)
+            return True
 
     def health_check(self) -> bool:
         try:

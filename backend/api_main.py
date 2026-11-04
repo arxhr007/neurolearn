@@ -195,6 +195,17 @@ class StudentUpdateRequest(BaseModel):
     learning_style: str | None = None
     interests: list[str] | None = None
     neuro_profile: list[str] | None = None
+    father_name: str | None = None
+    mother_name: str | None = None
+    grandfather_name: str | None = None
+    grandmother_name: str | None = None
+    favorite_color: str | None = None
+    teacher_name: str | None = None
+    place: str | None = None
+    friends: str | None = None
+    favorite_food: str | None = None
+    favorite_animal: str | None = None
+    favorite_interest: str | None = None
     password: str | None = None
     is_active: bool | None = None
 
@@ -208,6 +219,17 @@ class StudentResponse(BaseModel):
     learning_style: str
     interests: list[str]
     neuro_profile: list[str]
+    father_name: str | None = None
+    mother_name: str | None = None
+    grandfather_name: str | None = None
+    grandmother_name: str | None = None
+    favorite_color: str | None = None
+    teacher_name: str | None = None
+    place: str | None = None
+    friends: str | None = None
+    favorite_food: str | None = None
+    favorite_animal: str | None = None
+    favorite_interest: str | None = None
     is_active: bool
     teacher_id: int
     created_at: datetime
@@ -293,6 +315,22 @@ def _dev_users() -> dict[str, dict[str, Any]]:
             "role": "admin",
             "student_id": None,
             "password": "admin123",
+        },
+        "parent1": {
+            "user_id": "user_parent_1",
+            "email": "parent1",
+            "name": "Eva's Parent",
+            "role": "parent",
+            "student_id": "s100",
+            "password": "parent123",
+        },
+        "parent@neurolearn.local": {
+            "user_id": "user_parent_1",
+            "email": "parent@neurolearn.local",
+            "name": "Eva's Parent",
+            "role": "parent",
+            "student_id": "s100",
+            "password": "parent123",
         },
     }
 
@@ -495,10 +533,23 @@ def _map_student_profile(profile: dict[str, Any]) -> StudentProfile:
     return StudentProfile(
         student_id=profile["student_id"],
         name=profile.get("name") or "",
+        full_name=profile.get("name") or "",
+        age=profile.get("age"),
         learning_style=profile.get("learning_style") or "general",
         reading_age=int(profile.get("reading_age") or 8),
         interests=list(profile.get("interest_graph") or []),
         neuro_profile=list(profile.get("neuro_profile") or ["general"]),
+        father_name=profile.get("father_name"),
+        mother_name=profile.get("mother_name"),
+        grandfather_name=profile.get("grandfather_name"),
+        grandmother_name=profile.get("grandmother_name"),
+        favorite_color=profile.get("favorite_color"),
+        teacher_name=profile.get("teacher_name"),
+        place=profile.get("place"),
+        friends=profile.get("friends"),
+        favorite_food=profile.get("favorite_food"),
+        favorite_animal=profile.get("favorite_animal"),
+        favorite_interest=profile.get("favorite_interest"),
         created_at=_as_dt(profile.get("created_at")),
         updated_at=_as_dt(profile.get("updated_at")),
     )
@@ -515,6 +566,17 @@ def _map_student_row(student: Student, goal_count: int = 0) -> StudentResponse:
         learning_style=student.learning_style,
         interests=list(student.interests or []),
         neuro_profile=list(student.neuro_profile or []),
+        father_name=student.father_name,
+        mother_name=student.mother_name,
+        grandfather_name=student.grandfather_name,
+        grandmother_name=student.grandmother_name,
+        favorite_color=student.favorite_color,
+        teacher_name=student.teacher_name,
+        place=student.place,
+        friends=student.friends,
+        favorite_food=student.favorite_food,
+        favorite_animal=student.favorite_animal,
+        favorite_interest=student.favorite_interest,
         is_active=bool(student.is_active),
         teacher_id=int(student.teacher_id),
         created_at=student.created_at,
@@ -553,7 +615,7 @@ def _require_student_access(db: Session, user: TokenData, student_id: str) -> St
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
-    if user.role == "student":
+    if user.role in ("student", "parent"):
         if user.student_id != student.student_id:
             raise HTTPException(status_code=403, detail="Insufficient permissions")
     elif user.role == "teacher":
@@ -1029,7 +1091,7 @@ def tutor_question(
 @app.post("/api/tutor/answer", response_model=TutorAnswerResponse, tags=["Tutor"])
 def tutor_answer(
     payload: TutorAnswerRequest,
-    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    current_user: TokenData = Depends(require_roles("student", "parent", "teacher", "admin")),
     service: TutorService = Depends(get_tutor_service),
     student_db: SqlAlchemyStudentDB = Depends(get_student_db),
     db: Session = Depends(get_db),
@@ -1276,7 +1338,6 @@ def chapter_learn(
 
     memory_categories = activity.get("relevant_memory_categories")
 
-    story = ""
     try:
         story = service.llm.generate_story_from_answer(
             answer=filled_template,
@@ -1286,8 +1347,9 @@ def chapter_learn(
             memory_categories=memory_categories,
             max_tokens=16384,
         )
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to generate story for chapter learn")
+        raise HTTPException(status_code=502, detail=f"Story generation failed: {exc}") from exc
 
     question_count = 3
     questions = []
@@ -1443,7 +1505,7 @@ def list_student_conversations(
 @app.get("/api/students/{student_id}", response_model=StudentProfile, tags=["Students"])
 def get_student(
     student_id: str,
-    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    current_user: TokenData = Depends(require_roles("student", "parent", "teacher", "admin")),
     student_db: SqlAlchemyStudentDB = Depends(get_student_db),
     db: Session = Depends(get_db),
 ) -> StudentProfile:
@@ -1458,7 +1520,7 @@ def get_student(
 def put_student(
     student_id: str,
     payload: StudentProfileRequest,
-    current_user: TokenData = Depends(require_roles("teacher", "admin")),
+    current_user: TokenData = Depends(require_roles("parent", "teacher", "admin")),
     student_db: SqlAlchemyStudentDB = Depends(get_student_db),
     db: Session = Depends(get_db),
 ) -> StudentProfile:
@@ -1466,11 +1528,23 @@ def put_student(
     update_student(
         db,
         student_id=student_id,
-        full_name=payload.name,
+        full_name=payload.full_name or payload.name,
+        age=payload.age,
         reading_age=payload.reading_age,
         learning_style=payload.learning_style,
         interests=payload.interests,
         neuro_profile=payload.neuro_profile,
+        father_name=payload.father_name,
+        mother_name=payload.mother_name,
+        grandfather_name=payload.grandfather_name,
+        grandmother_name=payload.grandmother_name,
+        favorite_color=payload.favorite_color,
+        teacher_name=payload.teacher_name,
+        place=payload.place,
+        friends=payload.friends,
+        favorite_food=payload.favorite_food,
+        favorite_animal=payload.favorite_animal,
+        favorite_interest=payload.favorite_interest,
     )
     profile = student_db.get_student_profile(student_id)
     if not profile:
@@ -1563,7 +1637,7 @@ def get_learning_goals(
 def create_learning_goal(
     student_id: str,
     payload: LearningGoalRequest,
-    current_user: TokenData = Depends(require_roles("teacher", "admin")),
+    current_user: TokenData = Depends(require_roles("parent", "teacher", "admin")),
     db: Session = Depends(get_db),
 ) -> LearningGoal:
     student = _require_student_access(db, current_user, student_id)
@@ -1710,6 +1784,17 @@ def update_teacher_student(
         learning_style=payload.learning_style,
         interests=payload.interests,
         neuro_profile=payload.neuro_profile,
+        father_name=payload.father_name,
+        mother_name=payload.mother_name,
+        grandfather_name=payload.grandfather_name,
+        grandmother_name=payload.grandmother_name,
+        favorite_color=payload.favorite_color,
+        teacher_name=payload.teacher_name,
+        place=payload.place,
+        friends=payload.friends,
+        favorite_food=payload.favorite_food,
+        favorite_animal=payload.favorite_animal,
+        favorite_interest=payload.favorite_interest,
         password=payload.password,
         is_active=payload.is_active,
     )
@@ -2053,6 +2138,8 @@ class TTSRequest(BaseModel):
 
 
 TTS_FALLBACK_MODELS = [
+    "gemini-3.8-flash-tts",
+    "gemini-3.1-flash-tts-preview",
     "gemini-2.5-flash-preview-tts",
     "gemini-2.5-pro-preview-tts",
 ]
@@ -2069,7 +2156,7 @@ def _tts_generate(prompt_text: str) -> bytes:
     if not api_key:
         raise HTTPException(status_code=400, detail="Gemini API key not configured")
 
-    primary_model = os.getenv("GEMINI_TTS_MODEL", "gemini-2.5-flash-preview-tts")
+    primary_model = os.getenv("GEMINI_TTS_MODEL", "gemini-3.8-flash-lite-tts")
     models_to_try = [primary_model] + [m for m in TTS_FALLBACK_MODELS if m != primary_model]
     last_error = None
 
@@ -2115,8 +2202,9 @@ def _tts_generate(prompt_text: str) -> bytes:
             print(f"   TTS model {model} failed: {err_str[:300]}")
             is_rate_limit = "429" in err_str or "quota" in err_str.lower() or "Too Many Requests" in err_str
             last_error = "Rate limited — wait a moment and try again" if is_rate_limit else err_str
-            if not is_rate_limit:
-                break
+            # Try the next configured TTS model for quota errors, invalid
+            # model errors, API outages, and any other provider failure.
+            continue
 
     raise HTTPException(status_code=502, detail=f"TTS unavailable: {last_error}")
 
@@ -2165,7 +2253,7 @@ def story_tts(req: TTSRequest):
 @app.post("/api/story/generate", tags=["Story"])
 def generate_story_from_template(
     req: StoryGenerateRequest,
-    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    current_user: TokenData = Depends(require_roles("student", "parent", "teacher", "admin")),
     service: TutorService = Depends(get_tutor_service),
 ) -> dict[str, Any]:
     """Generate a story from a curriculum template with filled placeholders."""
@@ -2303,12 +2391,17 @@ class MemoryResponse(BaseModel):
 async def create_memory(
     text: str | None = Form(None),
     audio: UploadFile | None = File(None),
-    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    student_id: str | None = Form(None),
+    current_user: TokenData = Depends(require_roles("parent", "teacher", "admin")),
     service: TutorService = Depends(get_tutor_service),
+    db: Session = Depends(get_db),
 ):
     """Submit a text or audio memory. Audio is transcribed via Gemini, then discarded.
     Gemini extracts structured metadata from the text. Returns the saved record."""
-    student_id = current_user.student_id
+    target_student_id = student_id or current_user.student_id
+    if not target_student_id:
+        raise HTTPException(status_code=400, detail="student_id is required for parent/teacher/admin memory updates")
+    _require_student_access(db, current_user, target_student_id)
 
     if not text and not audio:
         raise HTTPException(status_code=400, detail="Provide either 'text' field or an 'audio' file.")
@@ -2344,7 +2437,7 @@ async def create_memory(
         title = (raw_text[:60] + "...") if len(raw_text) > 60 else raw_text
 
     record = service.student_db.add_memory(
-        student_id, raw_text, metadata["category"],
+        target_student_id, raw_text, metadata["category"],
         title=title,
         summary=metadata.get("summary") or None,
         emotions=_json(metadata.get("emotions")),
@@ -2360,13 +2453,33 @@ async def create_memory(
 
 @app.get("/api/story/memories", tags=["Story"])
 def get_memories(
-    current_user: TokenData = Depends(require_roles("student", "teacher", "admin")),
+    student_id: str | None = Query(None),
+    current_user: TokenData = Depends(require_roles("student", "parent", "teacher", "admin")),
+    db: Session = Depends(get_db),
     service: TutorService = Depends(get_tutor_service),
 ) -> MemoryResponse:
-    """Get all memories for the current student."""
-    student_id = current_user.student_id
-    memories = service.student_db.get_memories(student_id)
+    """Get memories for the current student or an authorized managed student."""
+    target_student_id = student_id or current_user.student_id
+    if not target_student_id:
+        raise HTTPException(status_code=400, detail="student_id is required")
+    _require_student_access(db, current_user, target_student_id)
+    memories = service.student_db.get_memories(target_student_id)
     return MemoryResponse(memories=[MemoryRecord(**m) for m in memories])
+
+
+@app.delete("/api/memories/{memory_id}", tags=["Story"])
+def delete_memory(
+    memory_id: int,
+    student_id: str,
+    current_user: TokenData = Depends(require_roles("parent", "teacher", "admin")),
+    service: TutorService = Depends(get_tutor_service),
+    db: Session = Depends(get_db),
+) -> dict[str, bool]:
+    _require_student_access(db, current_user, student_id)
+    deleted = service.student_db.delete_memory(student_id, memory_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Memory not found")
+    return {"deleted": True}
 
 
 if __name__ == "__main__":

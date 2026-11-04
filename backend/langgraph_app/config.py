@@ -3,9 +3,9 @@
 DEFAULT_DB_DIR = "./vectorstore"
 STUDENT_DB_PATH = "./data/student_profiles.db"
 DEFAULT_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-GROQ_MODEL = "llama-3.3-70b-versatile"
-INTENT_MODEL = "llama-3.1-8b-instant"
-COMPLEXITY_JUDGE_MODEL = "llama-3.1-8b-instant"
+GROQ_MODEL = "openai/gpt-oss-120b"
+INTENT_MODEL = "openai/gpt-oss-120b"
+COMPLEXITY_JUDGE_MODEL = "openai/gpt-oss-120b"
 TOP_K = 5
 # Per-request cap on LLM calls. A worker thread blocked on a socket cannot be
 # cancelled, so this is what actually bounds a tutor request end to end.

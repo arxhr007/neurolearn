@@ -105,18 +105,44 @@ class StudentProfileRequest(BaseModel):
     name: str
     learning_style: str  # "analogy-heavy", "visual", "kinesthetic", etc.
     reading_age: int  # 6–18
+    full_name: Optional[str] = None
+    age: Optional[int] = None
     interests: List[str] = []
     neuro_profile: List[str] = ["general"]  # ["adhd", "dyslexia", "autism", ...]
+    father_name: Optional[str] = None
+    mother_name: Optional[str] = None
+    grandfather_name: Optional[str] = None
+    grandmother_name: Optional[str] = None
+    favorite_color: Optional[str] = None
+    teacher_name: Optional[str] = None
+    place: Optional[str] = None
+    friends: Optional[str] = None
+    favorite_food: Optional[str] = None
+    favorite_animal: Optional[str] = None
+    favorite_interest: Optional[str] = None
 
 
 class StudentProfile(BaseModel):
     """Response: Student profile data."""
     student_id: str
     name: str
+    full_name: Optional[str] = None
+    age: Optional[int] = None
     learning_style: str
     reading_age: int
     interests: List[str]
     neuro_profile: List[str]
+    father_name: Optional[str] = None
+    mother_name: Optional[str] = None
+    grandfather_name: Optional[str] = None
+    grandmother_name: Optional[str] = None
+    favorite_color: Optional[str] = None
+    teacher_name: Optional[str] = None
+    place: Optional[str] = None
+    friends: Optional[str] = None
+    favorite_food: Optional[str] = None
+    favorite_animal: Optional[str] = None
+    favorite_interest: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

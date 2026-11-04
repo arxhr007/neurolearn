@@ -2,8 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import AppShell from '../../components/AppShell';
 import Card from '../../components/Card';
 import { api } from '../../api';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Memories() {
+  const { user } = useAuth();
+  const canEdit = ['parent', 'teacher', 'admin'].includes(user?.role);
   const [memories, setMemories] = useState([]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,7 +32,7 @@ export default function Memories() {
     fd.append('text', text.trim());
     try {
       const res = await api.postForm('/api/memories', fd);
-      if (res?.id || res?.memory_id || res?.text) {
+      if (res?.memory || res?.id || res?.memory_id || res?.text) {
         setText(''); setSuccess('Memory saved!'); load();
       } else {
         setError('Failed to save memory.');
@@ -49,7 +52,7 @@ export default function Memories() {
     fd.append('audio', file);
     try {
       const res = await api.postForm('/api/memories', fd);
-      if (res?.id || res?.memory_id || res?.text) {
+      if (res?.memory || res?.id || res?.memory_id || res?.text) {
         setSuccess('Audio memory saved!'); load();
       } else {
         setError('Failed to save audio memory.');
@@ -62,6 +65,16 @@ export default function Memories() {
     }
   };
 
+  const deleteMemory = async (id) => {
+    try {
+      await api.delete(`/api/memories/${id}?student_id=${user.student_id}`);
+      setSuccess('Memory deleted successfully.');
+      load();
+    } catch (err) {
+      setError(err.message || 'Failed to delete memory.');
+    }
+  };
+
   return (
     <AppShell title="Memories">
       <div className="flex flex-col gap-6 w-full">
@@ -70,7 +83,7 @@ export default function Memories() {
           <p className="text-sm text-muted">Share personal memories to help the tutor personalize stories for you.</p>
         </div>
 
-        <Card title="Add a Memory">
+        {canEdit && <Card title="Add a Memory">
           {error && <p className="text-sm text-clay bg-clay-soft px-3 py-2 rounded-lg mb-3">{error}</p>}
           {success && <p className="text-sm text-sage-dark bg-sage-soft px-3 py-2 rounded-lg mb-3">{success}</p>}
           <textarea
@@ -89,7 +102,8 @@ export default function Memories() {
               <input type="file" accept="audio/*" className="hidden" onChange={saveAudio} ref={audioRef} />
             </label>
           </div>
-        </Card>
+        </Card>}
+        {!canEdit && <p className="text-xs text-muted">Only a teacher or parent can add or edit memories.</p>}
 
         <Card title={`Memories (${memories.length})`}>
           {loading ? (
@@ -100,6 +114,9 @@ export default function Memories() {
             <div className="flex flex-col gap-3">
               {memories.map((m, i) => (
                 <div key={i} className="p-4 rounded-xl bg-greige-bg border border-greige-border">
+                  <div className="flex justify-end mb-1">
+                    {canEdit && <button onClick={() => deleteMemory(m.id)} className="text-xs text-clay hover:underline">Delete</button>}
+                  </div>
                   <div className="flex items-center gap-2 mb-2">
                     {m.category && (
                       <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-sage-soft text-sage-dark">
